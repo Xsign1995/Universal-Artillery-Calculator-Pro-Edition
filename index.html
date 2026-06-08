@@ -467,7 +467,7 @@
                 <div class="section hidden-for-mortar" id="lowAngleClearanceSection">
                     <b style="color:#f43f5e; font-size: 13px;">🚧 Low Angle Clearance</b>
                     <div class="grid-1">
-                        <div><label>Min Peak Height (พ้นสิ่งกีดขวาง - เมตร)</label><input type="number" id="minClearance" value="100"></div>
+                        <div><label>Min Peak Height (พ้นสิ่งกีดขวาง - เมตร)</label><input type="number" id="minClearance" value="50"></div>
                     </div>
                 </div>
 
@@ -1516,7 +1516,10 @@ function calculate() {
         let lowChargesToTest = [];
         
         if (userSelectedLow === 'auto') {
-            lowChargesToTest = Object.keys(currentAmmo.table.lowAngle);
+            // ดึงรายชื่อ Charge มาเรียงลำดับจากน้อยไปมาก (c1, c2, c3...)
+            lowChargesToTest = Object.keys(currentAmmo.table.lowAngle).sort((a, b) => {
+                return parseInt(a.replace(/[^0-9]/g, '')) - parseInt(b.replace(/[^0-9]/g, ''));
+            });
         } else {
             if (!currentAmmo.table.lowAngle[userSelectedLow]) userSelectedLow = Object.keys(currentAmmo.table.lowAngle)[0];
             lowChargesToTest = [userSelectedLow];
@@ -1583,20 +1586,20 @@ function calculate() {
                     cId: cId, deflLowMil: deflLowMil, finalInterpDataLow: finalInterpDataLow, finalElevLowMil: finalElevLowMil, tofLowToPass: tofLowToPass_temp, maxHLow: maxHLow_temp, isClamped: isClamped, isValidElev: isValidElev, isActuallyLowAngle: isActuallyLowAngle, clearsMask: clearsMask
                 };
 
-                let getScore = (res) => {
-                    let s = 0;
-                    if (!res.isClamped) s += 10000; 
-                    if (res.isValidElev) s += 100; 
-                    if (res.clearsMask) s += 10; 
-                    return s;
-                };
+                // เก็บค่าแรกไว้เป็นตัวสำรองเผื่อกรณีที่ไม่มี Charge ไหนสมบูรณ์แบบเลย
+                if (!bestLowCalc) { 
+                    bestLowCalc = currentResult; 
+                } 
+                // ถ้าตัวสำรองเดิมมีปัญหา (เช่น ยิงไม่ถึง) แต่ตัวใหม่ยิงถึง ให้อัปเดตตัวสำรอง
+                else if (!bestLowCalc.isValidElev && currentResult.isValidElev) {
+                    bestLowCalc = currentResult; 
+                }
 
-                if (!bestLowCalc) { bestLowCalc = currentResult; } 
-                else {
-                    let sCur = getScore(currentResult);
-                    let sBest = getScore(bestLowCalc);
-                    if (sCur > sBest) { bestLowCalc = currentResult; } 
-                    else if (sCur === sBest && currentResult.tofLowToPass < bestLowCalc.tofLowToPass) { bestLowCalc = currentResult; }
+                // กฏ "Charge ต่ำสุดที่ยิงได้"
+                // ถ้าระยะไม่เกินตาราง (ไม่ clamped), มุมยิงอยู่ในขีดจำกัด, และไม่ชนสิ่งกีดขวาง
+                if (!currentResult.isClamped && currentResult.isValidElev && currentResult.clearsMask) {
+                    bestLowCalc = currentResult;
+                    break; // หยุดลูปค้นหาทันที! เพราะเราเจอ Charge ต่ำสุดที่สมบูรณ์แบบแล้ว
                 }
             }
         }

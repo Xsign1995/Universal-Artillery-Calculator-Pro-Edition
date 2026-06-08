@@ -1983,7 +1983,7 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg) {
     if (windSpeed > 0) {
         const arrowCenterX = 50; const arrowCenterY = h - 50; const arrowLength = 45; 
         ctx.save(); ctx.translate(arrowCenterX, arrowCenterY);
-        ctx.rotate((windDirDeg + 90) * (Math.PI / 180));
+        ctx.rotate((windDirDeg + 90 + 180) * (Math.PI / 180));
         let windColor = windSpeed >= 7 ? "#991b1b" : (windSpeed >= 3 ? "#b45309" : "#166534");
         ctx.strokeStyle = windColor; ctx.fillStyle = windColor; ctx.lineWidth = 5; 
         ctx.beginPath(); ctx.moveTo(-arrowLength/2, 0); ctx.lineTo(arrowLength/2, 0); ctx.stroke();

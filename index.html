@@ -618,8 +618,8 @@ function parseArmaGrid(elId) {
         else multiplier = 1;
         offset = 0;
     } else {
-        if (intStr.length === 3) { multiplier = 100; offset = 50; }      
-        else if (intStr.length === 4) { multiplier = 10; offset = 5; }    
+        if (intStr.length === 3) { multiplier = 100; offset = 50; }     
+        else if (intStr.length === 4) { multiplier = 10; offset = 5; }  
         else if (intStr.length === 5) { multiplier = 1; offset = 0; }     
         else if (intStr.length < 3) { multiplier = 100; offset = 50; } 
         else { multiplier = 1; offset = 0; }
@@ -1834,6 +1834,7 @@ function update3DScene() {
     gridHelper.position.set(dx/2, 0, -dy/2); 
     scene.add(gridHelper);
 
+    // [UPDATED] ใช้สมการ Bézier Asymmetric Curve สำหรับวาดเส้นแบบย้อยดิ่ง
     const buildCurve = (trajInfo, colorCode) => {
         if (!trajInfo) return 0;
         const g = 9.81; const tof = trajInfo.tof; const halfMil = milSystem / 2;
@@ -1844,15 +1845,27 @@ function update3DScene() {
         else { S = (dx * Math.cos(windRad) - dy * Math.sin(windRad)) / det; W = (dy * Math.sin(aimRad) - dx * Math.cos(aimRad)) / det; }
 
         const v_y = (dz + 0.5 * g * tof * tof) / tof;
+        const peakAlt = (v_y > 0) ? (v_y * v_y) / (2 * g) : 0;
+        
+        const endX = S * Math.sin(aimRad) + W * Math.sin(windRad);
+        const endY = S * Math.cos(aimRad) + W * Math.cos(windRad);
+        
+        // จุดดัดโค้ง (เยื้องไปด้านหน้า 75% และความสูงเป็น 2 เท่า)
+        const ctrlX = endX * 0.75;
+        const ctrlY = endY * 0.75;
+        const ctrlZ = peakAlt * 2;
+
         const points = []; let maxH = 0;
         
         for(let i=0; i<=100; i++) {
-            let tRatio = i / 100; let t = tRatio * tof;
-            let curX = S * Math.sin(aimRad) * tRatio + W * Math.sin(windRad) * (tRatio * tRatio);
-            let curY = S * Math.cos(aimRad) * tRatio + W * Math.cos(windRad) * (tRatio * tRatio);
-            let curZ = v_y * t - 0.5 * g * t * t;
+            let tRatio = i / 100;
+            let mt = 1 - tRatio;
+            let curX = (mt * mt * 0) + (2 * mt * tRatio * ctrlX) + (tRatio * tRatio * endX);
+            let curY = (mt * mt * 0) + (2 * mt * tRatio * ctrlY) + (tRatio * tRatio * endY);
+            let curZ = (mt * mt * 0) + (2 * mt * tRatio * ctrlZ) + (tRatio * tRatio * dz);
+            
             if(curZ > maxH) maxH = curZ;
-            points.push(new THREE.Vector3(curX, curZ, -curY));
+            points.push(new THREE.Vector3(curX, curZ, -curY)); // ใน 3D แกนความสูงคือ Z ของเรากลายเป็น Y ใน Scene
         }
 
         const lineMesh = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color: colorCode, linewidth: 2 }));
@@ -1998,6 +2011,7 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg) {
     }
 }
 
+// [UPDATED] ฟังก์ชันวาดกราฟ 2D แบบ Asymmetric Curve ย้อยสมจริง
 function drawTrajectory(dist, dz, tofLow, tofHigh) {
     const canvas = document.getElementById("trajectoryGraph");
     const ctx = canvas.getContext("2d");
@@ -2036,14 +2050,27 @@ function drawTrajectory(dist, dz, tofLow, tofHigh) {
     ctx.fillStyle = "#22c55e"; ctx.beginPath(); ctx.arc(toX(0), toY(0), 6, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "white"; ctx.font = "12px sans-serif"; ctx.fillText("GUN", toX(0) - 35, toY(0) + 4);
 
+    // วาดกราฟย้อยด้วย Bézier Equation
     const drawCurve = (tof, color, isHigh) => {
         if (!tof) return;
-        const vx = dist / tof; const vy = (dz + 0.5 * g * tof * tof) / tof;
+        const vy = (dz + 0.5 * g * tof * tof) / tof;
+        const peakAlt = (vy > 0) ? (vy * vy) / (2 * g) : 0;
+        
         let maxYCurve = 0; let maxXatMaxY = 0;
         ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.moveTo(toX(0), toY(0));
+        
+        // ขยับ Control Point ไปข้างหน้า 75% ให้ปลายกราฟย้อย
+        const ctrlX = dist * 0.75;
+        const ctrlY = peakAlt * 2;
+        
         for (let i = 0; i <= 100; i++) {
-            let t = (i / 100) * tof; let x = vx * t; let y = vy * t - 0.5 * g * t * t;
-            ctx.lineTo(toX(x), toY(y)); if (y > maxYCurve) { maxYCurve = y; maxXatMaxY = x; }
+            let t = i / 100;
+            let mt = 1 - t;
+            let x = (mt * mt * 0) + (2 * mt * t * ctrlX) + (t * t * dist);
+            let y = (mt * mt * 0) + (2 * mt * t * ctrlY) + (t * t * dz);
+            
+            ctx.lineTo(toX(x), toY(y)); 
+            if (y > maxYCurve) { maxYCurve = y; maxXatMaxY = x; }
         }
         ctx.stroke();
         ctx.fillStyle = color; ctx.beginPath(); ctx.arc(toX(maxXatMaxY), toY(maxYCurve), 5, 0, Math.PI * 2); ctx.fill();

@@ -37,13 +37,13 @@
             grid-template-columns: minmax(750px, 1.8fr) minmax(450px, 1fr) 300px;
             gap: 20px; max-width: 1600px; width: 100%;
         }
-        @media (max-width: 1300px) {
-            .container { grid-template-columns: 1fr 300px; }
-            .map-panel { grid-column: span 2; }
-        }
-        @media (max-width: 900px) {
+        /* เปลี่ยนจาก 1300px เป็น 760px เพื่อให้ iPad แนวนอนแสดงผลแบบ 3 คอลัมน์เหมือนคอมเป๊ะๆ */
+        @media (max-width: 760px) {
             .container { grid-template-columns: 1fr; }
             .map-panel { grid-column: span 1; }
+        }
+        /* ปรับสเกลสำหรับหน้าจอมือถือขนาดเล็กเท่านั้น */
+        @media (max-width: 480px) {
             .main-calc-layout { grid-template-columns: 1fr !important; } 
         }
 

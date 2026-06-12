@@ -1297,7 +1297,7 @@ const b14SmokeOriginalData = {
 const weaponLibrary = {
     m777: {
         name: "M777 Howitzer", type: "howitzer", milSystem: 6400, windDriftCoeff: 0.3725, windRangeCoeff: 0.40,
-        limits: { minElev: 0, maxElev: 1275 },
+        limits: { minElev: 16, maxElev: 1291 },
         ammo: { he: { name: "155mm M107 HE Shell", table: m777HE } }
     },
     "m252": {

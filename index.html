@@ -160,7 +160,7 @@
         /* Adjust Target Panel */
         .adjust-panel {
             background: #1e293b; border: 1px solid #38bdf8; border-radius: 10px;
-            padding: 12px; margin-top: 10px;
+            padding: 12px; margin-top: 30px; /* เพิ่มระยะห่างด้านบน 1-2 บรรทัด */
         }
         .adjust-header {
             display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
@@ -1242,28 +1242,19 @@ function findBestCharge(dist, dz = 0) {
     return keys[keys.length - 1]; 
 }
 
+// [UPDATED] เปลี่ยนระบบ D-Pad ให้ขยับค่าจำลองเบื้องหลัง (Aim Offset) แทนการเปลี่ยนพิกัดหลัก
 function adjustTarget(dirX, dirY) {
-    const stepInMeters = parseInt(document.getElementById("adjustStep").value);
+    const stepInMeters = parseInt(document.getElementById("adjustStep").value) || 10;
     
-    const currentX_m = parseArmaGrid("targetX");
-    const currentY_m = parseArmaGrid("targetY");
+    // คำนวณทิศทางการเดินหน้า-ถอยหลัง ซ้าย-ขวา ตามแนวแกนแผนที่จริง
+    // dirX: -1 (West), +1 (East)
+    // dirY: -1 (South), +1 (North)
+    aimOffsetX += (dirX * stepInMeters);
+    aimOffsetY += (dirY * stepInMeters);
     
-    let newX_m = currentX_m + (dirX * stepInMeters);
-    let newY_m = currentY_m + (dirY * stepInMeters);
-    
-    let tX = document.getElementById("targetX");
-    let tY = document.getElementById("targetY");
-    
-    let prefLenX = tX.value.trim().replace('-','').split('.')[0].length || 4;
-    let prefLenY = tY.value.trim().replace('-','').split('.')[0].length || 4;
-    if(prefLenX < 3) prefLenX = 4;
-    if(prefLenY < 3) prefLenY = 4;
-    
-    tX.value = formatMetersToArma(newX_m, prefLenX);
-    tY.value = formatMetersToArma(newY_m, prefLenY);
-    
-    resetFOState(); 
-    mapMode = 'target';
+    // สั่งให้โปรแกรมคำนวณ (calculate) และวาดแผนที่/กราฟใหม่ทันที
+    resetFOState(); // ล้างสถานะ FO เดิมเพื่อป้องกันข้อมูลซ้อนทับ
+    mapMode = 'target'; // ให้กล้องโฟกัสล็อกที่กลุ่มเป้าหมาย
     calculate();
 }
 
@@ -1334,10 +1325,12 @@ function calculate() {
     const MAX_ELEVATION_MIL = currentLimits.maxElev;
     const MIN_ELEVATION_MIL = currentLimits.minElev;
 
-    let offsetNotice = "";
+    // จองพื้นที่ความสูงไว้ 1 บรรทัดเสมอ (min-height: 16px) เพื่อป้องกัน UI กระโดด
+    let offsetNotice = `<div style="min-height: 16px; text-align: right; color:#eab308; font-size:11px; margin-top:2px;">`;
     if (aimOffsetX !== 0 || aimOffsetY !== 0 || rangeOffset !== 0) {
-        offsetNotice = `<div style="text-align: right; color:#eab308; font-size:11px; margin-top:2px;">*(ค่าที่ได้ถูกคำนวณรวมระยะชดเชยแล้ว)</div>`;
+        offsetNotice += `*(ค่าที่ได้ถูกคำนวณรวมระยะชดเชยแล้ว)`;
     }
+    offsetNotice += `</div>`;
 
     let resultHTML = `<div class="stat stat-base"><span>Real Distance:</span> <b>${actualGridDistanceReal.toFixed(0)}m</b></div>`;
     
@@ -1850,9 +1843,9 @@ function update3DScene() {
         const endX = S * Math.sin(aimRad) + W * Math.sin(windRad);
         const endY = S * Math.cos(aimRad) + W * Math.cos(windRad);
         
-        // จุดดัดโค้ง (เยื้องไปด้านหน้า 75% และความสูงเป็น 2 เท่า)
-        const ctrlX = endX * 0.75;
-        const ctrlY = endY * 0.75;
+        // จุดดัดโค้ง (เยื้องไปด้านหน้า 65% และความสูงเป็น 2 เท่า)
+        const ctrlX = endX * 0.65;
+        const ctrlY = endY * 0.65;
         const ctrlZ = peakAlt * 2;
 
         const points = []; let maxH = 0;
@@ -2059,8 +2052,8 @@ function drawTrajectory(dist, dz, tofLow, tofHigh) {
         let maxYCurve = 0; let maxXatMaxY = 0;
         ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.moveTo(toX(0), toY(0));
         
-        // ขยับ Control Point ไปข้างหน้า 75% ให้ปลายกราฟย้อย
-        const ctrlX = dist * 0.75;
+        // ขยับ Control Point ไปข้างหน้า 65% ให้ปลายกราฟย้อย
+        const ctrlX = dist * 0.65;
         const ctrlY = peakAlt * 2;
         
         for (let i = 0; i <= 100; i++) {

@@ -1193,7 +1193,7 @@ mapCanvas.addEventListener('wheel', (e) => { e.preventDefault(); if (mapMode ===
 
 function zoomMap(factor) { if (mapMode === 'auto') mapMode = 'free'; mapZoom *= factor; redrawMapOnly(); }
 function resetMap() { mapMode = 'auto'; redrawMapOnly(); }
-function zoomToTarget() { mapMode = 'target'; mapZoom = 15; redrawMapOnly(); }
+function zoomToTarget() { mapMode = 'target'; mapZoom = 5; redrawMapOnly(); }
 
 function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg) {
     const ctx = mapCanvas.getContext("2d"); const w = mapCanvas.width, h = mapCanvas.height;

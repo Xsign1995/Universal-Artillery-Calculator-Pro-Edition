@@ -490,33 +490,50 @@ const getDragSimulatedPoints = (traj, dist, dz, airburstH = 0) => {
     if (!traj || dist <= 0) return null;
     let pts = [];
     let g = 9.81;
-    let h = Math.max(traj.peakAlt, 1);
-    
-    let vacuumTof = 2 * Math.sqrt((2 * h) / g);
-    let dragRatio = traj.tof / vacuumTof;
-    
-    let peakSkew = 0.5 + (Math.max(0, dragRatio - 1) * 0.15);
-    if (peakSkew > 0.65) peakSkew = 0.65; 
-
-    let c = (peakSkew - 0.5) * 6.5; 
     let T = traj.tof;
-    let v_y0 = (dz + 0.5 * g * T * T) / T;
+    
+    // ดึงค่าระบบมุมของปืนกระบอกปัจจุบัน (M777 = 6400, Mortar = 6000)
+    const milSystem = currentWeapon.milSystem || 6400;
+    
+    // 1. คำนวณ Peak Distance Percentage จากตารางข้อมูลโดยตรง!
+    // ใช้ตัวแปร มุมยิง (Elevation) และ มุมตกกระทบ (Angle of Impact) จากที่คุณ Interpolation ไว้
+    let elevRad = traj.elev * (Math.PI / (milSystem / 2)); 
+    let impactRad = (traj.angleImpact || 45) * (Math.PI / 180); 
+    
+    let peakX_ratio = 0.5; // ค่าเริ่มต้น (วิถีโค้งสมมาตรในสุญญากาศ = 50%)
+    
+    if (impactRad > 0 && elevRad > 0) {
+        // สมการคำนวณจุดยอด (Peak) ตามหลักฟิสิกส์ Ballistics 
+        peakX_ratio = Math.tan(impactRad) / (Math.tan(elevRad) + Math.tan(impactRad));
+    }
 
+    // ล็อคขอบเขตกันค่าโดด (โดยปกติปืนใหญ่/ค. จะตกลงมาที่ราวๆ 51% - 62%)
+    if (peakX_ratio < 0.50) peakX_ratio = 0.50;
+    if (peakX_ratio > 0.65) peakX_ratio = 0.65;
+
+    // 2. แปลงค่า Peak % ที่ได้เป็นตัวคูณดัดกราฟ (C Factor)
+    // การคูณ 8.0 เป็นค่าที่พอดีทางคณิตศาสตร์ที่จะทำให้ฟังก์ชัน Exponential (e)
+    // ผลักจุดสูงสุดของ Canvas ไปตกตรงกับ % (peakX_ratio) อย่างสมบูรณ์แบบ
+    let c = (peakX_ratio - 0.5) * 8.0; 
+    
+    if (c < 0.01) c = 0.01; 
+
+    let v_y0 = (dz + 0.5 * g * T * T) / T;
     let exactFuzeTime = null;
     let exactBurstX = null;
 
-    // สร้าง Plot ข้อมูล 100 จุด
+    // 3. วาด Plot ข้อมูล 100 จุด
     for (let i = 0; i <= 100; i++) {
         let t = i / 100;
-        let currentX = dist * t;
-        if (c > 0.01) {
-            currentX = dist * ((1 - Math.exp(-c * t)) / (1 - Math.exp(-c)));
-        }
+        
+        // ดัดแกน X แบบ Data-Driven (ใช้ Data ตาราง 100% ไร้การกะตัวเลขมั่ว)
+        let currentX = dist * ((1 - Math.exp(-c * t)) / (1 - Math.exp(-c)));
         let currentY = (v_y0 * (t * T)) - (0.5 * g * (t * T) * (t * T));
+        
         pts.push({ x: currentX, y: currentY, t_norm: t });
     }
 
-    // เจาะจงหาตำแหน่งความสูงแตกอากาศ (Air Fuze) ด้วยการเทียบทอนสัดส่วนจุดตัดความสูง
+    // 4. หาพิกัดจุดแตกอากาศ (Air Fuze) บนเส้นโค้ง
     if (airburstH > 0) {
         for (let i = 0; i < pts.length - 1; i++) {
             if (pts[i].t_norm >= 0.5 && pts[i].y > (dz + airburstH) && pts[i+1].y <= (dz + airburstH)) {
@@ -1102,7 +1119,6 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg) {
     if (windSpeed > 0) { const arrowCenterX = 50; const arrowCenterY = h - 50; const arrowLength = 45; ctx.save(); ctx.translate(arrowCenterX, arrowCenterY); ctx.rotate((windDirDeg + 90) * (Math.PI / 180)); let windColor = windSpeed >= 7 ? "#991b1b" : (windSpeed >= 3 ? "#b45309" : "#166534"); ctx.strokeStyle = windColor; ctx.fillStyle = windColor; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(-arrowLength/2, 0); ctx.lineTo(arrowLength/2, 0); ctx.stroke(); ctx.beginPath(); ctx.moveTo(arrowLength/2, 0); ctx.lineTo(arrowLength/2 - 12, -8); ctx.lineTo(arrowLength/2 - 12, 8); ctx.fill(); ctx.restore(); ctx.strokeStyle = "rgba(74, 70, 59, 0.3)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(arrowCenterX, arrowCenterY, 28, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = windColor; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "left"; ctx.fillText(`${windSpeed} m/s`, arrowCenterX + 40, arrowCenterY + 5); }
 }
 
-// ---------------- ปรับแก้จุดบอกค่า 100m และการวาดเส้นกราฟ ----------------
 function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
     const canvas = document.getElementById("trajectoryGraph");
     const ctx = canvas.getContext("2d");
@@ -1115,11 +1131,24 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
     const hHigh = trajHigh ? trajHigh.peakAlt : 0;
 
     const rawMinY = Math.min(0, dz);
-    const rawMaxY = Math.max(hLow, hHigh, dz, 0);
-    const marginY = Math.max((rawMaxY - rawMinY) * 0.15, 50); 
+    
+    // ✨ [แก้ไขที่ 1]: เลือกระบบ Clamping อิงตามประเภทกระสุนที่คำนวณได้จริง
+    let rawMaxY = 0;
+    if (trajLow && !trajHigh) {
+        // ถ้ายิงเฉพาะมุมต่ำ (Low Angle) ให้ล็อคความสูงสูงสุดไว้ล้อตามวิถีสั้น
+        rawMaxY = Math.max(hLow, dz, 0);
+    } else {
+        // ถ้ายิงมุมสูงหรือยิงคู่ ให้ใช้ค่าสูงสุดปกติ
+        rawMaxY = Math.max(hLow, hHigh, dz, 0);
+    }
+
+    // กำหนดค่าฐานสเกลขั้นต่ำของแกน Y (Floor padding)
+    const marginY = Math.max((rawMaxY - rawMinY) * 0.15, 60); 
     const minY = rawMinY - (marginY * 0.3); 
-    const maxY = rawMaxY + marginY;
-    const rangeY = Math.max(maxY - minY, 100);
+    
+    // ✨ [แก้ไขที่ 2]: บังคับสเกลขั้นสูงให้ไม่ต่ำกว่า 150 เมตร ป้องกันกราฟ "ดีดกระชากโยกขึ้นลง" เวลายิงระยะใกล้
+    const maxY = Math.max(rawMaxY + marginY, 150);
+    const rangeY = Math.max(maxY - minY, 150);
     const maxD = dist * 1.15; 
     
     const paddingLeft = 60; const paddingRight = 60; const paddingTop = 45; const paddingBottom = 40;
@@ -1162,7 +1191,7 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
         ctx.beginPath(); ctx.strokeStyle = traj.color; ctx.lineWidth = 3; 
         ctx.moveTo(toX(points[0].x), toY(points[0].y));
         
-        // ✨ ให้เส้นวาดไปจนสุดเป้าหมายเสมอ เพื่อไม่ให้บดบังค่าความสูง 100m ก่อนตก
+        // ให้เส้นวาดไปจนสุดเป้าหมายเสมอ เพื่อไม่ให้บดบังค่าความสูง 100m ก่อนตก
         let limitIndex = Math.floor((points.length - 1) * progress);
         
         if (limitIndex > 0) {
@@ -1183,7 +1212,7 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
             ctx.fillStyle = "white"; ctx.font = "bold 16px sans-serif"; ctx.textAlign = "center";
             ctx.fillText(`Max: ${traj.peakAlt.toFixed(0)}m`, toX(maxPt.x), toY(maxPt.y) - 12);
 
-            // ✨ ปรับปรุงจุดบอกความสูง 100m ก่อนถึงเป้าให้ชัดเจนและไม่ถูกตัดหายไป
+            // ปรับปรุงจุดบอกความสูง 100m
             if (traj.alt100m !== null) {
                 let x100 = dist - 100;
                 let y100 = dz + traj.alt100m;

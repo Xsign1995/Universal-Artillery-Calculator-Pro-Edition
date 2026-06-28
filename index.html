@@ -24,11 +24,11 @@
 
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #e5e7eb; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .container { display: grid; grid-template-columns: minmax(750px, 1.8fr) minmax(450px, 1fr) 300px; gap: 20px; max-width: 1600px; width: 100%; }
-        @media (max-width: 760px) { .container { grid-template-columns: 1fr; } .map-panel { grid-column: span 1; } }
+        .container { display: grid; grid-template-columns: minmax(750px, 1.8fr) minmax(480px, 1fr) 300px; gap: 20px; max-width: 1600px; width: 100%; }
+        @media (max-width: 1080px) { .container { grid-template-columns: 1fr; } .map-panel { grid-column: span 1; } }
         @media (max-width: 480px) { .main-calc-layout { grid-template-columns: 1fr !important; } }
         .card { background: #1e293b; padding: 20px; border-radius: 14px; box-shadow: 0 15px 35px rgba(0,0,0,0.35); }
-        .main-calc-layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px; margin-top: 15px; }
+        .main-calc-layout { display: grid; grid-template-columns: 350px 1fr; gap: 20px; margin-top: 15px; }
         h2 { margin-top: 0; color: #22c55e; font-size: 20px; text-transform: uppercase; letter-spacing: 1px;}
         .section { margin-bottom: 12px; background: #0f172a; padding: 10px; border-radius: 10px;}
         .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
@@ -96,7 +96,7 @@
         .map-controls button:hover { background: #3b82f6; }
         #graph { aspect-ratio: 1 / 1 ; cursor: grab; }
         #graph:active { cursor: grabbing; }
-        #trajectoryGraph { aspect-ratio: 1 / 1; }
+        #trajectoryGraph { aspect-ratio: 1 / 1; width: 100%; }
         .graph-title { color: #94a3b8; font-size: 13px; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; }
         #trajectory3D { aspect-ratio: 1 / 1; width: 100%; background: #020617; border-radius: 10px; border: 1px solid #334155; overflow: hidden; display: none; }
         .toggle-3d-btn { background: #334155; color: white; padding: 4px 10px; margin: 0; font-size: 11px; width: auto; border-radius: 6px; }
@@ -213,11 +213,21 @@
                         <div><label>Z (Height)</label><input type="number" id="targetZ" value="00" step="any"></div>
                     </div>
 
-                    <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center; background: rgba(244, 63, 94, 0.1); border: 1px dashed rgba(244, 63, 94, 0.4); padding: 6px 10px; border-radius: 6px;">
-                        <span style="color:#fb7185; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">📐 Range Offset</span>
-                        <div style="display:flex; align-items:center; gap: 6px;">
-                            <input type="number" id="rangeOffset" value="0" step="10" style="width: 70px; padding: 4px; border: 1px solid rgba(244, 63, 94, 0.5); color:#fff; font-size: 13px; margin: 0;" onchange="calculate()">
-                            <button onclick="document.getElementById('rangeOffset').value=0; calculate()" style="width: auto; margin: 0; padding: 4px 8px; font-size: 11px; background: #f43f5e; color: white;">ล้าง</button>
+                    <div style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(244, 63, 94, 0.1); border: 1px dashed rgba(244, 63, 94, 0.4); padding: 6px 10px; border-radius: 6px;">
+                            <span style="color:#fb7185; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Range Offset</span>
+                            <div style="display:flex; align-items:center; gap: 4px;">
+                                <input type="number" id="rangeOffset" value="0" step="10" style="width: 55px; padding: 4px; border: 1px solid rgba(244, 63, 94, 0.5); color:#fff; font-size: 12px; margin: 0;" onchange="calculate()">
+                                <button onclick="document.getElementById('rangeOffset').value=0; calculate()" style="width: auto; margin: 0; padding: 4px 6px; font-size: 10px; background: #f43f5e; color: white;">ล้าง</button>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(56, 189, 248, 0.1); border: 1px dashed rgba(56, 189, 248, 0.4); padding: 6px 10px; border-radius: 6px;">
+                            <span style="color:#38bdf8; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Air Fuze (m)</span>
+                            <div style="display:flex; align-items:center; gap: 4px;">
+                                <input type="number" id="airburstHeight" value="0" min="0" step="5" style="width: 55px; padding: 4px; border: 1px solid rgba(56, 189, 248, 0.5); color:#fff; font-size: 12px; margin: 0;" onchange="calculate()">
+                                <button onclick="document.getElementById('airburstHeight').value=0; calculate()" style="width: auto; margin: 0; padding: 4px 6px; font-size: 10px; background: #3b82f6; color: white;">ล้าง</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -472,6 +482,55 @@ function calculateAltAtLast100m(interpData) {
     const impactAngleRad = interpData.angleImpact * (Math.PI / 180);
     return 100 * Math.tan(impactAngleRad);
 }
+
+// ✨ ปรับปรุงแกนสมการจำลองสำหรับ Air Fuze (ค้นหาตำแหน่งเป๊ะๆ บนเส้นผ่าน Interpolation)
+let airburstDataPack = null;
+
+const getDragSimulatedPoints = (traj, dist, dz, airburstH = 0) => {
+    if (!traj || dist <= 0) return null;
+    let pts = [];
+    let g = 9.81;
+    let h = Math.max(traj.peakAlt, 1);
+    
+    let vacuumTof = 2 * Math.sqrt((2 * h) / g);
+    let dragRatio = traj.tof / vacuumTof;
+    
+    let peakSkew = 0.5 + (Math.max(0, dragRatio - 1) * 0.15);
+    if (peakSkew > 0.65) peakSkew = 0.65; 
+
+    let c = (peakSkew - 0.5) * 6.5; 
+    let T = traj.tof;
+    let v_y0 = (dz + 0.5 * g * T * T) / T;
+
+    let exactFuzeTime = null;
+    let exactBurstX = null;
+
+    // สร้าง Plot ข้อมูล 100 จุด
+    for (let i = 0; i <= 100; i++) {
+        let t = i / 100;
+        let currentX = dist * t;
+        if (c > 0.01) {
+            currentX = dist * ((1 - Math.exp(-c * t)) / (1 - Math.exp(-c)));
+        }
+        let currentY = (v_y0 * (t * T)) - (0.5 * g * (t * T) * (t * T));
+        pts.push({ x: currentX, y: currentY, t_norm: t });
+    }
+
+    // เจาะจงหาตำแหน่งความสูงแตกอากาศ (Air Fuze) ด้วยการเทียบทอนสัดส่วนจุดตัดความสูง
+    if (airburstH > 0) {
+        for (let i = 0; i < pts.length - 1; i++) {
+            if (pts[i].t_norm >= 0.5 && pts[i].y > (dz + airburstH) && pts[i+1].y <= (dz + airburstH)) {
+                let p1 = pts[i]; let p2 = pts[i+1];
+                let frac = (p1.y - (dz + airburstH)) / (p1.y - p2.y);
+                exactBurstX = p1.x + frac * (p2.x - p1.x);
+                exactFuzeTime = (p1.t_norm + frac * (p2.t_norm - p1.t_norm)) * T;
+                break;
+            }
+        }
+    }
+    
+    return { pts, fuzeTime: exactFuzeTime, burstX: exactBurstX };
+};
 
 let currentWeaponId = 'm777'; let currentWeapon = weaponLibrary[currentWeaponId];
 let currentLimits = currentWeapon.limits; let currentAmmoList = currentWeapon.ammo;
@@ -732,6 +791,7 @@ function calculate() {
     const targetX = parseArmaGrid("targetX"); const targetY = parseArmaGrid("targetY"); const targetZ = parseFloat(document.getElementById("targetZ").value) || 0;
     const windSpeed = parseFloat(document.getElementById("windSpeed").value) || 0; const windDirDeg = parseFloat(document.getElementById("windDir").value) || 0;
     const minClearance = parseFloat(document.getElementById("minClearance").value) || 0;
+    const airburstH = parseFloat(document.getElementById("airburstHeight").value) || 0;
 
     updateOffsetDisplay();
 
@@ -772,6 +832,9 @@ function calculate() {
     let finalAziLowToPass = null; let finalAziHighToPass = null;
     let htmlHigh = ""; let htmlLow = ""; let bestLowCalc = null; 
 
+    // ตัวแปรข้อมูลขีปนวิธีสำหรับเก็บค่าและส่งต่อไปวาดกราฟ
+    let trajHigh = null; let simDataHigh = null; let fuzeTimeHigh = null;
+
     // ================= 1. High Angle =================
     let chargeCodeHigh = document.getElementById("chargeVelHigh").value;
     if (chargeCodeHigh === 'auto') chargeCodeHigh = findBestCharge(aimGridDistance, dz);
@@ -798,17 +861,37 @@ function calculate() {
         }
     }
 
+    if (finalInterpDataHigh && finalInterpDataHigh.clamped) { finalInterpDataHigh = null; }
+
     if (finalInterpDataHigh) {
         let baseTof = finalInterpDataHigh.tof; let g_const = 9.81; let tofRootTerm = (baseTof * baseTof) - (8 * dz / g_const);
         tofHighToPass = (tofRootTerm >= 0) ? (baseTof + Math.sqrt(tofRootTerm)) / 2 : baseTof;
         const angleOfSiteMilHigh = Math.atan(dz / aimDistH) * (halfMil / Math.PI); 
         finalElevHigh = finalInterpDataHigh.elev - angleOfSiteMilHigh;
         finalAziHigh = (aimBearingMil + deflHighMil + milSystem) % milSystem; finalAziHighToPass = finalAziHigh;
+
+        // จัดเตรียมชุดข้อมูล High Angle สำหรับฟิสิกส์กราฟ 
+        let vy = (dz + 0.5 * g_const * tofHighToPass * tofHighToPass) / tofHighToPass;
+        trajHigh = {
+            tof: tofHighToPass,
+            elev: finalElevHigh,
+            angleImpact: finalInterpDataHigh.angleImpact || 75,
+            peakAlt: finalInterpDataHigh.hasPeakAlt ? finalInterpDataHigh.peakAlt : (vy > 0 ? (vy*vy)/(2*g_const) : 0),
+            alt100m: aimGridDistance > 100 ? calculateAltAtLast100m(finalInterpDataHigh) : null,
+            color: "rgba(234, 179, 8, 1)", azi: finalAziHighToPass
+        };
+
+        // ค้นหาจุด Air Fuze 
+        simDataHigh = getDragSimulatedPoints(trajHigh, aimGridDistance, dz, airburstH);
+        if (airburstH > 0 && simDataHigh && simDataHigh.burstX !== null) {
+            fuzeTimeHigh = simDataHigh.fuzeTime;
+            trajHigh.fuzeX = simDataHigh.burstX;
+            trajHigh.fuzeY = dz + airburstH;
+        }
         
         let elevWarningHigh = ""; let isElevHighError = false; let limitText = isMortar ? "Ring" : "Charge";
         if (finalElevHigh > MAX_ELEVATION_MIL) { isElevHighError = true; elevWarningHigh = `<span style="color:#ef4444; font-size:11px; display:block; text-align:right; margin-top:2px;">⚠️ มุมปืนเกินขีดจำกัด (Max ${MAX_ELEVATION_MIL}) แนะนำเปลี่ยน ${limitText}</span>`; } 
         else if (finalElevHigh < MIN_ELEVATION_MIL) { isElevHighError = true; elevWarningHigh = `<span style="color:#ef4444; font-size:11px; display:block; text-align:right; margin-top:2px;">⚠️ มุมปืนต่ำกว่าขีดจำกัด (Min ${MIN_ELEVATION_MIL}) แนะนำเปลี่ยน ${limitText}</span>`; }
-        if (finalInterpDataHigh.clamped) { elevWarningHigh += `<span style="color:#eab308; font-size:11px; display:block; text-align:right; margin-top:2px;">⚠️ ลมหรือระยะอยู่เหนือขีดจำกัดของตารางกระสุน</span>`; }
         
         let windTextHigh = "ไม่มีลม"; let windColorHigh = "#94a3b8"; 
         if (windSpeed > 0) {
@@ -823,12 +906,27 @@ function calculate() {
         }
         
         let chargeDisplayHigh = isMortar ? chargeCodeHigh.replace('c', 'RING ') : chargeCodeHigh.replace('c', 'CHARGE ');
+        
+        // ชุดแสดงค่าเวลา Air Fuze และเวลา TOF 
+        let tofStatHigh = `<div class="stat" style="border-left-color: #a855f7; margin-bottom: ${airburstH > 0 && fuzeTimeHigh !== null ? '5px' : '0'};"><span>Time of Flight:</span> <b>~${tofHighToPass.toFixed(1)} วินาที</b></div>`;
+        let fuzeStatHigh = (airburstH > 0 && fuzeTimeHigh !== null) ? `<div class="stat" style="border-left-color: #38bdf8; margin-bottom: 0; background: rgba(56, 189, 248, 0.1);"><span>⏱️ Air Fuze Timer:</span> <b style="color:#38bdf8;">${fuzeTimeHigh.toFixed(1)} วินาที</b></div>` : "";
+        
         if (isMortar) {
-            htmlHigh += `<div class="highlight-box high-angle" style="margin-top: 0;"><div class="load-instruction-box"><span class="load-label">⚙️ LOAD AMMO:</span><span class="load-value">${chargeDisplayHigh}</span></div><div class="stat" style="flex-direction: column; align-items: stretch;"><div style="display: flex; justify-content: space-between; align-items: center;"><span>Elevation (ตั้งมุมเงย):</span> <b style="font-size: 16px; ${isElevHighError ? 'color:#ef4444;' : ''}">${finalElevHigh.toFixed(1)} MILs</b></div>${elevWarningHigh}</div><div class="stat"><span>Aim Azimuth (ตั้งหันหน้า):</span> <b style="font-size: 16px;">${finalAziHigh.toFixed(1)}</b></div><div style="text-align: right; font-size: 11px; color: ${windColorHigh}; margin-bottom: 6px;">${windTextHigh}</div><div class="stat" style="border-left-color: #a855f7; margin-bottom: 0;"><span>Time of Flight:</span> <b>~${tofHighToPass.toFixed(1)} วินาที</b></div>${offsetNotice}</div>`;
+            htmlHigh += `<div class="highlight-box high-angle" style="margin-top: 0;"><div class="load-instruction-box"><span class="load-label">⚙️ LOAD AMMO:</span><span class="load-value">${chargeDisplayHigh}</span></div><div class="stat" style="flex-direction: column; align-items: stretch;"><div style="display: flex; justify-content: space-between; align-items: center;"><span>Elevation (ตั้งมุมเงย):</span> <b style="font-size: 16px; ${isElevHighError ? 'color:#ef4444;' : ''}">${finalElevHigh.toFixed(1)} MILs</b></div>${elevWarningHigh}</div><div class="stat"><span>Aim Azimuth (ตั้งหันหน้า):</span> <b style="font-size: 16px;">${finalAziHigh.toFixed(1)}</b></div><div style="text-align: right; font-size: 11px; color: ${windColorHigh}; margin-bottom: 6px;">${windTextHigh}</div>${tofStatHigh}${fuzeStatHigh}${offsetNotice}</div>`;
         } else {
-            htmlHigh += `<div style="color: #eab308; font-size: 13px; font-weight: bold; margin-bottom: 8px; margin-top: 12px;">↗️ HIGH ANGLE TARGET</div><div class="load-instruction-box"><span class="load-label">⚙️ LOAD AMMO:</span><span class="load-value">${chargeDisplayHigh}</span></div><div class="stat" style="flex-direction: column; align-items: stretch; border-left-color: #eab308;"><div style="display: flex; justify-content: space-between; align-items: center;"><span>Elevation (ตั้งมุมเงย):</span> <b style="font-size: 16px; ${isElevHighError ? 'color:#ef4444;' : ''}">${finalElevHigh.toFixed(1)} MILs</b></div>${elevWarningHigh}</div><div class="stat" style="border-left-color: #eab308;"><span>Aim Azimuth (ตั้งหันหน้า):</span> <b style="font-size: 16px;">${finalAziHigh.toFixed(1)}</b></div><div style="text-align: right; font-size: 11px; color: ${windColorHigh}; margin-bottom: 6px;">${windTextHigh}</div><div class="stat" style="border-left-color: #a855f7; margin-bottom: 0;"><span>Time of Flight:</span> <b>~${tofHighToPass.toFixed(1)} วินาที</b></div>${offsetNotice}`;
+            htmlHigh += `<div style="color: #eab308; font-size: 13px; font-weight: bold; margin-bottom: 8px; margin-top: 12px;">↗️ HIGH ANGLE TARGET</div><div class="load-instruction-box"><span class="load-label">⚙️ LOAD AMMO:</span><span class="load-value">${chargeDisplayHigh}</span></div><div class="stat" style="flex-direction: column; align-items: stretch; border-left-color: #eab308;"><div style="display: flex; justify-content: space-between; align-items: center;"><span>Elevation (ตั้งมุมเงย):</span> <b style="font-size: 16px; ${isElevHighError ? 'color:#ef4444;' : ''}">${finalElevHigh.toFixed(1)} MILs</b></div>${elevWarningHigh}</div><div class="stat" style="border-left-color: #eab308;"><span>Aim Azimuth (ตั้งหันหน้า):</span> <b style="font-size: 16px;">${finalAziHigh.toFixed(1)}</b></div><div style="text-align: right; font-size: 11px; color: ${windColorHigh}; margin-bottom: 6px;">${windTextHigh}</div>${tofStatHigh}${fuzeStatHigh}${offsetNotice}`;
+        }
+    } else {
+        let chargeDisplayHigh = isMortar ? chargeCodeHigh.replace('c', 'RING ') : chargeCodeHigh.replace('c', 'CHARGE ');
+        if (isMortar) {
+            htmlHigh += `<div class="highlight-box high-angle" style="margin-top: 0; border-color: #ef4444;"><div class="stat stat-error">⚠️ ${chargeDisplayHigh}: OUT OF TABLE RANGE</div></div>`;
+        } else {
+            htmlHigh += `<div style="color: #ef4444; font-size: 13px; font-weight: bold; margin-bottom: 8px; margin-top: 12px;">↗️ HIGH ANGLE TARGET</div><div class="stat stat-error">⚠️ ${chargeDisplayHigh}: OUT OF TABLE RANGE</div>`;
         }
     }
+
+    // ตัวแปรข้อมูลขีปนวิธี Low Angle
+    let trajLow = null; let simDataLow = null; let fuzeTimeLow = null;
 
     // ================= 2. Low Angle =================
     if (!isMortar && currentAmmo.table.lowAngle) {
@@ -842,7 +940,7 @@ function calculate() {
             let finalInterpDataLow = null; let finalElevLowMil = NaN; let tofLowToPass_temp = null;
             
             for(let iter=0; iter<4; iter++) {
-                let cw = windSpeed * Math.sin((windDirDeg - aimBearingDegL) * (Math.PI / 180)); let hw = windSpeed * Math.cos((windDirDeg - aimBearingDegL) * (Math.PI / 180));
+                let cw = windSpeed * Math.sin((windDirDeg - aimBearingDegL) * (Math.PI / 180)); let hw = windSpeed * Math.cos((windDirDeg - aimBearingDegH) * (Math.PI / 180));
                 let baseInterp = getInterpolatedData(aimDistL, tableLow); if(!baseInterp) break;
                 let rangeAdj = baseInterp.hasWindData ? (hw / 10) * baseInterp.longWind : hw * baseInterp.tof * rangeCoeff;
                 let virtualDist = aimDistL + rangeAdj; finalInterpDataLow = getInterpolatedData(virtualDist, tableLow);
@@ -857,28 +955,47 @@ function calculate() {
                     aimBearingDegL = aimBearingDeg + (deflRad * 180 / Math.PI); aimDistL = aimGridDistance / Math.cos(deflRad); 
                 }
             }
+
+            if (finalInterpDataLow && finalInterpDataLow.clamped) { continue; }
+
             if (finalInterpDataLow) {
                 const angleOfSiteMilLow = Math.atan(dz / aimDistL) * (halfMil / Math.PI); 
                 finalElevLowMil = finalInterpDataLow.elev + angleOfSiteMilLow;
                 tofLowToPass_temp = finalInterpDataLow.tof;
                 let maxHLow_temp = finalInterpDataLow.hasPeakAlt ? finalInterpDataLow.peakAlt : Math.pow(((dz + 0.5 * 9.81 * tofLowToPass_temp * tofLowToPass_temp) / tofLowToPass_temp), 2) / (2 * 9.81);
                 
-                let isClamped = finalInterpDataLow.clamped;
                 let isValidElev = finalElevLowMil >= MIN_ELEVATION_MIL && finalElevLowMil <= MAX_ELEVATION_MIL;
                 let clearsMask = maxHLow_temp >= minClearance;
-                let currentResult = { cId: cId, deflLowMil: deflLowMil, finalInterpDataLow: finalInterpDataLow, finalElevLowMil: finalElevLowMil, tofLowToPass: tofLowToPass_temp, maxHLow: maxHLow_temp, isClamped: isClamped, isValidElev: isValidElev, clearsMask: clearsMask };
+                let currentResult = { cId: cId, deflLowMil: deflLowMil, finalInterpDataLow: finalInterpDataLow, finalElevLowMil: finalElevLowMil, tofLowToPass: tofLowToPass_temp, maxHLow: maxHLow_temp, isValidElev: isValidElev, clearsMask: clearsMask };
                 if (!bestLowCalc) { bestLowCalc = currentResult; } else if (!bestLowCalc.isValidElev && currentResult.isValidElev) { bestLowCalc = currentResult; }
-                if (!currentResult.isClamped && currentResult.isValidElev && currentResult.clearsMask) { bestLowCalc = currentResult; break; }
+                if (currentResult.isValidElev && currentResult.clearsMask) { bestLowCalc = currentResult; break; }
             }
         }
 
         if (bestLowCalc) {
             let finalElevLowMil = bestLowCalc.finalElevLowMil; tofLowToPass = bestLowCalc.tofLowToPass;
             finalAziLowToPass = (aimBearingMil + bestLowCalc.deflLowMil + milSystem) % milSystem;
+
+            trajLow = {
+                tof: bestLowCalc.tofLowToPass,
+                elev: bestLowCalc.finalElevLowMil,
+                angleImpact: bestLowCalc.finalInterpDataLow.angleImpact || 45,
+                peakAlt: bestLowCalc.maxHLow,
+                alt100m: aimGridDistance > 100 ? calculateAltAtLast100m(bestLowCalc.finalInterpDataLow) : null,
+                color: "rgba(56, 189, 248, 1)", azi: finalAziLowToPass
+            };
+
+            // ค้นหาจุด Air Fuze สำหรับมุมต่ำ
+            simDataLow = getDragSimulatedPoints(trajLow, aimGridDistance, dz, airburstH);
+            if (airburstH > 0 && simDataLow && simDataLow.burstX !== null) {
+                fuzeTimeLow = simDataLow.fuzeTime;
+                trajLow.fuzeX = simDataLow.burstX;
+                trajLow.fuzeY = dz + airburstH;
+            }
+
             let elevWarningLow = ""; let isElevLowError = false;
             if (finalElevLowMil > MAX_ELEVATION_MIL) { isElevLowError = true; elevWarningLow = `<span style="color:#ef4444; font-size:11px; display:block; text-align:right; margin-top:2px;">⚠️ มุมปืนเกินขีดจำกัด (Max ${MAX_ELEVATION_MIL})</span>`; } 
             else if (finalElevLowMil < MIN_ELEVATION_MIL) { isElevLowError = true; elevWarningLow = `<span style="color:#ef4444; font-size:11px; display:block; text-align:right; margin-top:2px;">⚠️ มุมปืนต่ำกว่าขีดจำกัด (Min ${MIN_ELEVATION_MIL})</span>`; }
-            if (bestLowCalc.finalInterpDataLow.clamped) elevWarningLow += `<span style="color:#eab308; font-size:11px; display:block; text-align:right; margin-top:2px;">⚠️ ระยะเป้าหมายไกลเกินขีดจำกัดของตารางกระสุน</span>`;
 
             let windTextLow = "ไม่มีลม"; let windColorLow = "#94a3b8";
             if (windSpeed > 0) {
@@ -895,44 +1012,39 @@ function calculate() {
             let clearanceMsg = bestLowCalc.maxHLow < minClearance ? `<div style="color:#ef4444; font-size:11px; text-align:right; margin-top:4px;">⚠️ ชนสิ่งกีดขวาง! (ความสูงสูงสุด ${bestLowCalc.maxHLow.toFixed(1)}m)</div>` : `<div style="color:#22c55e; font-size:11px; text-align:right; margin-top:4px;">✅ เส้นทางปลอดภัย (ความสูงสูงสุด ${bestLowCalc.maxHLow.toFixed(1)}m)</div>`;
             let chargeDisplayLow = bestLowCalc.cId.replace('c', 'CHARGE ');
             
-            htmlLow += `<div class="highlight-box low-angle-box" style="margin-top: 0;"><div class="load-instruction-box low-angle"><span class="load-label">⚙️ LOAD AMMO:</span><span class="load-value">${chargeDisplayLow}</span></div><div class="stat stat-low" style="flex-direction: column; align-items: stretch;"><div style="display: flex; justify-content: space-between; align-items: center;"><span>Elevation (ตั้งมุมเงย):</span> <b style="font-size: 16px; ${isElevLowError ? 'color:#ef4444;' : ''}">${isNaN(finalElevLowMil) ? "ERROR" : finalElevLowMil.toFixed(1) + " MILs"}</b></div>${elevWarningLow}</div><div class="stat stat-low"><span>Aim Azimuth (ตั้งหันหน้า):</span> <b style="font-size: 16px;">${finalAziLowToPass.toFixed(1)}</b></div><div style="text-align: right; font-size: 11px; color: ${windColorLow}; margin-bottom: 6px;">${windTextLow}</div><div class="stat" style="border-left-color: #3b82f6; margin-bottom: 0;"><span>Time of Flight:</span> <b>~${tofLowToPass.toFixed(1)} วินาที</b></div>${clearanceMsg}${offsetNotice}</div>`;
+            // ชุดแสดงเวลา Air Fuze และเวลา TOF 
+            let tofStatLow = `<div class="stat" style="border-left-color: #3b82f6; margin-bottom: ${airburstH > 0 && fuzeTimeLow !== null ? '5px' : '0'};"><span>Time of Flight:</span> <b>~${tofLowToPass.toFixed(1)} วินาที</b></div>`;
+            let fuzeStatLow = (airburstH > 0 && fuzeTimeLow !== null) ? `<div class="stat" style="border-left-color: #38bdf8; margin-bottom: 0; background: rgba(56, 189, 248, 0.1);"><span>⏱️ Air Fuze Timer:</span> <b style="color:#38bdf8;">${fuzeTimeLow.toFixed(1)} วินาที</b></div>` : "";
+            
+            htmlLow += `<div class="highlight-box low-angle-box" style="margin-top: 0;"><div class="load-instruction-box low-angle"><span class="load-label">⚙️ LOAD AMMO:</span><span class="load-value">${chargeDisplayLow}</span></div><div class="stat stat-low" style="flex-direction: column; align-items: stretch;"><div style="display: flex; justify-content: space-between; align-items: center;"><span>Elevation (ตั้งมุมเงย):</span> <b style="font-size: 16px; ${isElevLowError ? 'color:#ef4444;' : ''}">${isNaN(finalElevLowMil) ? "ERROR" : finalElevLowMil.toFixed(1) + " MILs"}</b></div>${elevWarningLow}</div><div class="stat stat-low"><span>Aim Azimuth (ตั้งหันหน้า):</span> <b style="font-size: 16px;">${finalAziLowToPass.toFixed(1)}</b></div><div style="text-align: right; font-size: 11px; color: ${windColorLow}; margin-bottom: 6px;">${windTextLow}</div>${tofStatLow}${fuzeStatLow}${clearanceMsg}${offsetNotice}</div>`;
+        } else {
+            let userSelectedLow = document.getElementById("chargeVelLow").value;
+            let displayCharge = userSelectedLow === 'auto' ? "AUTO CHARGE" : userSelectedLow.replace('c', 'CHARGE ');
+            htmlLow += `<div style="color: #ef4444; font-size: 13px; font-weight: bold; margin-bottom: 8px; margin-top: 12px;">↗️ LOW ANGLE TARGET</div><div class="stat stat-error">⚠️ ${displayCharge}: OUT OF TABLE RANGE</div>`;
         }
     }
 
     if (isMortar) { resultHTML += htmlHigh; } else { resultHTML += htmlLow + htmlHigh; }
     document.getElementById("result").innerHTML = resultHTML;
 
-    // Build Trajectory Data Pack
+    // ================= 3. คำนวณพิกัด Air Fuze สำหรับวาดบน 2D Map =================
     let effDx = dx; let effDy = dy;
     if (aimGridDistance > 0 && rangeOffset !== 0) {
         let origDist = baseGridDistance;
         if (origDist > 0) { let scaleFactor = aimGridDistance / origDist; effDx = dx * scaleFactor; effDy = dy * scaleFactor; }
     }
 
-    let trajLow = null;
-    if (bestLowCalc && !isMortar) {
-        let tableLow = currentAmmo.table.lowAngle[bestLowCalc.cId];
-        trajLow = {
-            tof: bestLowCalc.tofLowToPass,
-            elev: bestLowCalc.finalElevLowMil,
-            angleImpact: bestLowCalc.finalInterpDataLow.angleImpact || 45,
-            peakAlt: bestLowCalc.maxHLow,
-            alt100m: aimGridDistance > 100 ? calculateAltAtLast100m(bestLowCalc.finalInterpDataLow) : null,
-            color: "rgba(56, 189, 248, 1)", azi: finalAziLowToPass
-        };
-    }
-    
-    let trajHigh = null;
-    if (finalInterpDataHigh) {
-        let g = 9.81; let vy = (dz + 0.5 * g * tofHighToPass * tofHighToPass) / tofHighToPass;
-        trajHigh = {
-            tof: tofHighToPass,
-            elev: finalElevHigh,
-            angleImpact: finalInterpDataHigh.angleImpact || 75,
-            peakAlt: finalInterpDataHigh.hasPeakAlt ? finalInterpDataHigh.peakAlt : (vy > 0 ? (vy*vy)/(2*g) : 0),
-            alt100m: aimGridDistance > 100 ? calculateAltAtLast100m(finalInterpDataHigh) : null,
-            color: "rgba(234, 179, 8, 1)", azi: finalAziHighToPass
-        };
+    // คำนวณสัดส่วนหาพิกัด X/Y จริง โดยเกาะอยู่บนเส้น Adjust Target เสมอ
+    airburstDataPack = null;
+    if (airburstH > 0) {
+        let activeSim = isMortar ? simDataHigh : (simDataLow || simDataHigh);
+        if (activeSim && activeSim.burstX !== null) {
+            let ratio = activeSim.burstX / aimGridDistance;
+            airburstDataPack = {
+                x: gunX + (effTargetX - gunX) * ratio,
+                y: gunY + (effTargetY - gunY) * ratio
+            };
+        }
     }
 
     currentCalcData = { dx: effDx, dy: effDy, dz: dz, windSpeed: windSpeed, windDir: windDirDeg, milSystem: milSystem, low: trajLow, high: trajHigh };
@@ -942,9 +1054,55 @@ function calculate() {
     if (is3DMode) update3DScene();
 }
 
-// ========================================================
-// 🎯 อัปเกรด: ฟังก์ชัน drawTrajectory (2D) ตามฟิสิกส์จริง
-// ========================================================
+// ---------------- เปลี่ยนชื่อสัญลักษณ์บน Map เป็น AIR FUZE ----------------
+function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg) {
+    const ctx = mapCanvas.getContext("2d"); const w = mapCanvas.width, h = mapCanvas.height;
+    ctx.fillStyle = "#e6e1cd"; ctx.fillRect(0, 0, w, h); const padding = 60;
+    const effX = x2 + aimOffsetX; const effY = y2 + aimOffsetY;
+    const minX = Math.min(x1, x2, effX), maxX = Math.max(x1, x2, effX); const minY = Math.min(y1, y2, effY), maxY = Math.max(y1, y2, effY);
+    const rangeX = Math.max(maxX - minX, 100); const rangeY = Math.max(maxY - minY, 100);
+    const fitScale = Math.min((w - padding*2) / rangeX, (h - padding*2) / rangeY);
+
+    if (mapMode === 'auto') { mapCamX = (minX + maxX) / 2; mapCamY = (minY + maxY) / 2; mapZoom = fitScale; } else if (mapMode === 'target') { mapCamX = x2; mapCamY = y2; }
+
+    const toCanvasX = (x) => w/2 + (x - mapCamX) * mapZoom; const toCanvasY = (y) => h/2 - (y - mapCamY) * mapZoom; 
+    const viewMinX = mapCamX - w / (2 * mapZoom); const viewMaxX = mapCamX + w / (2 * mapZoom);
+    const viewMinY = mapCamY - h / (2 * mapZoom); const viewMaxY = mapCamY + h / (2 * mapZoom);
+
+    const drawGrid = (step, color, width) => { ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); for(let gx = Math.floor(viewMinX / step) * step; gx <= viewMaxX; gx += step) { let px = toCanvasX(gx); ctx.moveTo(px, 0); ctx.lineTo(px, h); } for(let gy = Math.floor(viewMinY / step) * step; gy <= viewMaxY; gy += step) { let py = toCanvasY(gy); ctx.moveTo(0, py); ctx.lineTo(w, py); } ctx.stroke(); };
+    if (mapZoom > 0.5) drawGrid(10, "#d1cbb8", 1); drawGrid(100, "#b3ab94", 1.5); drawGrid(1000, "#1e293b", 2.0);
+    
+    const cx1 = toCanvasX(x1), cy1 = toCanvasY(y1); const cx2 = toCanvasX(x2), cy2 = toCanvasY(y2);
+    ctx.setLineDash([6, 4]); ctx.strokeStyle = "#333"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx1, cy1); ctx.lineTo(cx2, cy2); ctx.stroke(); ctx.setLineDash([]);
+    const strGunX = document.getElementById("gunX").value || "0000"; const strGunY = document.getElementById("gunY").value || "0000"; const strTgtX = document.getElementById("targetX").value || "0000"; const strTgtY = document.getElementById("targetY").value || "0000";
+    ctx.strokeStyle = "#b91c1c"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx2, cy2, 8, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx2-12, cy2); ctx.lineTo(cx2+12, cy2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx2, cy2-12); ctx.lineTo(cx2, cy2+12); ctx.stroke();
+    ctx.fillStyle = "#4a463b"; ctx.font = "bold 12px sans-serif"; ctx.fillText("TARGET", cx2 + 12, cy2 - 12); ctx.fillStyle = "#b91c1c"; ctx.font = "bold 11px monospace"; ctx.fillText(`[${strTgtX},${strTgtY}]`, cx2 + 12, cy2 + 2); 
+
+    if (aimOffsetX !== 0 || aimOffsetY !== 0) { const cxEff = toCanvasX(effX); const cyEff = toCanvasY(effY); ctx.setLineDash([4, 4]); ctx.strokeStyle = "#a855f7"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx2, cy2); ctx.lineTo(cxEff, cyEff); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = "#a855f7"; ctx.beginPath(); ctx.arc(cxEff, cyEff, 6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#7e22ce"; ctx.font = "bold 11px sans-serif"; ctx.fillText("AIM OFFSET", cxEff + 10, cyEff - 5); }
+    ctx.fillStyle = "#1d4ed8"; ctx.beginPath(); ctx.moveTo(cx1, cy1 - 10); ctx.lineTo(cx1 - 8, cy1 + 6); ctx.lineTo(cx1 + 8, cy1 + 6); ctx.fill(); ctx.fillStyle = "#4a463b"; ctx.font = "bold 12px sans-serif"; ctx.fillText("GUN", cx1 - 12, cy1 + 20); ctx.fillStyle = "#1d4ed8"; ctx.font = "bold 11px monospace"; ctx.fillText(`[${strGunX},${strGunY}]`, cx1 - 12, cy1 + 34); 
+
+    // จุดแสดงผล X แดง สำหรับ Air Fuze
+    if (airburstDataPack) {
+        const bxCanvas = toCanvasX(airburstDataPack.x);
+        const byCanvas = toCanvasY(airburstDataPack.y);
+        ctx.strokeStyle = "#ef4444";
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(bxCanvas - 8, byCanvas - 8);
+        ctx.lineTo(bxCanvas + 8, byCanvas + 8);
+        ctx.moveTo(bxCanvas + 8, byCanvas - 8);
+        ctx.lineTo(bxCanvas - 8, byCanvas + 8);
+        ctx.stroke();
+        ctx.fillStyle = "#b91c1c";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText("AIR FUZE POINT", bxCanvas + 12, byCanvas + 4);
+    }
+
+    if (foImpactPoint && foPosition) { const cxFO = toCanvasX(foPosition.x); const cyFO = toCanvasY(foPosition.y); const cxImp = toCanvasX(foImpactPoint.x); const cyImp = toCanvasY(foImpactPoint.y); ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(139, 92, 246, 0.7)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cxFO, cyFO); ctx.lineTo(cxImp, cyImp); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = "#8b5cf6"; ctx.beginPath(); ctx.arc(cxFO, cyFO, 5, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#4c1d95"; ctx.font = "bold 11px sans-serif"; ctx.fillText("FO", cxFO + 8, cyFO + 4); ctx.strokeStyle = "#8b5cf6"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(cxImp - 5, cyImp - 5); ctx.lineTo(cxImp + 5, cyImp + 5); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cxImp + 5, cyImp - 5); ctx.lineTo(cxImp - 5, cyImp + 5); ctx.stroke(); ctx.fillStyle = "#4c1d95"; ctx.font = "bold 11px sans-serif"; ctx.fillText("IMPACT", cxImp + 8, cyImp + 4); }
+    if (windSpeed > 0) { const arrowCenterX = 50; const arrowCenterY = h - 50; const arrowLength = 45; ctx.save(); ctx.translate(arrowCenterX, arrowCenterY); ctx.rotate((windDirDeg + 90) * (Math.PI / 180)); let windColor = windSpeed >= 7 ? "#991b1b" : (windSpeed >= 3 ? "#b45309" : "#166534"); ctx.strokeStyle = windColor; ctx.fillStyle = windColor; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(-arrowLength/2, 0); ctx.lineTo(arrowLength/2, 0); ctx.stroke(); ctx.beginPath(); ctx.moveTo(arrowLength/2, 0); ctx.lineTo(arrowLength/2 - 12, -8); ctx.lineTo(arrowLength/2 - 12, 8); ctx.fill(); ctx.restore(); ctx.strokeStyle = "rgba(74, 70, 59, 0.3)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(arrowCenterX, arrowCenterY, 28, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = windColor; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "left"; ctx.fillText(`${windSpeed} m/s`, arrowCenterX + 40, arrowCenterY + 5); }
+}
+
+// ---------------- ปรับแก้จุดบอกค่า 100m และการวาดเส้นกราฟ ----------------
 function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
     const canvas = document.getElementById("trajectoryGraph");
     const ctx = canvas.getContext("2d");
@@ -992,25 +1150,8 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
         ctx.fillStyle = "white"; ctx.font = "12px sans-serif"; ctx.textAlign = "right"; ctx.fillText("GUN", toX(0) - 12, toY(0) + 4);
     };
 
-    // ฟังก์ชันคำนวณพิกัดกระสุนด้วยฟิสิกส์จริง (Physics Path Simulation)
-    const getPhysicsPoints = (traj) => {
-        if (!traj) return null;
-        let pts = [];
-        let g = 9.81;
-        let v_x = dist / traj.tof;
-        let v_y0 = (dz + 0.5 * g * traj.tof * traj.tof) / traj.tof;
-        
-        for (let i = 0; i <= 100; i++) {
-            let t = (i / 100) * traj.tof;
-            let currentX = v_x * t;
-            let currentY = (v_y0 * t) - (0.5 * g * t * t);
-            pts.push({ x: currentX, y: currentY });
-        }
-        return pts;
-    };
-
-    let pointsLow = trajLow ? getPhysicsPoints(trajLow) : null;
-    let pointsHigh = trajHigh ? getPhysicsPoints(trajHigh) : null;
+    let pointsLow = trajLow ? getDragSimulatedPoints(trajLow, dist, dz).pts : null;
+    let pointsHigh = trajHigh ? getDragSimulatedPoints(trajHigh, dist, dz).pts : null;
 
     const maxTof = Math.max(trajLow ? trajLow.tof : 0, trajHigh ? trajHigh.tof : 0);
     const animDuration = Math.max(1000, Math.min(2500, maxTof * 40)); 
@@ -1018,40 +1159,51 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
 
     const drawCurveProgress = (traj, points, isHigh, progress) => {
         if (!traj || !points || points.length === 0) return;
-        ctx.beginPath(); ctx.strokeStyle = traj.color; ctx.lineWidth = 3; ctx.moveTo(toX(points[0].x), toY(points[0].y));
+        ctx.beginPath(); ctx.strokeStyle = traj.color; ctx.lineWidth = 3; 
+        ctx.moveTo(toX(points[0].x), toY(points[0].y));
         
-        let maxX = 0, maxY = -Infinity;
+        // ✨ ให้เส้นวาดไปจนสุดเป้าหมายเสมอ เพื่อไม่ให้บดบังค่าความสูง 100m ก่อนตก
         let limitIndex = Math.floor((points.length - 1) * progress);
-        if (limitIndex >= points.length) limitIndex = points.length - 1;
         
-        for (let i = 0; i <= limitIndex; i++) {
-            let pt = points[i];
-            ctx.lineTo(toX(pt.x), toY(pt.y));
-            if (pt.y > maxY) { maxY = pt.y; maxX = pt.x; }
+        if (limitIndex > 0) {
+            for (let i = 1; i < limitIndex; i++) {
+                let pt = points[i];
+                let nextPt = points[i + 1] || pt; 
+                let xc = (toX(pt.x) + toX(nextPt.x)) / 2;
+                let yc = (toY(pt.y) + toY(nextPt.y)) / 2;
+                ctx.quadraticCurveTo(toX(pt.x), toY(pt.y), xc, yc);
+            }
+            ctx.lineTo(toX(points[limitIndex].x), toY(points[limitIndex].y));
         }
         ctx.stroke();
 
         if (progress >= 1) { 
-            ctx.fillStyle = traj.color; ctx.beginPath(); ctx.arc(toX(maxX), toY(maxY), 5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = "white"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = "center";
-            let textOffset = isHigh ? -12 : 20; 
-            ctx.fillText(`Max: ${traj.peakAlt.toFixed(0)}m`, toX(maxX), toY(maxY) + textOffset);
+            let maxPt = points[Math.floor(points.length / 2)];
+            ctx.fillStyle = traj.color; ctx.beginPath(); ctx.arc(toX(maxPt.x), toY(maxPt.y), 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "white"; ctx.font = "bold 16px sans-serif"; ctx.textAlign = "center";
+            ctx.fillText(`Max: ${traj.peakAlt.toFixed(0)}m`, toX(maxPt.x), toY(maxPt.y) - 12);
 
-            // วาดจุดบอกตำแหน่ง 100m ก่อนถึงเป้าหมาย (จะทับเส้นโค้งพอดีเป๊ะ)
-            if (traj.alt100m !== null && traj.alt100m !== undefined && dist > 150) {
-                let drawX = dist - 100;
-                let drawY = dz + traj.alt100m;
-                ctx.fillStyle = traj.color; ctx.beginPath(); ctx.arc(toX(drawX), toY(drawY), 5, 0, Math.PI * 2); ctx.fill();
-                ctx.font = "bold 11px sans-serif"; ctx.textAlign = "left"; 
-                if (isHigh) { ctx.fillText(`HIGH 100m: ${traj.alt100m.toFixed(1)}m`, toX(drawX) + 12, toY(drawY) - 10); } 
-                else { ctx.fillText(`LOW 100m: ${traj.alt100m.toFixed(1)}m`, toX(drawX) + 25, toY(drawY) - 8); }
-                ctx.setLineDash([3, 3]); ctx.strokeStyle = traj.color; ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.moveTo(toX(drawX), toY(drawY)); ctx.lineTo(toX(drawX), toY(dz)); ctx.stroke(); ctx.setLineDash([]);
+            // ✨ ปรับปรุงจุดบอกความสูง 100m ก่อนถึงเป้าให้ชัดเจนและไม่ถูกตัดหายไป
+            if (traj.alt100m !== null) {
+                let x100 = dist - 100;
+                let y100 = dz + traj.alt100m;
+                ctx.fillStyle = "#a855f7"; ctx.beginPath(); ctx.arc(toX(x100), toY(y100), 4, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "#e9d5ff"; ctx.font = "14px sans-serif"; ctx.textAlign = "right";
+                ctx.fillText(`Alt @100m: ${traj.alt100m.toFixed(1)}m`, toX(x100) - 8, toY(y100));
             }
-        } else {
-            let currentPt = points[Math.max(0, limitIndex)];
-            ctx.fillStyle = "white"; ctx.shadowColor = traj.color; ctx.shadowBlur = 12;
-            ctx.beginPath(); ctx.arc(toX(currentPt.x), toY(currentPt.y), 4, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+
+            // แสดงจุดชนวน Air Fuze พร้อมความสูง
+            if (traj.fuzeX !== undefined && traj.fuzeY !== undefined) {
+                let bX = toX(traj.fuzeX);
+                let bY = toY(traj.fuzeY);
+                ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(bX - 6, bY - 6); ctx.lineTo(bX + 6, bY + 6);
+                ctx.moveTo(bX + 6, bY - 6); ctx.lineTo(bX - 6, bY + 6);
+                ctx.stroke();
+                ctx.fillStyle = "#ef4444"; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "left";
+                ctx.fillText(`💥 AIR FUZE: ${(traj.fuzeY - dz).toFixed(0)}m`, bX + 10, bY - 4);
+            }
         }
     };
 
@@ -1069,9 +1221,6 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
     window.trajectoryAnimId = requestAnimationFrame(animateFrame);
 }
 
-// ========================================================
-// 🎯 อัปเกรด: ฟังก์ชัน buildCurve3D ในส่วน 3D View ให้สัมพันธ์กัน
-// ========================================================
 let scene, camera, renderer, controls, gridHelper;
 let animationFrameId = null; let dynamicCurves = []; 
 let gunMesh3D, targetMesh3D, poleMesh3D, gunLabel3D, targetLabel3D;
@@ -1148,16 +1297,12 @@ function update3DScene() {
         if (Math.abs(det) < 0.0001 || windSpeed === 0) { S = dist; W = 0; } 
         else { S = (dx * Math.cos(windRad) - dy * Math.sin(windRad)) / det; W = (dy * Math.sin(aimRad) - dx * Math.cos(aimRad)) / det; }
 
-        let g = 9.81;
-        let v_x = dist / trajInfo.tof;
-        let v_y0 = (dz + 0.5 * g * trajInfo.tof * trajInfo.tof) / trajInfo.tof;
-
         const points = []; let maxH = 0;
-        for(let i=0; i<=100; i++) {
-            let t = (i / 100) * trajInfo.tof;
-            let bx = v_x * t;
-            let by = (v_y0 * t) - (0.5 * g * t * t);
-            
+        
+        const simPts = getDragSimulatedPoints(trajInfo, dist, dz).pts;
+        for(let i=0; i<simPts.length; i++) {
+            let bx = simPts[i].x;
+            let by = simPts[i].y;
             let currentS = (bx / dist) * S; let currentW = (bx / dist) * W;
             let endX = currentS * Math.sin(aimRad) + currentW * Math.sin(windRad);
             let endY = currentS * Math.cos(aimRad) + currentW * Math.cos(windRad);
@@ -1166,12 +1311,16 @@ function update3DScene() {
             points.push(new THREE.Vector3(endX, by, -endY)); 
         }
 
+        const curve3D = new THREE.CatmullRomCurve3(points);
+        const smoothPoints = curve3D.getPoints(100);
+        
         const colorCode = trajInfo.color === "rgba(234, 179, 8, 1)" ? 0xeab308 : 0x3b82f6;
-        const lineMesh = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color: colorCode, linewidth: 2 }));
+        const lineMesh = new THREE.Line(new THREE.BufferGeometry().setFromPoints(smoothPoints), new THREE.LineBasicMaterial({ color: colorCode, linewidth: 2 }));
         scene.add(lineMesh); dynamicCurves.push(lineMesh);
+        
         const dropMat = new THREE.LineBasicMaterial({ color: colorCode, opacity: 0.15, transparent: true });
-        for(let i=10; i<points.length; i+=10) {
-            const pt = points[i];
+        for(let i=10; i<smoothPoints.length; i+=10) {
+            const pt = smoothPoints[i];
             const dLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([pt, new THREE.Vector3(pt.x, 0, pt.z)]), dropMat);
             scene.add(dLine); dynamicCurves.push(dLine);
         }
@@ -1195,41 +1344,10 @@ function zoomMap(factor) { if (mapMode === 'auto') mapMode = 'free'; mapZoom *= 
 function resetMap() { mapMode = 'auto'; redrawMapOnly(); }
 function zoomToTarget() { mapMode = 'target'; mapZoom = 5; redrawMapOnly(); }
 
-function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg) {
-    const ctx = mapCanvas.getContext("2d"); const w = mapCanvas.width, h = mapCanvas.height;
-    ctx.fillStyle = "#e6e1cd"; ctx.fillRect(0, 0, w, h); const padding = 60;
-    const effX = x2 + aimOffsetX; const effY = y2 + aimOffsetY;
-    const minX = Math.min(x1, x2, effX), maxX = Math.max(x1, x2, effX); const minY = Math.min(y1, y2, effY), maxY = Math.max(y1, y2, effY);
-    const rangeX = Math.max(maxX - minX, 100); const rangeY = Math.max(maxY - minY, 100);
-    const fitScale = Math.min((w - padding*2) / rangeX, (h - padding*2) / rangeY);
-
-    if (mapMode === 'auto') { mapCamX = (minX + maxX) / 2; mapCamY = (minY + maxY) / 2; mapZoom = fitScale; } else if (mapMode === 'target') { mapCamX = x2; mapCamY = y2; }
-
-    const toCanvasX = (x) => w/2 + (x - mapCamX) * mapZoom; const toCanvasY = (y) => h/2 - (y - mapCamY) * mapZoom; 
-    const viewMinX = mapCamX - w / (2 * mapZoom); const viewMaxX = mapCamX + w / (2 * mapZoom);
-    const viewMinY = mapCamY - h / (2 * mapZoom); const viewMaxY = mapCamY + h / (2 * mapZoom);
-
-    const drawGrid = (step, color, width) => { ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); for(let gx = Math.floor(viewMinX / step) * step; gx <= viewMaxX; gx += step) { let px = toCanvasX(gx); ctx.moveTo(px, 0); ctx.lineTo(px, h); } for(let gy = Math.floor(viewMinY / step) * step; gy <= viewMaxY; gy += step) { let py = toCanvasY(gy); ctx.moveTo(0, py); ctx.lineTo(w, py); } ctx.stroke(); };
-    if (mapZoom > 0.5) drawGrid(10, "#d1cbb8", 1); drawGrid(100, "#b3ab94", 1.5); drawGrid(1000, "#1e293b", 2.0);
-    
-    const cx1 = toCanvasX(x1), cy1 = toCanvasY(y1); const cx2 = toCanvasX(x2), cy2 = toCanvasY(y2);
-    ctx.setLineDash([6, 4]); ctx.strokeStyle = "#333"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx1, cy1); ctx.lineTo(cx2, cy2); ctx.stroke(); ctx.setLineDash([]);
-    const strGunX = document.getElementById("gunX").value || "0000"; const strGunY = document.getElementById("gunY").value || "0000"; const strTgtX = document.getElementById("targetX").value || "0000"; const strTgtY = document.getElementById("targetY").value || "0000";
-    ctx.strokeStyle = "#b91c1c"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx2, cy2, 8, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx2-12, cy2); ctx.lineTo(cx2+12, cy2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx2, cy2-12); ctx.lineTo(cx2, cy2+12); ctx.stroke();
-    ctx.fillStyle = "#4a463b"; ctx.font = "bold 12px sans-serif"; ctx.fillText("TARGET", cx2 + 12, cy2 - 12); ctx.fillStyle = "#b91c1c"; ctx.font = "bold 11px monospace"; ctx.fillText(`[${strTgtX},${strTgtY}]`, cx2 + 12, cy2 + 2); 
-
-    if (aimOffsetX !== 0 || aimOffsetY !== 0) { const cxEff = toCanvasX(effX); const cyEff = toCanvasY(effY); ctx.setLineDash([4, 4]); ctx.strokeStyle = "#a855f7"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx2, cy2); ctx.lineTo(cxEff, cyEff); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = "#a855f7"; ctx.beginPath(); ctx.arc(cxEff, cyEff, 6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#7e22ce"; ctx.font = "bold 11px sans-serif"; ctx.fillText("AIM OFFSET", cxEff + 10, cyEff - 5); }
-    ctx.fillStyle = "#1d4ed8"; ctx.beginPath(); ctx.moveTo(cx1, cy1 - 10); ctx.lineTo(cx1 - 8, cy1 + 6); ctx.lineTo(cx1 + 8, cy1 + 6); ctx.fill(); ctx.fillStyle = "#4a463b"; ctx.font = "bold 12px sans-serif"; ctx.fillText("GUN", cx1 - 12, cy1 + 20); ctx.fillStyle = "#1d4ed8"; ctx.font = "bold 11px monospace"; ctx.fillText(`[${strGunX},${strGunY}]`, cx1 - 12, cy1 + 34); 
-
-    if (foImpactPoint && foPosition) { const cxFO = toCanvasX(foPosition.x); const cyFO = toCanvasY(foPosition.y); const cxImp = toCanvasX(foImpactPoint.x); const cyImp = toCanvasY(foImpactPoint.y); ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(139, 92, 246, 0.7)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cxFO, cyFO); ctx.lineTo(cxImp, cyImp); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = "#8b5cf6"; ctx.beginPath(); ctx.arc(cxFO, cyFO, 5, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#4c1d95"; ctx.font = "bold 11px sans-serif"; ctx.fillText("FO", cxFO + 8, cyFO + 4); ctx.strokeStyle = "#8b5cf6"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(cxImp - 5, cyImp - 5); ctx.lineTo(cxImp + 5, cyImp + 5); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cxImp + 5, cyImp - 5); ctx.lineTo(cxImp - 5, cyImp + 5); ctx.stroke(); ctx.fillStyle = "#4c1d95"; ctx.font = "bold 11px sans-serif"; ctx.fillText("IMPACT", cxImp + 8, cyImp + 4); }
-
-    if (windSpeed > 0) { const arrowCenterX = 50; const arrowCenterY = h - 50; const arrowLength = 45; ctx.save(); ctx.translate(arrowCenterX, arrowCenterY); ctx.rotate((windDirDeg + 90) * (Math.PI / 180)); let windColor = windSpeed >= 7 ? "#991b1b" : (windSpeed >= 3 ? "#b45309" : "#166534"); ctx.strokeStyle = windColor; ctx.fillStyle = windColor; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(-arrowLength/2, 0); ctx.lineTo(arrowLength/2, 0); ctx.stroke(); ctx.beginPath(); ctx.moveTo(arrowLength/2, 0); ctx.lineTo(arrowLength/2 - 12, -8); ctx.lineTo(arrowLength/2 - 12, 8); ctx.fill(); ctx.restore(); ctx.strokeStyle = "rgba(74, 70, 59, 0.3)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(arrowCenterX, arrowCenterY, 28, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = windColor; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "left"; ctx.fillText(`${windSpeed} m/s`, arrowCenterX + 40, arrowCenterY + 5); }
-}
-
 function resetData() {
     document.getElementById("targetX").value = "0000"; document.getElementById("targetY").value = "0000"; document.getElementById("targetZ").value = "00";
     document.getElementById("windSpeed").value = 0; document.getElementById("windDir").value = 0; document.getElementById("saveName").value = '';
-    document.getElementById("rangeOffset").value = 0; clearOffset(); resetFOState(); calculate();
+    document.getElementById("rangeOffset").value = 0; document.getElementById("airburstHeight").value = 0; clearOffset(); resetFOState(); calculate();
 }
 
 let dragStartIndex = null;

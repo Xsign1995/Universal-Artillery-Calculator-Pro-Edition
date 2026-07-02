@@ -454,7 +454,7 @@ function parseArmaGrid(elId) {
     if (str.includes('.')) {
         if (intStr.length === 3) multiplier = 100;
         else if (intStr.length === 4) multiplier = 10;
-        else multiplier = 1; offset = 0;
+        else { multiplier = 1; offset = 0; }
     } else {
         if (intStr.length === 3) { multiplier = 100; offset = 50; }     
         else if (intStr.length === 4) { multiplier = 10; offset = 5; }  
@@ -638,8 +638,12 @@ function changeWeapon() {
     const profileSection = DOM["profileSection"]; const profileSelect = DOM["profileSelect"];
     if (currentWeapon.profiles) {
         profileSection.style.display = "block"; profileSelect.innerHTML = "";
-        for (const pId in currentWeapon.profiles) { profileSelect.innerHTML += `<option value="${pId}">${currentWeapon.profiles[pId].name}</option>`; }
-        profileSelect.value = "adult_mod"; 
+        let firstProfile = null; 
+        for (const pId in currentWeapon.profiles) { 
+            if (!firstProfile) firstProfile = pId;
+            profileSelect.innerHTML += `<option value="${pId}">${currentWeapon.profiles[pId].name}</option>`; 
+        }
+        profileSelect.value = firstProfile; 
     } else { profileSection.style.display = "none"; }
     changeProfile();
 }
@@ -805,6 +809,9 @@ function calculateFOCorrection() {
                     aimBearingDegH = aimBearingDeg + (deflRad * 180 / Math.PI); aimDistH = aimGridDistance / Math.cos(deflRad);
                 }
             }
+            // ✅ ดักจับ Out of Bounds หากระยะยิงแก้ไกลเกินกว่าตารางดินส่งปัจจุบันจะรองรับได้
+            if (finalInterpDataHigh && finalInterpDataHigh.clamped) { finalInterpDataHigh = null; }
+
             if (finalInterpDataHigh) {
                 const angleOfSiteMilHigh = Math.atan(effectiveDz / aimDistH) * (halfMil / Math.PI); 
                 finalElevHigh = finalInterpDataHigh.elev - angleOfSiteMilHigh;
@@ -818,9 +825,14 @@ function calculateFOCorrection() {
             correctionText += `<div style='font-size:12px; color:#eab308; font-weight:bold; margin-bottom: 4px;'>💡 ค่าปืนที่ต้องยิงแก้ (${chargeDisplayHigh}):</div>`;
             correctionText += `<div style='font-size:13px; display:flex; justify-content:space-between; margin-bottom: 2px;'><span>Elevation (มุมเงย):</span> <b style="color:#fff;">${finalElevHigh.toFixed(0)}</b></div>`;
             correctionText += `<div style='font-size:13px; display:flex; justify-content:space-between;'><span>Aim Azimuth (หันหน้า):</span> <b style="color:#fff;">${finalAziHigh.toFixed(0)}</b></div></div>`;
-        } else { correctionText += `<div style='color:#ef4444; font-size: 12px; margin-top: 4px;'>⚠️ เป้าหมายอยู่นอกระยะยิงของปืน</div>`; }
-        correctionText += `<div style="font-size: 11px; color: #94a3b8; margin-top: 6px; text-align:center;">(✅ หรือกด <b>"ยืนยันชดเชย"</b> เพื่อตั้งค่าลงปืนทันที)</div>`;
-        enableApplyCorrectionBtn(); 
+            enableApplyCorrectionBtn();
+        } else { 
+            correctionText += `<div style='color:#ef4444; font-size: 12px; margin-top: 4px;'>⚠️ จุดยิงแก้อยู่นอกระยะของ ${chargeCodeHigh} แนะนำให้ปรับแก้แบบ Manual</div>`; 
+            disableApplyCorrectionBtn(); 
+        }
+        if(!isNaN(finalElevHigh)) {
+           correctionText += `<div style="font-size: 11px; color: #94a3b8; margin-top: 6px; text-align:center;">(✅ หรือกด <b>"ยืนยันชดเชย"</b> เพื่อตั้งค่าลงปืนทันที)</div>`;
+        }
     }
     correctionText += "</div>";
     const corrBox = DOM["foCorrectionResult"]; corrBox.style.display = "block"; corrBox.innerHTML = correctionText;
@@ -1021,7 +1033,7 @@ function calculate() {
             let finalInterpDataLow = null; let finalElevLowMil = NaN; let tofLowToPass_temp = null;
             
             for(let iter=0; iter<4; iter++) {
-                let cw = windSpeed * Math.sin((windDirDeg - aimBearingDegL) * (Math.PI / 180)); let hw = windSpeed * Math.cos((windDirDeg - aimBearingDegH) * (Math.PI / 180));
+                let cw = windSpeed * Math.sin((windDirDeg - aimBearingDegL) * (Math.PI / 180)); let hw = windSpeed * Math.cos((windDirDeg - aimBearingDegL) * (Math.PI / 180));
                 let baseInterp = getInterpolatedData(aimDistL, tableLow); if(!baseInterp) break;
                 let rangeAdj = baseInterp.hasWindData ? (hw / 10) * baseInterp.longWind : hw * baseInterp.tof * rangeCoeff;
                 let virtualDist = aimDistL + rangeAdj; finalInterpDataLow = getInterpolatedData(virtualDist, tableLow);
@@ -1042,7 +1054,13 @@ function calculate() {
             if (finalInterpDataLow) {
                 const angleOfSiteMilLow = Math.atan(effectiveDz / aimDistL) * (halfMil / Math.PI); 
                 finalElevLowMil = finalInterpDataLow.elev + angleOfSiteMilLow;
-                tofLowToPass_temp = finalInterpDataLow.tof;
+                
+                // 🔥 Patch: เพิ่มการชดเชย ToF (Time of Flight) ตามความสูงแบบเดียวกับ High Angle
+                let baseTofL = finalInterpDataLow.tof;
+                let tofRootTermL = (baseTofL * baseTofL) - (8 * effectiveDz / 9.81);
+                tofLowToPass_temp = (tofRootTermL >= 0) ? (baseTofL + Math.sqrt(tofRootTermL)) / 2 : baseTofL;
+
+                // คำนวณ maxHLow_temp โดยใช้ tofLowToPass_temp ที่ชดเชย dz เรียบร้อยแล้ว
                 let maxHLow_temp = finalInterpDataLow.hasPeakAlt ? finalInterpDataLow.peakAlt : Math.pow(((effectiveDz + 0.5 * 9.81 * tofLowToPass_temp * tofLowToPass_temp) / tofLowToPass_temp), 2) / (2 * 9.81);
                 
                 let isValidElev = finalElevLowMil >= MIN_ELEVATION_MIL && finalElevLowMil <= MAX_ELEVATION_MIL;
@@ -1259,7 +1277,16 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
         ctx.stroke();
 
         if (progress >= 1) { 
-            let maxPt = points[Math.floor(points.length / 2)];
+            let maxIndex = 0;
+            let maxYVal = -Infinity;
+            for (let i = 0; i < points.length; i++) {
+                if (points[i].y > maxYVal) {
+                    maxYVal = points[i].y;
+                    maxIndex = i;
+                }
+            }
+            let maxPt = points[maxIndex];
+
             ctx.fillStyle = traj.color; ctx.beginPath(); ctx.arc(toX(maxPt.x), toY(maxPt.y), 5, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = "white"; ctx.font = "bold 16px sans-serif"; ctx.textAlign = "center";
             ctx.fillText(`Max: ${traj.peakAlt.toFixed(0)}m`, toX(maxPt.x), toY(maxPt.y) - 12);
@@ -1412,7 +1439,14 @@ function update3DScene() {
     camera.position.set(dx/2 + dist*0.8, overAllMaxH * 0.8, -dy/2 + dist*0.8); controls.update();
 }
 
-function redrawMapOnly() { calculate(); }
+function redrawMapOnly() {
+    // วาดเฉพาะแผนที่ใหม่ ไม่คำนวณใหม่ทั้งหมด ลดอาการกระตุก
+    const gunX = parseArmaGrid("gunX"); const gunY = parseArmaGrid("gunY");
+    const targetX = parseArmaGrid("targetX"); const targetY = parseArmaGrid("targetY");
+    const windSpeed = parseFloat(DOM["windSpeed"].value) || 0; const windDirDeg = parseFloat(DOM["windDir"].value) || 0;
+    drawGraph(gunX, gunY, targetX, targetY, windSpeed, windDirDeg); 
+}
+
 const mapCanvas = DOM["graph"];
 mapCanvas.addEventListener('mousedown', (e) => { isPanning = true; startPanX = e.offsetX; startPanY = e.offsetY; });
 mapCanvas.addEventListener('mousemove', (e) => { if(isPanning){ mapCamX -= (e.offsetX - startPanX) / mapZoom; mapCamY += (e.offsetY - startPanY) / mapZoom; startPanX = e.offsetX; startPanY = e.offsetY; mapMode = 'free'; if (!isRedrawing) { isRedrawing = true; requestAnimationFrame(() => { redrawMapOnly(); isRedrawing = false; }); } } });
@@ -1446,8 +1480,8 @@ window.handleDragEnd = function(e) { e.currentTarget.classList.remove('dragging'
 function renderMemoryList() {
     const list = DOM["memoryList"]; list.innerHTML = '';
     savedTargets.forEach((mem, index) => {
-        // 🔥 คืนค่า ondrag กลับมา เพื่อให้สามารถลากสลับตำแหน่งได้ตามเดิม
-        list.innerHTML += `<div class="memory-item" draggable="true" data-index="${index}" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" ondragend="handleDragEnd(event)"><div style="display: flex; flex-direction: column; gap: 4px; pointer-events: none;"><span style="font-weight:bold; color:#38bdf8;"><span style="color:#64748b; margin-right:4px;">⣿</span>${mem.name}</span><span style="color:#94a3b8; font-size: 11px; padding-left: 18px;">X:${mem.tx} Y:${mem.ty} Z:${mem.tz}</span></div><div style="display: flex; gap: 5px;"><button class="btn-load" onclick="loadMemory(${index})">Load</button><button class="btn-edit" onclick="editMemoryName(${index})" title="แก้ไขชื่อเป้าหมาย">✏️</button><button class="btn-delete" onclick="openDeleteModal(${index})">X</button></div></div>`;
+        // 🔥 คืนค่า ondrag กลับมา เพื่อให้สามารถลากสลับตำแหน่งได้ตามเดิม (อัพเดทให้เรียกผ่าน window. เพื่อกันบั๊ก Not Defined)
+        list.innerHTML += `<div class="memory-item" draggable="true" data-index="${index}" ondragstart="window.handleDragStart(event)" ondragover="window.handleDragOver(event)" ondragleave="window.handleDragLeave(event)" ondrop="window.handleDrop(event)" ondragend="window.handleDragEnd(event)"><div style="display: flex; flex-direction: column; gap: 4px; pointer-events: none;"><span style="font-weight:bold; color:#38bdf8;"><span style="color:#64748b; margin-right:4px;">⣿</span>${mem.name}</span><span style="color:#94a3b8; font-size: 11px; padding-left: 18px;">X:${mem.tx} Y:${mem.ty} Z:${mem.tz}</span></div><div style="display: flex; gap: 5px;"><button class="btn-load" onclick="loadMemory(${index})">Load</button><button class="btn-edit" onclick="editMemoryName(${index})" title="แก้ไขชื่อเป้าหมาย">✏️</button><button class="btn-delete" onclick="openDeleteModal(${index})">X</button></div></div>`;
     });
 }
 function saveMemory() {

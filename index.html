@@ -101,6 +101,14 @@
         .map-controls { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 5px; z-index: 10; }
         .map-controls button { width: 32px; height: 32px; padding: 0; margin: 0; background: rgba(30, 41, 59, 0.9); color: white; border: 1px solid #475569; border-radius: 4px; font-size: 16px; display: flex; align-items: center; justify-content: center; }
         .map-controls button:hover { background: #3b82f6; }
+
+        .map-select-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .map-select-row label { margin: 0; white-space: nowrap; flex-shrink: 0; }
+        #mapBgSelect { margin: 0; font-weight: normal; text-align: left; }
+        .map-status { font-size: 11px; color: #64748b; margin-left: 4px; white-space: nowrap; flex-shrink: 0; min-width: 90px; text-align: right; }
+        .map-status.loading { color: #eab308; }
+        .map-status.error { color: #ef4444; }
+        .map-status.ready { color: #22c55e; }
         #graph { aspect-ratio: 1 / 1 ; cursor: grab; }
         #graph:active { cursor: grabbing; }
         #trajectoryGraph { aspect-ratio: 1 / 1; width: 100%; }
@@ -346,6 +354,40 @@
 
     <div class="card map-panel">
         <div class="graph-title">🗺️ Tactical Top-Down Map (พิกัดและทิศทางลม)</div>
+        <div class="map-select-row">
+            <label for="mapBgSelect" style="flex-shrink:0;">แผนที่:</label>
+            <select id="mapBgSelect" onchange="onMapBgChange()">
+                <option value="">— ไม่แสดงแผนที่ —</option>
+                <option value="Serhiivka_CIE">Serhiivka_CIE</option>
+                <option value="Udachne">Udachne</option>
+                <option value="DonAir">DonAir</option>
+                <option value="Serhiivka_WCS">Serhiivka_WCS</option>
+                <option value="Everon">Everon</option>
+                <option value="Kolguyev">Kolguyev</option>
+                <option value="Zarichne">Zarichne</option>
+                <option value="Arland">Arland</option>
+                <option value="Yunakivka">Yunakivka</option>
+                <option value="Ruha">Ruha</option>
+                <option value="Rostov">Rostov</option>
+                <option value="Grotov">Grotov</option>
+                <option value="Chervonopilia">Chervonopilia</option>
+                <option value="Faschivka">Faschivka</option>
+                <option value="Orlivka">Orlivka</option>
+                <option value="Donetsk">Donetsk</option>
+                <option value="Bakhmut">Bakhmut</option>
+                <option value="Chernarus">Chernarus</option>
+                <option value="Fallujah">Fallujah</option>
+                <option value="Anizay">Anizay</option>
+                <option value="Gogland">Gogland</option>
+                <option value="Takistan">Takistan</option>
+                <option value="Marnivka">Marnivka</option>
+                <option value="Predniprovsk">Predniprovsk</option>
+                <option value="West_Zagoria">West_Zagoria</option>
+                <option value="Zargabad">Zargabad</option>
+                <option value="Belleau_Wood">Belleau_Wood</option>
+            </select>
+            <span id="mapBgStatus" class="map-status"></span>
+        </div>
         <div class="map-wrapper">
             <canvas id="graph" width="700" height="700"></canvas>
             <div class="map-controls">
@@ -426,6 +468,7 @@ const DOM = (() => {
         "offsetDisplay", "offCoords", "offMeters", "undoOffsetBtn", "applyCorrectionBtn",
         "adjustStep", "foX", "foY", "impactDist", "impactAzi", "foAziUnit", "foResult", "foCorrectionResult",
         "memoryList", "saveName", "editNameInput", "editModal", "deleteModal",
+        "mapBgSelect", "mapBgStatus",
     ];
     const cache = {};
     const build = () => { ids.forEach(id => { cache[id] = document.getElementById(id); }); };
@@ -621,6 +664,171 @@ try { const localData = localStorage.getItem('m777_memory'); savedTargets = loca
 let mapMode = 'auto'; let mapCamX = 0; let mapCamY = 0; let mapZoom = 1;
 let isPanning = false; let startPanX, startPanY; let isRedrawing = false;
 let is3DMode = false; let currentCalcData = null; window.trajectoryAnimId = null;
+
+// ═══════════════════════════════════════════════════════════════════
+// MAP BACKGROUND LOADER — โหลดภาพแผนที่จริงจาก armamaptiles.github.io
+// ═══════════════════════════════════════════════════════════════════
+const MapBackground = (() => {
+    const TILE_BASE = "https://armamaptiles.github.io/ArmaMapsTiles";
+    const TILESIZE = 256;
+    const GROUP_SIZE = 256;
+    // โซนที่ยอมให้เลือกได้เท่านั้น (ตรงกับ <option> ใน dropdown) กันเลือกแมปที่ไม่มีจริง
+    const ALLOWED_MAPS = new Set([
+        "Serhiivka_CIE", "Udachne", "DonAir", "Serhiivka_WCS", "Everon", "Kolguyev",
+        "Zarichne", "Arland", "Yunakivka", "Ruha", "Rostov", "Grotov", "Chervonopilia",
+        "Faschivka", "Orlivka", "Donetsk", "Bakhmut", "Chernarus", "Fallujah", "Anizay",
+        "Gogland", "Takistan", "Marnivka", "Predniprovsk", "West_Zagoria", "Zargabad",
+        "Belleau_Wood",
+    ]);
+
+    // เลือก zoom level ที่จะโหลดจริง (ไม่โหลดละเอียดสุดเสมอ เพื่อความไว)
+    // ระดับนี้ให้ภาพกว้างด้านละ ~2000-3000px ซึ่งเพียงพอสำหรับพื้นหลัง canvas 700x700
+    const TARGET_MAX_DIM = 2200;
+
+    let cache = {}; // mapName -> { image: HTMLCanvasElement, width, height, status }
+    let currentMapName = "";
+    let loadToken = 0; // ป้องกัน race condition เวลาสลับแมปเร็ว ๆ
+
+    function computeLevels(width, height) {
+        const maxDim = Math.max(width, height);
+        const maxZoom = Math.ceil(Math.log2(maxDim / TILESIZE));
+        const levels = [];
+        let cumulative = 0;
+        for (let z = 0; z <= maxZoom; z++) {
+            const scale = Math.pow(2, maxZoom - z);
+            const w = Math.ceil(width / scale);
+            const h = Math.ceil(height / scale);
+            const cols = Math.ceil(w / TILESIZE);
+            const rows = Math.ceil(h / TILESIZE);
+            levels.push({ z, width: w, height: h, cols, rows, startIndex: cumulative, ntiles: cols * rows });
+            cumulative += cols * rows;
+        }
+        return { levels, maxZoom };
+    }
+
+    function tileGroupFor(levels, z, col, row) {
+        const lvl = levels[z];
+        const idx = lvl.startIndex + row * lvl.cols + col;
+        return Math.floor(idx / GROUP_SIZE);
+    }
+
+    function pickZoomLevel(levels, maxZoom) {
+        // เลือก zoom level ต่ำสุดที่ยังให้ขนาดภาพ >= TARGET_MAX_DIM (ประหยัด bandwidth)
+        for (let z = 0; z <= maxZoom; z++) {
+            if (Math.max(levels[z].width, levels[z].height) >= TARGET_MAX_DIM) return z;
+        }
+        return maxZoom;
+    }
+
+    async function fetchMetadata(mapName) {
+        const url = `${TILE_BASE}/${mapName}/ImageProperties.xml`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`โหลด metadata ไม่สำเร็จ (HTTP ${res.status})`);
+        const text = await res.text();
+        const widthMatch = text.match(/WIDTH="(\d+)"/);
+        const heightMatch = text.match(/HEIGHT="(\d+)"/);
+        if (!widthMatch || !heightMatch) throw new Error("ไม่พบ WIDTH/HEIGHT ใน metadata");
+        return { width: parseInt(widthMatch[1], 10), height: parseInt(heightMatch[1], 10) };
+    }
+
+    function loadImage(url) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error(`โหลดภาพไม่สำเร็จ: ${url}`));
+            img.src = url;
+        });
+    }
+
+    async function loadMapTiles(mapName, statusCb) {
+        const { width, height } = await fetchMetadata(mapName);
+        const { levels, maxZoom } = computeLevels(width, height);
+        const z = pickZoomLevel(levels, maxZoom);
+        const lvl = levels[z];
+
+        const canvas = document.createElement('canvas');
+        canvas.width = lvl.width;
+        canvas.height = lvl.height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = "#1e293b";
+        ctx.fillRect(0, 0, lvl.width, lvl.height);
+
+        let done = 0;
+        const total = lvl.ntiles;
+        const tasks = [];
+        for (let row = 0; row < lvl.rows; row++) {
+            for (let col = 0; col < lvl.cols; col++) {
+                const group = tileGroupFor(levels, z, col, row);
+                const url = `${TILE_BASE}/${mapName}/TileGroup${group}/${z}-${col}-${row}.jpg`;
+                tasks.push(
+                    loadImage(url)
+                        .then(img => { ctx.drawImage(img, col * TILESIZE, row * TILESIZE); })
+                        .catch(() => { /* บาง tile อาจไม่มีข้อมูล (ขอบแผนที่) ข้ามได้ */ })
+                        .finally(() => { done++; if (statusCb) statusCb(done, total); })
+                );
+            }
+        }
+        await Promise.all(tasks);
+
+        return { image: canvas, width, height };
+    }
+
+    async function setMap(mapName) {
+        const myToken = ++loadToken;
+        currentMapName = mapName;
+
+        if (!mapName) {
+            redrawMapOnly();
+            return;
+        }
+        if (!ALLOWED_MAPS.has(mapName)) {
+            console.warn(`แผนที่ "${mapName}" ไม่อยู่ในรายชื่อที่รองรับ`);
+            setStatus("ไม่รองรับแผนที่นี้", "error");
+            return;
+        }
+        if (cache[mapName] && cache[mapName].status === 'ready') {
+            redrawMapOnly();
+            return;
+        }
+
+        setStatus("กำลังโหลด...", "loading");
+        try {
+            const result = await loadMapTiles(mapName, (done, total) => {
+                if (myToken !== loadToken) return; // ผู้ใช้สลับแมปไปแล้ว ไม่ต้องอัปเดต
+                setStatus(`กำลังโหลด ${done}/${total} tiles`, "loading");
+            });
+            if (myToken !== loadToken) return; // สลับแมปไปแล้วระหว่างโหลด ทิ้งผลลัพธ์นี้
+            cache[mapName] = { ...result, status: 'ready' };
+            setStatus("พร้อมใช้งาน", "ready");
+            redrawMapOnly();
+        } catch (err) {
+            if (myToken !== loadToken) return;
+            console.error("โหลดแผนที่ไม่สำเร็จ:", err);
+            setStatus("โหลดไม่สำเร็จ", "error");
+        }
+    }
+
+    function setStatus(msg, cls) {
+        const el = DOM["mapBgStatus"];
+        if (!el) return;
+        el.textContent = msg;
+        el.className = "map-status" + (cls ? " " + cls : "");
+    }
+
+    function getCurrent() {
+        if (!currentMapName) return null;
+        const entry = cache[currentMapName];
+        return (entry && entry.status === 'ready') ? entry : null;
+    }
+
+    return { setMap, getCurrent, ALLOWED_MAPS };
+})();
+
+function onMapBgChange() {
+    const val = DOM["mapBgSelect"].value;
+    MapBackground.setMap(val);
+}
 
 window.addEventListener('load', function() { changeWeapon(); setTimeout(function() { autoLoadFromLocalStorage(); }, 200); });
 function autoLoadFromLocalStorage() {
@@ -1151,7 +1359,9 @@ function calculate() {
 
 function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg) {
     const ctx = mapCanvas.getContext("2d"); const w = mapCanvas.width, h = mapCanvas.height;
-    ctx.fillStyle = "#e6e1cd"; ctx.fillRect(0, 0, w, h); const padding = 60;
+    const bgMap = MapBackground.getCurrent();
+    if (!bgMap) { ctx.fillStyle = "#e6e1cd"; ctx.fillRect(0, 0, w, h); }
+    const padding = 60;
     const effX = x2 + aimOffsetX; const effY = y2 + aimOffsetY;
     const minX = Math.min(x1, x2, effX), maxX = Math.max(x1, x2, effX); const minY = Math.min(y1, y2, effY), maxY = Math.max(y1, y2, effY);
     const rangeX = Math.max(maxX - minX, 100); const rangeY = Math.max(maxY - minY, 100);
@@ -1163,17 +1373,34 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg) {
     const viewMinX = mapCamX - w / (2 * mapZoom); const viewMaxX = mapCamX + w / (2 * mapZoom);
     const viewMinY = mapCamY - h / (2 * mapZoom); const viewMaxY = mapCamY + h / (2 * mapZoom);
 
+    if (bgMap) {
+        // ภาพแผนที่: พิกัดโลก (0,0) อยู่มุมล่างซ้าย แต่ canvas ของภาพ (0,0) อยู่มุมบนซ้าย (north-up)
+        // จึงต้องกลับแกน Y ตอน map พิกัดโลก -> พิกัดพิกเซลบนภาพต้นฉบับ
+        const scaleImgToWorld = bgMap.width / bgMap.image.width; // 1 พิกเซลภาพ = กี่เมตรในโลกเกม
+        const srcX = viewMinX / scaleImgToWorld;
+        const srcYTop = (bgMap.height - viewMaxY) / scaleImgToWorld;
+        const srcW = (viewMaxX - viewMinX) / scaleImgToWorld;
+        const srcH = (viewMaxY - viewMinY) / scaleImgToWorld;
+        ctx.fillStyle = "#0f172a"; ctx.fillRect(0, 0, w, h);
+        ctx.imageSmoothingEnabled = true;
+        try {
+            ctx.drawImage(bgMap.image, srcX, srcYTop, srcW, srcH, 0, 0, w, h);
+        } catch (e) { /* ถ้า view อยู่นอกภาพทั้งหมด ข้ามการวาดภาพรอบนี้ */ }
+        ctx.fillStyle = "rgba(15, 23, 42, 0.25)"; ctx.fillRect(0, 0, w, h); // ทับให้ marker อ่านง่ายขึ้น
+    }
+
     const drawGrid = (step, color, width) => { ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); for(let gx = Math.floor(viewMinX / step) * step; gx <= viewMaxX; gx += step) { let px = toCanvasX(gx); ctx.moveTo(px, 0); ctx.lineTo(px, h); } for(let gy = Math.floor(viewMinY / step) * step; gy <= viewMaxY; gy += step) { let py = toCanvasY(gy); ctx.moveTo(0, py); ctx.lineTo(w, py); } ctx.stroke(); };
-    if (mapZoom > 0.5) drawGrid(10, "#d1cbb8", 1); drawGrid(100, "#b3ab94", 1.5); drawGrid(1000, "#1e293b", 2.0);
+    if (!bgMap) { if (mapZoom > 0.5) drawGrid(10, "#d1cbb8", 1); drawGrid(100, "#b3ab94", 1.5); drawGrid(1000, "#1e293b", 2.0); }
+    else { if (mapZoom > 0.5) drawGrid(10, "rgba(255,255,255,0.06)", 1); drawGrid(100, "rgba(255,255,255,0.12)", 1.5); drawGrid(1000, "rgba(255,255,255,0.25)", 2.0); }
     
     const cx1 = toCanvasX(x1), cy1 = toCanvasY(y1); const cx2 = toCanvasX(x2), cy2 = toCanvasY(y2);
     ctx.setLineDash([6, 4]); ctx.strokeStyle = "#333"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx1, cy1); ctx.lineTo(cx2, cy2); ctx.stroke(); ctx.setLineDash([]);
     const strGunX = DOM["gunX"].value || "0000"; const strGunY = DOM["gunY"].value || "0000"; const strTgtX = DOM["targetX"].value || "0000"; const strTgtY = DOM["targetY"].value || "0000";
     ctx.strokeStyle = "#b91c1c"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx2, cy2, 8, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx2-12, cy2); ctx.lineTo(cx2+12, cy2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx2, cy2-12); ctx.lineTo(cx2, cy2+12); ctx.stroke();
-    ctx.fillStyle = "#4a463b"; ctx.font = "bold 12px sans-serif"; ctx.fillText("TARGET", cx2 + 12, cy2 - 12); ctx.fillStyle = "#b91c1c"; ctx.font = "bold 11px monospace"; ctx.fillText(`[${strTgtX},${strTgtY}]`, cx2 + 12, cy2 + 2); 
+    ctx.font = "bold 12px sans-serif"; ctx.lineWidth = 3; ctx.strokeStyle = bgMap ? "rgba(0,0,0,0.8)" : "rgba(255,255,255,0.7)"; ctx.strokeText("TARGET", cx2 + 12, cy2 - 12); ctx.fillStyle = bgMap ? "#f8fafc" : "#4a463b"; ctx.fillText("TARGET", cx2 + 12, cy2 - 12); ctx.fillStyle = "#f87171"; ctx.font = "bold 11px monospace"; ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.lineWidth = 3; ctx.strokeText(`[${strTgtX},${strTgtY}]`, cx2 + 12, cy2 + 2); ctx.fillText(`[${strTgtX},${strTgtY}]`, cx2 + 12, cy2 + 2); 
 
     if (aimOffsetX !== 0 || aimOffsetY !== 0) { const cxEff = toCanvasX(effX); const cyEff = toCanvasY(effY); ctx.setLineDash([4, 4]); ctx.strokeStyle = "#a855f7"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx2, cy2); ctx.lineTo(cxEff, cyEff); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = "#a855f7"; ctx.beginPath(); ctx.arc(cxEff, cyEff, 6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#7e22ce"; ctx.font = "bold 11px sans-serif"; ctx.fillText("AIM OFFSET", cxEff + 10, cyEff - 5); }
-    ctx.fillStyle = "#1d4ed8"; ctx.beginPath(); ctx.moveTo(cx1, cy1 - 10); ctx.lineTo(cx1 - 8, cy1 + 6); ctx.lineTo(cx1 + 8, cy1 + 6); ctx.fill(); ctx.fillStyle = "#4a463b"; ctx.font = "bold 12px sans-serif"; ctx.fillText("GUN", cx1 - 12, cy1 + 20); ctx.fillStyle = "#1d4ed8"; ctx.font = "bold 11px monospace"; ctx.fillText(`[${strGunX},${strGunY}]`, cx1 - 12, cy1 + 34); 
+    ctx.fillStyle = "#1d4ed8"; ctx.beginPath(); ctx.moveTo(cx1, cy1 - 10); ctx.lineTo(cx1 - 8, cy1 + 6); ctx.lineTo(cx1 + 8, cy1 + 6); ctx.fill(); ctx.font = "bold 12px sans-serif"; ctx.lineWidth = 3; ctx.strokeStyle = bgMap ? "rgba(0,0,0,0.8)" : "rgba(255,255,255,0.7)"; ctx.strokeText("GUN", cx1 - 12, cy1 + 20); ctx.fillStyle = bgMap ? "#f8fafc" : "#4a463b"; ctx.fillText("GUN", cx1 - 12, cy1 + 20); ctx.fillStyle = "#60a5fa"; ctx.font = "bold 11px monospace"; ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.lineWidth = 3; ctx.strokeText(`[${strGunX},${strGunY}]`, cx1 - 12, cy1 + 34); ctx.fillText(`[${strGunX},${strGunY}]`, cx1 - 12, cy1 + 34); 
 
     if (airburstDataPack) {
         const bxCanvas = toCanvasX(airburstDataPack.x);

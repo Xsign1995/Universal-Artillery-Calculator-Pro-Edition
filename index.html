@@ -681,13 +681,16 @@ const MapBackground = (() => {
         "Belleau_Wood",
     ]);
 
-    // เลือก zoom level ที่จะโหลดจริง (ไม่โหลดละเอียดสุดเสมอ เพื่อความไว)
-    // ระดับนี้ให้ภาพกว้างด้านละ ~2000-3000px ซึ่งเพียงพอสำหรับพื้นหลัง canvas 700x700
-    const TARGET_MAX_DIM = 2200;
+    // zoom level แรกที่โหลดตอนเลือกแมป (ภาพกว้าง ๆ โหลดไว ใช้เป็นภาพตั้งต้น/fallback)
+    const BASE_TARGET_DIM = 1400;
+    // ซูมเข้า canvas มากแค่ไหน (เทียบเป็น px ภาพต่อ 1 เมตรโลกเกม) ถึงจะไปขอภาพระดับถัดไป
+    const REFINE_DEBOUNCE_MS = 300;
 
-    let cache = {}; // mapName -> { image: HTMLCanvasElement, width, height, status }
+    let mapMeta = {};      // mapName -> { width, height, levels, maxZoom }
+    let tileCache = {};    // mapName -> { [zoomLevel]: { image, width, height, status: 'loading'|'ready' } }
     let currentMapName = "";
-    let loadToken = 0; // ป้องกัน race condition เวลาสลับแมปเร็ว ๆ
+    let loadToken = 0;     // ป้องกัน race condition เวลาสลับแมปเร็ว ๆ
+    let refineTimer = null;
 
     function computeLevels(width, height) {
         const maxDim = Math.max(width, height);
@@ -712,10 +715,9 @@ const MapBackground = (() => {
         return Math.floor(idx / GROUP_SIZE);
     }
 
-    function pickZoomLevel(levels, maxZoom) {
-        // เลือก zoom level ต่ำสุดที่ยังให้ขนาดภาพ >= TARGET_MAX_DIM (ประหยัด bandwidth)
+    function pickBaseZoomLevel(levels, maxZoom) {
         for (let z = 0; z <= maxZoom; z++) {
-            if (Math.max(levels[z].width, levels[z].height) >= TARGET_MAX_DIM) return z;
+            if (Math.max(levels[z].width, levels[z].height) >= BASE_TARGET_DIM) return z;
         }
         return maxZoom;
     }
@@ -741,25 +743,26 @@ const MapBackground = (() => {
         });
     }
 
-    async function loadMapTiles(mapName, statusCb) {
-        const { width, height } = await fetchMetadata(mapName);
-        const { levels, maxZoom } = computeLevels(width, height);
-        const z = pickZoomLevel(levels, maxZoom);
-        const lvl = levels[z];
+    // โหลด tile เฉพาะช่วง col/row ที่กำหนด (รองรับการโหลดเฉพาะพื้นที่ที่มองเห็น ไม่ต้องโหลดทั้งแมปตอนซูมลึก)
+    async function loadZoomLevel(mapName, z, statusCb, colRange = null, rowRange = null) {
+        const meta = mapMeta[mapName];
+        const lvl = meta.levels[z];
+        const c0 = colRange ? Math.max(0, colRange[0]) : 0;
+        const c1 = colRange ? Math.min(lvl.cols - 1, colRange[1]) : lvl.cols - 1;
+        const r0 = rowRange ? Math.max(0, rowRange[0]) : 0;
+        const r1 = rowRange ? Math.min(lvl.rows - 1, rowRange[1]) : lvl.rows - 1;
 
         const canvas = document.createElement('canvas');
         canvas.width = lvl.width;
         canvas.height = lvl.height;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = "#1e293b";
-        ctx.fillRect(0, 0, lvl.width, lvl.height);
 
         let done = 0;
-        const total = lvl.ntiles;
+        const total = (c1 - c0 + 1) * (r1 - r0 + 1);
         const tasks = [];
-        for (let row = 0; row < lvl.rows; row++) {
-            for (let col = 0; col < lvl.cols; col++) {
-                const group = tileGroupFor(levels, z, col, row);
+        for (let row = r0; row <= r1; row++) {
+            for (let col = c0; col <= c1; col++) {
+                const group = tileGroupFor(meta.levels, z, col, row);
                 const url = `${TILE_BASE}/${mapName}/TileGroup${group}/${z}-${col}-${row}.jpg`;
                 tasks.push(
                     loadImage(url)
@@ -770,13 +773,13 @@ const MapBackground = (() => {
             }
         }
         await Promise.all(tasks);
-
-        return { image: canvas, width, height };
+        return { image: canvas, width: meta.width, height: meta.height, coveredCols: [c0, c1], coveredRows: [r0, r1] };
     }
 
     async function setMap(mapName) {
         const myToken = ++loadToken;
         currentMapName = mapName;
+        clearTimeout(refineTimer);
 
         if (!mapName) {
             redrawMapOnly();
@@ -787,26 +790,122 @@ const MapBackground = (() => {
             setStatus("ไม่รองรับแผนที่นี้", "error");
             return;
         }
-        if (cache[mapName] && cache[mapName].status === 'ready') {
+        if (tileCache[mapName] && tileCache[mapName][pickBaseZoomLevelCached(mapName)]?.status === 'ready') {
             redrawMapOnly();
+            scheduleRefine();
             return;
         }
 
         setStatus("กำลังโหลด...", "loading");
         try {
-            const result = await loadMapTiles(mapName, (done, total) => {
-                if (myToken !== loadToken) return; // ผู้ใช้สลับแมปไปแล้ว ไม่ต้องอัปเดต
+            if (!mapMeta[mapName]) {
+                const { width, height } = await fetchMetadata(mapName);
+                const { levels, maxZoom } = computeLevels(width, height);
+                mapMeta[mapName] = { width, height, levels, maxZoom };
+            }
+            if (myToken !== loadToken) return;
+
+            const meta = mapMeta[mapName];
+            const baseZ = pickBaseZoomLevel(meta.levels, meta.maxZoom);
+            const result = await loadZoomLevel(mapName, baseZ, (done, total) => {
+                if (myToken !== loadToken) return;
                 setStatus(`กำลังโหลด ${done}/${total} tiles`, "loading");
             });
-            if (myToken !== loadToken) return; // สลับแมปไปแล้วระหว่างโหลด ทิ้งผลลัพธ์นี้
-            cache[mapName] = { ...result, status: 'ready' };
+            if (myToken !== loadToken) return;
+
+            tileCache[mapName] = tileCache[mapName] || {};
+            tileCache[mapName][baseZ] = { ...result, status: 'ready', full: true };
             setStatus("พร้อมใช้งาน", "ready");
             redrawMapOnly();
+            scheduleRefine();
         } catch (err) {
             if (myToken !== loadToken) return;
             console.error("โหลดแผนที่ไม่สำเร็จ:", err);
             setStatus("โหลดไม่สำเร็จ", "error");
         }
+    }
+
+    function pickBaseZoomLevelCached(mapName) {
+        const meta = mapMeta[mapName];
+        if (!meta) return -1;
+        return pickBaseZoomLevel(meta.levels, meta.maxZoom);
+    }
+
+    // เลือก zoom level ที่ "ควรจะใช้" ตามระดับการซูมปัจจุบันของ canvas (mapZoom = px บน canvas ต่อ 1 เมตรโลกเกม)
+    function desiredZoomLevel(meta) {
+        // อัตราส่วน px ภาพต่อเมตรโลกเกม ที่ zoom level z คือ (levels[z].width / meta.width)
+        // อยากได้ level ที่ใกล้เคียง mapZoom (px canvas ต่อเมตร) ที่สุด แต่ไม่เกิน maxZoom
+        let best = 0;
+        for (let z = 0; z <= meta.maxZoom; z++) {
+            const pxPerMeter = meta.levels[z].width / meta.width;
+            if (pxPerMeter <= mapZoom * 1.15) best = z; // ยอมให้ over-provision เล็กน้อยเพื่อความคมชัด
+        }
+        return best;
+    }
+
+    // คำนวณว่าพื้นที่ที่มองเห็นบน canvas ตอนนี้ ครอบคลุม col/row ไหนบ้างของ zoom level ที่ต้องการ
+    function visibleTileRange(meta, z) {
+        const lvl = meta.levels[z];
+        const scaleImgToWorld = meta.width / lvl.width; // เมตรต่อ 1 พิกเซลภาพระดับนี้
+        const w = mapCanvas.width, h = mapCanvas.height;
+        const viewMinX = mapCamX - w / (2 * mapZoom);
+        const viewMaxX = mapCamX + w / (2 * mapZoom);
+        const viewMinY = mapCamY - h / (2 * mapZoom);
+        const viewMaxY = mapCamY + h / (2 * mapZoom);
+
+        const pxMinX = viewMinX / scaleImgToWorld;
+        const pxMaxX = viewMaxX / scaleImgToWorld;
+        const pxMinYtop = (meta.height - viewMaxY) / scaleImgToWorld;
+        const pxMaxYtop = (meta.height - viewMinY) / scaleImgToWorld;
+
+        const colPad = 1, rowPad = 1; // โหลดเผื่อขอบเล็กน้อยกันขาวตอน pan
+        const c0 = Math.floor(pxMinX / TILESIZE) - colPad;
+        const c1 = Math.ceil(pxMaxX / TILESIZE) + colPad;
+        const r0 = Math.floor(pxMinYtop / TILESIZE) - rowPad;
+        const r1 = Math.ceil(pxMaxYtop / TILESIZE) + rowPad;
+        return [c0, c1, r0, r1];
+    }
+
+    // debounce: เรียกทุกครั้งที่ pan/zoom เปลี่ยน เพื่อพิจารณาว่าต้องโหลดภาพละเอียดขึ้นไหม
+    function scheduleRefine() {
+        clearTimeout(refineTimer);
+        refineTimer = setTimeout(refineCurrentView, REFINE_DEBOUNCE_MS);
+    }
+
+    async function refineCurrentView() {
+        const mapName = currentMapName;
+        if (!mapName || !ALLOWED_MAPS.has(mapName)) return;
+        const meta = mapMeta[mapName];
+        if (!meta) return;
+
+        const z = desiredZoomLevel(meta);
+        tileCache[mapName] = tileCache[mapName] || {};
+        const existing = tileCache[mapName][z];
+        if (existing && existing.status === 'ready' && existing.full) return; // มีภาพเต็มระดับนี้แล้ว ไม่ต้องทำอะไร
+        if (existing && existing.status === 'loading') return; // กำลังโหลดอยู่แล้ว
+
+        const [c0, c1, r0, r1] = visibleTileRange(meta, z);
+        const myToken = loadToken;
+
+        tileCache[mapName][z] = { status: 'loading' };
+        setStatus(`กำลังปรับความละเอียด...`, "loading");
+        try {
+            const result = await loadZoomLevel(mapName, z, null, [c0, c1], [r0, r1]);
+            if (myToken !== loadToken || currentMapName !== mapName) return;
+            tileCache[mapName][z] = { ...result, status: 'ready', full: (c0 <= 0 && r0 <= 0 && c1 >= meta.levels[z].cols - 1 && r1 >= meta.levels[z].rows - 1) };
+            setStatus("พร้อมใช้งาน", "ready");
+            redrawMapOnly();
+        } catch (err) {
+            if (myToken !== loadToken) return;
+            delete tileCache[mapName][z];
+            console.error("โหลดภาพละเอียดเพิ่มไม่สำเร็จ:", err);
+        }
+    }
+
+    // เรียกทุกครั้งที่ pan/zoom เปลี่ยน (จาก event listener ของ canvas) เพื่อพิจารณาโหลดภาพละเอียดขึ้น
+    function notifyViewChanged() {
+        if (!currentMapName || !mapMeta[currentMapName]) return;
+        scheduleRefine();
     }
 
     function setStatus(msg, cls) {
@@ -816,13 +915,26 @@ const MapBackground = (() => {
         el.className = "map-status" + (cls ? " " + cls : "");
     }
 
+    // คืนภาพสำหรับวาด: base = ภาพเต็มแมประดับหยาบ (มีเสมอถ้าโหลดสำเร็จ), refined = ภาพคมชัดกว่าเฉพาะพื้นที่ที่โหลดแล้ว (อาจไม่มี)
     function getCurrent() {
         if (!currentMapName) return null;
-        const entry = cache[currentMapName];
-        return (entry && entry.status === 'ready') ? entry : null;
+        const meta = mapMeta[currentMapName];
+        const levelCache = tileCache[currentMapName];
+        if (!meta || !levelCache) return null;
+
+        const baseZ = pickBaseZoomLevel(meta.levels, meta.maxZoom);
+        const base = (levelCache[baseZ] && levelCache[baseZ].status === 'ready') ? levelCache[baseZ] : null;
+        if (!base) return null;
+
+        const desired = desiredZoomLevel(meta);
+        let refined = null;
+        for (let z = desired; z > baseZ; z--) {
+            if (levelCache[z] && levelCache[z].status === 'ready') { refined = levelCache[z]; break; }
+        }
+        return { base, refined, meta };
     }
 
-    return { setMap, getCurrent, ALLOWED_MAPS };
+    return { setMap, getCurrent, notifyViewChanged, ALLOWED_MAPS, TILESIZE };
 })();
 
 function onMapBgChange() {
@@ -1376,16 +1488,51 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg) {
     if (bgMap) {
         // ภาพแผนที่: พิกัดโลก (0,0) อยู่มุมล่างซ้าย แต่ canvas ของภาพ (0,0) อยู่มุมบนซ้าย (north-up)
         // จึงต้องกลับแกน Y ตอน map พิกัดโลก -> พิกัดพิกเซลบนภาพต้นฉบับ
-        const scaleImgToWorld = bgMap.width / bgMap.image.width; // 1 พิกเซลภาพ = กี่เมตรในโลกเกม
-        const srcX = viewMinX / scaleImgToWorld;
-        const srcYTop = (bgMap.height - viewMaxY) / scaleImgToWorld;
-        const srcW = (viewMaxX - viewMinX) / scaleImgToWorld;
-        const srcH = (viewMaxY - viewMinY) / scaleImgToWorld;
         ctx.fillStyle = "#0f172a"; ctx.fillRect(0, 0, w, h);
         ctx.imageSmoothingEnabled = true;
-        try {
-            ctx.drawImage(bgMap.image, srcX, srcYTop, srcW, srcH, 0, 0, w, h);
-        } catch (e) { /* ถ้า view อยู่นอกภาพทั้งหมด ข้ามการวาดภาพรอบนี้ */ }
+
+        const drawLayer = (layer) => {
+            const scaleImgToWorld = layer.width / layer.image.width; // เมตรต่อ 1 พิกเซลภาพระดับนี้
+            const srcX = viewMinX / scaleImgToWorld;
+            const srcYTop = (layer.height - viewMaxY) / scaleImgToWorld;
+            const srcW = (viewMaxX - viewMinX) / scaleImgToWorld;
+            const srcH = (viewMaxY - viewMinY) / scaleImgToWorld;
+            try { ctx.drawImage(layer.image, srcX, srcYTop, srcW, srcH, 0, 0, w, h); } catch (e) { /* view นอกภาพ ข้ามได้ */ }
+        };
+
+        drawLayer(bgMap.base); // ภาพหยาบเต็มแมป วาดก่อนเป็นพื้นเสมอ
+
+        if (bgMap.refined) {
+            // refined เป็น canvas ขนาดเท่าระดับ zoom นั้น แต่โหลดจริงแค่บางพื้นที่ (coveredCols/coveredRows)
+            // คำนวณขอบเขตพิกัดโลกที่ครอบคลุมจริง แล้ว clip การวาดให้อยู่แค่ช่วงนั้น กันวาดพื้นที่ว่างทับภาพหยาบ
+            const meta = bgMap.meta;
+            const rz = bgMap.refined;
+            const lvl = meta.levels.find(l => l.width === rz.image.width && l.height === rz.image.height) ||
+                        meta.levels[meta.levels.findIndex(l => l.width >= rz.image.width)];
+            if (lvl && rz.coveredCols && rz.coveredRows) {
+                const scaleImgToWorld = rz.width / rz.image.width;
+                const coverMinPxX = rz.coveredCols[0] * MapBackground.TILESIZE;
+                const coverMaxPxX = (rz.coveredCols[1] + 1) * MapBackground.TILESIZE;
+                const coverMinPxYtop = rz.coveredRows[0] * MapBackground.TILESIZE;
+                const coverMaxPxYtop = (rz.coveredRows[1] + 1) * MapBackground.TILESIZE;
+                const coverMinX = coverMinPxX * scaleImgToWorld;
+                const coverMaxX = coverMaxPxX * scaleImgToWorld;
+                const coverMaxY = rz.height - (coverMinPxYtop * scaleImgToWorld);
+                const coverMinY = rz.height - (coverMaxPxYtop * scaleImgToWorld);
+
+                const clipMinX = Math.max(viewMinX, coverMinX), clipMaxX = Math.min(viewMaxX, coverMaxX);
+                const clipMinY = Math.max(viewMinY, coverMinY), clipMaxY = Math.min(viewMaxY, coverMaxY);
+                if (clipMaxX > clipMinX && clipMaxY > clipMinY) {
+                    ctx.save();
+                    const clipX0 = toCanvasX(clipMinX), clipX1 = toCanvasX(clipMaxX);
+                    const clipY0 = toCanvasY(clipMaxY), clipY1 = toCanvasY(clipMinY);
+                    ctx.beginPath(); ctx.rect(clipX0, clipY0, clipX1 - clipX0, clipY1 - clipY0); ctx.clip();
+                    drawLayer(rz);
+                    ctx.restore();
+                }
+            }
+        }
+
         ctx.fillStyle = "rgba(15, 23, 42, 0.25)"; ctx.fillRect(0, 0, w, h); // ทับให้ marker อ่านง่ายขึ้น
     }
 
@@ -1676,13 +1823,13 @@ function redrawMapOnly() {
 
 const mapCanvas = DOM["graph"];
 mapCanvas.addEventListener('mousedown', (e) => { isPanning = true; startPanX = e.offsetX; startPanY = e.offsetY; });
-mapCanvas.addEventListener('mousemove', (e) => { if(isPanning){ mapCamX -= (e.offsetX - startPanX) / mapZoom; mapCamY += (e.offsetY - startPanY) / mapZoom; startPanX = e.offsetX; startPanY = e.offsetY; mapMode = 'free'; if (!isRedrawing) { isRedrawing = true; requestAnimationFrame(() => { redrawMapOnly(); isRedrawing = false; }); } } });
+mapCanvas.addEventListener('mousemove', (e) => { if(isPanning){ mapCamX -= (e.offsetX - startPanX) / mapZoom; mapCamY += (e.offsetY - startPanY) / mapZoom; startPanX = e.offsetX; startPanY = e.offsetY; mapMode = 'free'; if (!isRedrawing) { isRedrawing = true; requestAnimationFrame(() => { redrawMapOnly(); isRedrawing = false; }); } MapBackground.notifyViewChanged(); } });
 mapCanvas.addEventListener('mouseup', () => isPanning = false); mapCanvas.addEventListener('mouseleave', () => isPanning = false);
-mapCanvas.addEventListener('wheel', (e) => { e.preventDefault(); if (mapMode === 'auto') mapMode = 'free'; mapZoom *= e.deltaY > 0 ? 0.9 : 1.1; if (!isRedrawing) { isRedrawing = true; requestAnimationFrame(() => { redrawMapOnly(); isRedrawing = false; }); } });
+mapCanvas.addEventListener('wheel', (e) => { e.preventDefault(); if (mapMode === 'auto') mapMode = 'free'; mapZoom *= e.deltaY > 0 ? 0.9 : 1.1; if (!isRedrawing) { isRedrawing = true; requestAnimationFrame(() => { redrawMapOnly(); isRedrawing = false; }); } MapBackground.notifyViewChanged(); });
 
-function zoomMap(factor) { if (mapMode === 'auto') mapMode = 'free'; mapZoom *= factor; redrawMapOnly(); }
-function resetMap() { mapMode = 'auto'; redrawMapOnly(); }
-function zoomToTarget() { mapMode = 'target'; mapZoom = 5; redrawMapOnly(); }
+function zoomMap(factor) { if (mapMode === 'auto') mapMode = 'free'; mapZoom *= factor; redrawMapOnly(); MapBackground.notifyViewChanged(); }
+function resetMap() { mapMode = 'auto'; redrawMapOnly(); MapBackground.notifyViewChanged(); }
+function zoomToTarget() { mapMode = 'target'; mapZoom = 5; redrawMapOnly(); MapBackground.notifyViewChanged(); }
 
 function resetData() {
     DOM["targetX"].value = "0000"; DOM["targetY"].value = "0000"; DOM["targetZ"].value = "00";

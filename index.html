@@ -382,9 +382,9 @@
                 <option value="Takistan">Takistan</option>
                 <option value="Marnivka">Marnivka</option>
                 <option value="Predniprovsk">Predniprovsk</option>
-                <option value="West Zagoria">West Zagoria</option>
+                <option value="West_Zagoria">West_Zagoria</option>
                 <option value="Zargabad">Zargabad</option>
-                <option value="Belleau Wood">Belleau Wood</option>
+                <option value="Belleau_Wood">Belleau_Wood</option>
             </select>
             <span id="mapBgStatus" class="map-status"></span>
         </div>
@@ -677,8 +677,8 @@ const MapBackground = (() => {
         "Serhiivka_CIE", "Udachne", "DonAir", "Serhiivka_WCS", "Everon", "Kolguyev",
         "Zarichne", "Arland", "Yunakivka", "Ruha", "Rostov", "Grotov", "Chervonopilia",
         "Faschivka", "Orlivka", "Donetsk", "Bakhmut", "Chernarus", "Fallujah", "Anizay",
-        "Gogland", "Takistan", "Marnivka", "Predniprovsk", "West Zagoria", "Zargabad",
-        "Belleau Wood",
+        "Gogland", "Takistan", "Marnivka", "Predniprovsk", "West_Zagoria", "Zargabad",
+        "Belleau_Wood",
     ]);
 
     // zoom level แรกที่โหลดตอนเลือกแมป (ภาพกว้าง ๆ โหลดไว ใช้เป็นภาพตั้งต้น/fallback)
@@ -1462,7 +1462,7 @@ function calculate() {
         }
     }
 
-    currentCalcData = { dx: effDx, dy: effDy, dz: dz, windSpeed: windSpeed, windDir: windDirDeg, milSystem: milSystem, low: trajLow, high: trajHigh };
+    currentCalcData = { dx: effDx, dy: effDy, dz: dz, gunX: gunX, gunY: gunY, windSpeed: windSpeed, windDir: windDirDeg, milSystem: milSystem, low: trajLow, high: trajHigh };
 
     drawGraph(gunX, gunY, targetX, targetY, windSpeed, windDirDeg);
     drawTrajectory(aimGridDistance, dz, trajLow, trajHigh, milSystem);
@@ -1544,10 +1544,10 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg) {
     ctx.setLineDash([6, 4]); ctx.strokeStyle = "#333"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx1, cy1); ctx.lineTo(cx2, cy2); ctx.stroke(); ctx.setLineDash([]);
     const strGunX = DOM["gunX"].value || "0000"; const strGunY = DOM["gunY"].value || "0000"; const strTgtX = DOM["targetX"].value || "0000"; const strTgtY = DOM["targetY"].value || "0000";
     ctx.strokeStyle = "#b91c1c"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx2, cy2, 8, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx2-12, cy2); ctx.lineTo(cx2+12, cy2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx2, cy2-12); ctx.lineTo(cx2, cy2+12); ctx.stroke();
-    ctx.font = "bold 12px sans-serif"; ctx.lineWidth = 3; ctx.strokeStyle = bgMap ? "rgba(0,0,0,0.8)" : "rgba(255,255,255,0.7)"; ctx.strokeText("TARGET", cx2 + 12, cy2 - 12); ctx.fillStyle = bgMap ? "#f8fafc" : "#4a463b"; ctx.fillText("TARGET", cx2 + 12, cy2 - 12); ctx.fillStyle = "#f87171"; ctx.font = "bold 11px monospace"; ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.lineWidth = 3; ctx.strokeText(`[${strTgtX},${strTgtY}]`, cx2 + 12, cy2 + 2); ctx.fillText(`[${strTgtX},${strTgtY}]`, cx2 + 12, cy2 + 2); 
+    ctx.font = "bold 16px sans-serif"; ctx.lineWidth = 4; ctx.strokeStyle = bgMap ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.85)"; ctx.strokeText("TARGET", cx2 + 14, cy2 - 14); ctx.fillStyle = bgMap ? "#f8fafc" : "#1f1a0f"; ctx.fillText("TARGET", cx2 + 14, cy2 - 14); ctx.fillStyle = "#fca5a5"; ctx.font = "bold 14px monospace"; ctx.strokeStyle = "rgba(0,0,0,0.85)"; ctx.lineWidth = 4; ctx.strokeText(`[${strTgtX},${strTgtY}]`, cx2 + 14, cy2 + 6); ctx.fillText(`[${strTgtX},${strTgtY}]`, cx2 + 14, cy2 + 6); 
 
     if (aimOffsetX !== 0 || aimOffsetY !== 0) { const cxEff = toCanvasX(effX); const cyEff = toCanvasY(effY); ctx.setLineDash([4, 4]); ctx.strokeStyle = "#a855f7"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx2, cy2); ctx.lineTo(cxEff, cyEff); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = "#a855f7"; ctx.beginPath(); ctx.arc(cxEff, cyEff, 6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#7e22ce"; ctx.font = "bold 11px sans-serif"; ctx.fillText("AIM OFFSET", cxEff + 10, cyEff - 5); }
-    ctx.fillStyle = "#1d4ed8"; ctx.beginPath(); ctx.moveTo(cx1, cy1 - 10); ctx.lineTo(cx1 - 8, cy1 + 6); ctx.lineTo(cx1 + 8, cy1 + 6); ctx.fill(); ctx.font = "bold 12px sans-serif"; ctx.lineWidth = 3; ctx.strokeStyle = bgMap ? "rgba(0,0,0,0.8)" : "rgba(255,255,255,0.7)"; ctx.strokeText("GUN", cx1 - 12, cy1 + 20); ctx.fillStyle = bgMap ? "#f8fafc" : "#4a463b"; ctx.fillText("GUN", cx1 - 12, cy1 + 20); ctx.fillStyle = "#60a5fa"; ctx.font = "bold 11px monospace"; ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.lineWidth = 3; ctx.strokeText(`[${strGunX},${strGunY}]`, cx1 - 12, cy1 + 34); ctx.fillText(`[${strGunX},${strGunY}]`, cx1 - 12, cy1 + 34); 
+    ctx.fillStyle = "#1d4ed8"; ctx.beginPath(); ctx.moveTo(cx1, cy1 - 10); ctx.lineTo(cx1 - 8, cy1 + 6); ctx.lineTo(cx1 + 8, cy1 + 6); ctx.fill(); ctx.font = "bold 16px sans-serif"; ctx.lineWidth = 4; ctx.strokeStyle = bgMap ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.85)"; ctx.strokeText("GUN", cx1 - 14, cy1 + 24); ctx.fillStyle = bgMap ? "#f8fafc" : "#1f1a0f"; ctx.fillText("GUN", cx1 - 14, cy1 + 24); ctx.fillStyle = "#93c5fd"; ctx.font = "bold 14px monospace"; ctx.strokeStyle = "rgba(0,0,0,0.85)"; ctx.lineWidth = 4; ctx.strokeText(`[${strGunX},${strGunY}]`, cx1 - 14, cy1 + 42); ctx.fillText(`[${strGunX},${strGunY}]`, cx1 - 14, cy1 + 42); 
 
     if (airburstDataPack) {
         const bxCanvas = toCanvasX(airburstDataPack.x);
@@ -1701,9 +1701,11 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
     window.trajectoryAnimId = requestAnimationFrame(animateFrame);
 }
 
-let scene, camera, renderer, controls, gridHelper;
+let scene, camera, renderer, controls;
 let animationFrameId = null; let dynamicCurves = []; 
 let gunMesh3D, targetMesh3D, poleMesh3D, gunLabel3D, targetLabel3D;
+let groundPlane3D = null; let groundPlaneMapName = null; // แคชไว้ไม่ต้องสร้าง texture ใหม่ทุกครั้งถ้าแผนที่ไม่เปลี่ยน
+let dynamicLabels3D = []; // label/marker เพิ่มเติมที่ต้องสร้าง/ลบใหม่ทุกครั้ง (Max height, Alt@100m, Air Fuze)
 
 function createTextSprite(message, color) {
     const canvas = document.createElement('canvas'); const context = canvas.getContext('2d');
@@ -1712,6 +1714,63 @@ function createTextSprite(message, color) {
     context.fillText(message, 256, 128);
     const texture = new THREE.CanvasTexture(canvas); texture.minFilter = THREE.LinearFilter;
     const spriteMaterial = new THREE.SpriteMaterial({ map: texture, depthTest: false }); return new THREE.Sprite(spriteMaterial);
+}
+
+// สร้าง label หลายบรรทัด/มีพื้นหลังจาง ๆ เพื่อให้อ่านง่ายเหมือนกับ label ใน 2D (เช่น "Max: 123m", "Alt @100m: 45.6m")
+function createDataLabelSprite(lines, textColor) {
+    const measureCanvas = document.createElement('canvas'); const measureCtx = measureCanvas.getContext('2d');
+    const fontSize = 46; const lineHeight = fontSize * 1.3; const paddingX = 24; const paddingY = 16;
+    measureCtx.font = `Bold ${fontSize}px 'Segoe UI', Arial`;
+    let maxWidth = 0; lines.forEach(l => { const w = measureCtx.measureText(l).width; if (w > maxWidth) maxWidth = w; });
+
+    const canvas = document.createElement('canvas'); const context = canvas.getContext('2d');
+    canvas.width = Math.ceil(maxWidth + paddingX * 2);
+    canvas.height = Math.ceil(lineHeight * lines.length + paddingY * 2);
+    context.fillStyle = "rgba(2, 6, 23, 0.8)";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.font = `Bold ${fontSize}px 'Segoe UI', Arial`;
+    context.fillStyle = textColor; context.textAlign = "center"; context.textBaseline = "middle";
+    lines.forEach((l, i) => { context.fillText(l, canvas.width / 2, paddingY + lineHeight * i + lineHeight / 2); });
+    const texture = new THREE.CanvasTexture(canvas); texture.minFilter = THREE.LinearFilter;
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture, depthTest: false });
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.userData.aspect = canvas.width / canvas.height;
+    return sprite;
+}
+
+// วางภาพแผนที่ (ถ้าเลือกไว้) เป็นพื้นใน 3D ให้ตรงกับพิกัดโลกจริง โดยใช้ base layer (ภาพเต็มแมปเสมอ)
+function updateGroundPlane3D(gunX, gunY) {
+    const bgMap = MapBackground.getCurrent();
+
+    if (!bgMap) {
+        if (groundPlane3D) { scene.remove(groundPlane3D); groundPlane3D.geometry.dispose(); groundPlane3D.material.dispose(); groundPlane3D = null; groundPlaneMapName = null; }
+        return;
+    }
+
+    const meta = bgMap.meta; // { width, height } หน่วยเมตร (ขนาดแมปจริง)
+    const currentMapName = DOM["mapBgSelect"] ? DOM["mapBgSelect"].value : null;
+
+    if (!groundPlane3D || groundPlaneMapName !== currentMapName) {
+        if (groundPlane3D) { scene.remove(groundPlane3D); groundPlane3D.geometry.dispose(); groundPlane3D.material.dispose(); }
+        const texture = new THREE.CanvasTexture(bgMap.base.image);
+        texture.colorSpace = THREE.SRGBColorSpace || texture.colorSpace;
+        const geometry = new THREE.PlaneGeometry(meta.width, meta.height);
+        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true, opacity: 0.95 });
+        groundPlane3D = new THREE.Mesh(geometry, material);
+        groundPlane3D.rotation.x = -Math.PI / 2; // วางราบกับพื้น (แกน Y ขึ้น ตรงกับระบบ dz ของโค้ดนี้)
+        scene.add(groundPlane3D);
+        groundPlaneMapName = currentMapName;
+    } else {
+        // แผนที่เดิม แค่ tile ละเอียดขึ้นจาก progressive loading -> รีเฟรช texture เฉย ๆ ไม่ต้องสร้าง geometry ใหม่
+        groundPlane3D.material.map.needsUpdate = true;
+    }
+
+    // พิกัดโลกจริง (0,0) อยู่มุมล่างซ้ายของแมป ส่วน plane นี้มีจุดกึ่งกลางที่ (0,0,0) ของตัวเอง
+    // ต้อง offset ให้ตำแหน่งใต้ gun (dx=0,dy=0 ในระบบพิกัดสัมพัทธ์ที่ใช้วาด gun/target) ตรงกับพิกัดโลกจริงของ gun
+    const planeCenterWorldX = meta.width / 2;
+    const planeCenterWorldY = meta.height / 2;
+    // ระบบพิกัด 3D ที่ใช้วาด gun/target: X=dx (ทิศตะวันออกสัมพัทธ์), Z=-dy (ทิศเหนือสัมพัทธ์ กลับเครื่องหมาย)
+    groundPlane3D.position.set(planeCenterWorldX - gunX, 0, -(planeCenterWorldY - gunY));
 }
 
 function animate3D() {
@@ -1744,14 +1803,54 @@ function init3D() {
     window.addEventListener('resize', () => { if (!is3DMode) return; camera.aspect = container.clientWidth / container.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(container.clientWidth, container.clientHeight); });
 }
 
+// สร้างกริดพื้น 3 ระดับ (10m/100m/1000m) ให้ตรงกับ drawGrid ของ Tactical Top-Down Map (2D)
+// dx, dy = ตำแหน่ง target สัมพัทธ์จาก gun (gun อยู่ที่ 0,0 เสมอในระบบพิกัดนี้)
+let tacticalGridGroup3D = null;
+function updateTacticalGrid3D(dx, dy, dist) {
+    if (tacticalGridGroup3D) { scene.remove(tacticalGridGroup3D); tacticalGridGroup3D.children.forEach(l => { l.geometry.dispose(); l.material.dispose(); }); }
+    tacticalGridGroup3D = new THREE.Group();
+
+    const bgMap = MapBackground.getCurrent();
+    // สีเดียวกับ 2D: โทนสว่างบนพื้นครีมตอนไม่มีแผนที่, โทนขาวโปร่งแสงตอนมีแผนที่ทับอยู่
+    const levels = bgMap
+        ? [ { step: 10, color: 0xffffff, opacity: 0.06 }, { step: 100, color: 0xffffff, opacity: 0.12 }, { step: 1000, color: 0xffffff, opacity: 0.25 } ]
+        : [ { step: 10, color: 0xd1cbb8, opacity: 0.5 }, { step: 100, color: 0xb3ab94, opacity: 0.8 }, { step: 1000, color: 0x1e293b, opacity: 1.0 } ];
+
+    // ครอบคลุมพื้นที่รอบ gun-target ให้เห็นกริดกว้างพอ (padding เผื่อขอบ เหมือนกล้อง 3D มองเห็นกว้างกว่าระยะ gun-target ตรง ๆ)
+    const halfSpan = Math.max(dist * 1.2, 500);
+    const centerX = dx / 2, centerZ = -dy / 2;
+    const minX = centerX - halfSpan, maxX = centerX + halfSpan;
+    const minZ = centerZ - halfSpan, maxZ = centerZ + halfSpan;
+
+    levels.forEach(({ step, color, opacity }) => {
+        // ข้ามระดับ 10m เมื่อระยะยิงไกล (กริดจะถี่เกินไปจนเป็นภาระ render โดยไม่มีประโยชน์ต่อสายตา)
+        // อิงจาก dist จริง ไม่ใช่ halfSpan ที่มี floor ต่ำสุดไว้ที่ 500m เสมอ
+        if (step === 10 && dist > 300) return;
+        const points = [];
+        for (let gx = Math.floor(minX / step) * step; gx <= maxX; gx += step) { points.push(new THREE.Vector3(gx, 0, minZ), new THREE.Vector3(gx, 0, maxZ)); }
+        for (let gz = Math.floor(minZ / step) * step; gz <= maxZ; gz += step) { points.push(new THREE.Vector3(minX, 0, gz), new THREE.Vector3(maxX, 0, gz)); }
+        if (points.length === 0) return;
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+        tacticalGridGroup3D.add(new THREE.LineSegments(geometry, material));
+    });
+
+    tacticalGridGroup3D.position.y = 0.05; // ยกเหนือพื้นแผนที่เล็กน้อยกันเส้นจมภาพ
+    scene.add(tacticalGridGroup3D);
+}
+
 function update3DScene() {
     if (!scene || !currentCalcData) return;
-    const { dx, dy, dz, windSpeed, windDir, milSystem, low, high } = currentCalcData;
+    const { dx, dy, dz, gunX, gunY, windSpeed, windDir, milSystem, low, high } = currentCalcData;
     const dist = Math.sqrt(dx*dx + dy*dy); if (dist === 0) return; 
 
-    const gridSize = Math.max(dist, 1000) * 2; const markerScale = Math.max(dist * 0.015, 10); const labelScale = Math.max(dist * 0.3, 50);
+    const gridSize = Math.max(dist, 1000) * 2; const markerScale = Math.max(dist * 0.015, 10); const labelScale = Math.max(dist * 0.12, 18);
 
     dynamicCurves.forEach(obj => { scene.remove(obj); if (obj.geometry) obj.geometry.dispose(); if (obj.material) obj.material.dispose(); }); dynamicCurves = [];
+    dynamicLabels3D.forEach(obj => { scene.remove(obj); if (obj.material && obj.material.map) obj.material.map.dispose(); if (obj.material) obj.material.dispose(); }); dynamicLabels3D = [];
+
+    // พื้นแผนที่ (ถ้ามีการเลือกแผนที่ไว้) — ต้องมาก่อน grid เพื่อให้กริดวาดทับเบา ๆ ด้านบนได้
+    if (typeof gunX === 'number' && typeof gunY === 'number') { updateGroundPlane3D(gunX, gunY); }
 
     if (!gunMesh3D) {
         gunMesh3D = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), new THREE.MeshBasicMaterial({ color: 0x22c55e })); scene.add(gunMesh3D);
@@ -1763,23 +1862,31 @@ function update3DScene() {
     gunMesh3D.scale.set(markerScale, markerScale, markerScale);
     targetMesh3D.position.set(dx, dz, -dy); targetMesh3D.scale.set(markerScale, markerScale, markerScale);
     poleMesh3D.geometry.setFromPoints([new THREE.Vector3(dx, 0, -dy), new THREE.Vector3(dx, dz, -dy)]);
-    gunLabel3D.position.set(0, Math.max(dist * 0.05, 30), 0); gunLabel3D.scale.set(labelScale, labelScale / 2, 1);
-    targetLabel3D.position.set(dx, dz + Math.max(dist * 0.05, 30), -dy); targetLabel3D.scale.set(labelScale, labelScale / 2, 1);
+    gunLabel3D.position.set(0, Math.max(dist * 0.05, 20), 0); gunLabel3D.scale.set(labelScale, labelScale / 2, 1);
+    targetLabel3D.position.set(dx, dz + Math.max(dist * 0.05, 20), -dy); targetLabel3D.scale.set(labelScale, labelScale / 2, 1);
 
-    if (gridHelper) { scene.remove(gridHelper); gridHelper.geometry.dispose(); }
-    gridHelper = new THREE.GridHelper(gridSize, 50, 0x334155, 0x1e293b); gridHelper.position.set(dx/2, 0, -dy/2); scene.add(gridHelper);
+    updateTacticalGrid3D(dx, dy, dist);
+
+    // เพิ่มเข้า scene ทีละอัน พร้อมเก็บ reference ไว้ล้างตอนรอบถัดไป (เหมือน dynamicCurves)
+    const addLabel = (sprite, pos, scale) => {
+        sprite.position.copy(pos);
+        const aspect = sprite.userData.aspect || 2;
+        sprite.scale.set(scale * aspect, scale, 1);
+        scene.add(sprite); dynamicLabels3D.push(sprite);
+    };
 
     const buildCurve3D = (trajInfo) => {
-        if (!trajInfo) return 0;
+        if (!trajInfo) return null;
         const windRad = windDir * (Math.PI / 180);
         let aimRad = trajInfo.azi * (Math.PI / (milSystem / 2));
         let det = Math.sin(aimRad - windRad); let S, W;
         if (Math.abs(det) < 0.0001 || windSpeed === 0) { S = dist; W = 0; } 
         else { S = (dx * Math.cos(windRad) - dy * Math.sin(windRad)) / det; W = (dy * Math.sin(aimRad) - dx * Math.cos(aimRad)) / det; }
 
-        const points = []; let maxH = 0;
+        const points = []; let maxH = -Infinity; let maxHIndex = 0;
         
-        const simPts = getDragSimulatedPoints(trajInfo, dist, dz).pts;
+        const simResult = getDragSimulatedPoints(trajInfo, dist, dz);
+        const simPts = simResult.pts;
         for(let i=0; i<simPts.length; i++) {
             let bx = simPts[i].x;
             let by = simPts[i].y;
@@ -1787,7 +1894,7 @@ function update3DScene() {
             let endX = currentS * Math.sin(aimRad) + currentW * Math.sin(windRad);
             let endY = currentS * Math.cos(aimRad) + currentW * Math.cos(windRad);
             
-            if (by > maxH) maxH = by;
+            if (by > maxH) { maxH = by; maxHIndex = i; }
             points.push(new THREE.Vector3(endX, by, -endY)); 
         }
 
@@ -1795,6 +1902,7 @@ function update3DScene() {
         const smoothPoints = curve3D.getPoints(100);
         
         const colorCode = trajInfo.color === "rgba(234, 179, 8, 1)" ? 0xeab308 : 0x3b82f6;
+        const colorHex = trajInfo.color === "rgba(234, 179, 8, 1)" ? "#eab308" : "#3b82f6";
         const lineMesh = new THREE.Line(new THREE.BufferGeometry().setFromPoints(smoothPoints), new THREE.LineBasicMaterial({ color: colorCode, linewidth: 2 }));
         scene.add(lineMesh); dynamicCurves.push(lineMesh);
         
@@ -1804,11 +1912,59 @@ function update3DScene() {
             const dLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([pt, new THREE.Vector3(pt.x, 0, pt.z)]), dropMat);
             scene.add(dLine); dynamicCurves.push(dLine);
         }
+
+        // ── Label: Max Height (ตรงกับ "Max: XXXm" ใน 2D) ──
+        const peakPt = points[maxHIndex];
+        addLabel(createDataLabelSprite([`MAX: ${maxH.toFixed(0)}m`], colorHex), new THREE.Vector3(peakPt.x, peakPt.y + labelScale * 0.5, peakPt.z), labelScale * 0.4);
+
+        // ── Label: Alt @100m (ตรงกับจุดสีม่วงใน 2D) ──
+        if (trajInfo.alt100m !== null && trajInfo.alt100m !== undefined && dist > 100) {
+            const targetRangeFrac = (dist - 100) / dist; // สัดส่วนระยะจากปืนถึงจุด 100m ก่อนเป้า
+            const idx100 = Math.min(simPts.length - 1, Math.round(targetRangeFrac * (simPts.length - 1)));
+            const bx100 = simPts[idx100].x;
+            const currentS100 = (bx100 / dist) * S; const currentW100 = (bx100 / dist) * W;
+            const x100 = currentS100 * Math.sin(aimRad) + currentW100 * Math.sin(windRad);
+            const y100 = currentS100 * Math.cos(aimRad) + currentW100 * Math.cos(windRad);
+            const z100 = dz + trajInfo.alt100m;
+            const alt100Point = new THREE.Vector3(x100, z100, -y100);
+
+            const dotGeom = new THREE.SphereGeometry(markerScale * 0.4, 12, 12);
+            const dotMat = new THREE.MeshBasicMaterial({ color: 0xa855f7 });
+            const dot = new THREE.Mesh(dotGeom, dotMat);
+            dot.position.copy(alt100Point);
+            scene.add(dot); dynamicCurves.push(dot);
+
+            addLabel(createDataLabelSprite([`ALT@100m: ${trajInfo.alt100m.toFixed(1)}m`], "#e9d5ff"), new THREE.Vector3(alt100Point.x, alt100Point.y + labelScale * 0.4, alt100Point.z), labelScale * 0.32);
+        }
+
+        // ── Label: Air Fuze Point (ตรงกับกากบาทแดงใน 2D) ──
+        if (trajInfo.fuzeX !== undefined && trajInfo.fuzeY !== undefined) {
+            const fuzeFrac = trajInfo.fuzeX / dist;
+            const idxFuze = Math.min(simPts.length - 1, Math.round(fuzeFrac * (simPts.length - 1)));
+            const bxFuze = simPts[idxFuze].x;
+            const currentSFuze = (bxFuze / dist) * S; const currentWFuze = (bxFuze / dist) * W;
+            const xFuze = currentSFuze * Math.sin(aimRad) + currentWFuze * Math.sin(windRad);
+            const yFuze = currentSFuze * Math.cos(aimRad) + currentWFuze * Math.cos(windRad);
+            const fuzePoint = new THREE.Vector3(xFuze, trajInfo.fuzeY, -yFuze);
+
+            const matX = new THREE.LineBasicMaterial({ color: 0xef4444, linewidth: 3 });
+            const s = markerScale * 0.8;
+            const fuzeGeom = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(-s, -s, 0), new THREE.Vector3(s, s, 0),
+                new THREE.Vector3(s, -s, 0), new THREE.Vector3(-s, s, 0),
+            ]);
+            const fuzeMarker = new THREE.LineSegments(fuzeGeom, matX);
+            fuzeMarker.position.copy(fuzePoint);
+            scene.add(fuzeMarker); dynamicCurves.push(fuzeMarker);
+
+            addLabel(createDataLabelSprite([`💥 FUZE: ${(trajInfo.fuzeY - dz).toFixed(0)}m`], "#fca5a5"), new THREE.Vector3(fuzePoint.x, fuzePoint.y + labelScale * 0.4, fuzePoint.z), labelScale * 0.32);
+        }
+
         return maxH;
     };
 
     let maxH_Low = buildCurve3D(low); const maxH_High = buildCurve3D(high); 
-    const overAllMaxH = Math.max(maxH_Low, maxH_High, Math.abs(dz), 500);
+    const overAllMaxH = Math.max(maxH_Low || 0, maxH_High || 0, Math.abs(dz), 500);
     controls.target.set(dx/2, dz/2, -dy/2); 
     camera.position.set(dx/2 + dist*0.8, overAllMaxH * 0.8, -dy/2 + dist*0.8); controls.update();
 }

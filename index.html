@@ -348,6 +348,14 @@
                         </button>
                     </div>
                 </div>
+
+                <div class="adjust-panel">
+                    <div class="grid-2">
+                        <button id="copyTeamBtn" onclick="copyToChatTeam()" style="background: #64748b; color: #fff; margin: 0;" title="สำหรับแจ้งฝ่ายเดียวกันว่ากำลังยิงเป้าไหน">📢 Chat Team</button>
+                        <button id="copyGunnerBtn" onclick="copyToChatGunner()" style="background: #a855f7; color: #fff; margin: 0;" title="สำหรับส่งค่าปืนให้พลยิง">🎯 Chat Gunner</button>
+                    </div>
+                    <div id="copyChatStatus" style="font-size: 11px; color: #64748b; text-align: center; min-height: 16px; margin-top: 6px;"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -468,7 +476,7 @@ const DOM = (() => {
         "offsetDisplay", "offCoords", "offMeters", "undoOffsetBtn", "applyCorrectionBtn",
         "adjustStep", "foX", "foY", "impactDist", "impactAzi", "foAziUnit", "foResult", "foCorrectionResult",
         "memoryList", "saveName", "editNameInput", "editModal", "deleteModal",
-        "mapBgSelect", "mapBgStatus",
+        "mapBgSelect", "mapBgStatus", "copyChatStatus",
     ];
     const cache = {};
     const build = () => { ids.forEach(id => { cache[id] = document.getElementById(id); }); };
@@ -1293,7 +1301,8 @@ function calculate() {
             angleImpact: finalInterpDataHigh.angleImpact || 75,
             peakAlt: finalInterpDataHigh.hasPeakAlt ? finalInterpDataHigh.peakAlt : (vy > 0 ? (vy*vy)/(2*g_const) : 0),
             alt100m: aimGridDistance > 100 ? calculateAltAtLast100m(finalInterpDataHigh) : null,
-            color: "rgba(234, 179, 8, 1)", azi: finalAziHighToPass
+            color: "rgba(234, 179, 8, 1)", azi: finalAziHighToPass,
+            chargeCode: chargeCodeHigh, isMortar: isMortar
         };
 
         simDataHigh = getDragSimulatedPoints(trajHigh, aimGridDistance, dz, airburstH);
@@ -1401,7 +1410,8 @@ function calculate() {
                 angleImpact: bestLowCalc.finalInterpDataLow.angleImpact || 45,
                 peakAlt: bestLowCalc.maxHLow,
                 alt100m: aimGridDistance > 100 ? calculateAltAtLast100m(bestLowCalc.finalInterpDataLow) : null,
-                color: "rgba(56, 189, 248, 1)", azi: finalAziLowToPass
+                color: "rgba(56, 189, 248, 1)", azi: finalAziLowToPass,
+                chargeCode: bestLowCalc.cId, isMortar: false
             };
 
             simDataLow = getDragSimulatedPoints(trajLow, aimGridDistance, dz, airburstH);
@@ -1462,7 +1472,7 @@ function calculate() {
         }
     }
 
-    currentCalcData = { dx: effDx, dy: effDy, dz: dz, gunX: gunX, gunY: gunY, windSpeed: windSpeed, windDir: windDirDeg, milSystem: milSystem, low: trajLow, high: trajHigh };
+    currentCalcData = { dx: effDx, dy: effDy, dz: dz, gunX: gunX, gunY: gunY, targetX: targetX, targetY: targetY, aimGridDistance: aimGridDistance, windSpeed: windSpeed, windDir: windDirDeg, milSystem: milSystem, low: trajLow, high: trajHigh };
 
     drawGraph(gunX, gunY, targetX, targetY, windSpeed, windDirDeg);
     drawTrajectory(aimGridDistance, dz, trajLow, trajHigh, milSystem);
@@ -1795,8 +1805,8 @@ function toggleViewMode() {
 function init3D() {
     const container = DOM['trajectory3D'];
     scene = new THREE.Scene(); scene.background = new THREE.Color('#020617');
-    camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 1, 50000);
-    renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(container.clientWidth, container.clientHeight);
+    camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 5, 100000);
+    renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true }); renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
     controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = 0.05;
     scene.add(new THREE.AmbientLight(0xffffff, 0.7));
@@ -1835,7 +1845,7 @@ function updateTacticalGrid3D(dx, dy, dist) {
         tacticalGridGroup3D.add(new THREE.LineSegments(geometry, material));
     });
 
-    tacticalGridGroup3D.position.y = 0.05; // ยกเหนือพื้นแผนที่เล็กน้อยกันเส้นจมภาพ
+    tacticalGridGroup3D.position.y = Math.max(dist * 0.002, 0.1); // ยกเหนือพื้นแผนที่ตามสัดส่วนระยะยิง กันเส้นจมภาพ/กระพริบ (Z-fighting)
     scene.add(tacticalGridGroup3D);
 }
 
@@ -1986,6 +1996,81 @@ mapCanvas.addEventListener('wheel', (e) => { e.preventDefault(); if (mapMode ===
 function zoomMap(factor) { if (mapMode === 'auto') mapMode = 'free'; mapZoom *= factor; redrawMapOnly(); MapBackground.notifyViewChanged(); }
 function resetMap() { mapMode = 'auto'; redrawMapOnly(); MapBackground.notifyViewChanged(); }
 function zoomToTarget() { mapMode = 'target'; mapZoom = 5; redrawMapOnly(); MapBackground.notifyViewChanged(); }
+
+// ═══════════════════════════════════════════════════════════════════
+// COPY TO CHAT — สร้างข้อความ FIRE MISSION สำหรับแจ้งทีม/พลยิง จากผลคำนวณล่าสุด
+// ═══════════════════════════════════════════════════════════════════
+function getActiveTraj() {
+    // ถ้ามีทั้ง Low และ High Angle ใช้ Low Angle เป็นค่าหลัก (มาตรฐานที่ใช้บ่อยกว่าสำหรับปืนใหญ่)
+    // ถ้าไม่มี Low Angle (เช่น ปูนครกที่มีแต่ High Angle) ใช้ High Angle แทน
+    if (!currentCalcData) return null;
+    return currentCalcData.low || currentCalcData.high || null;
+}
+
+function getWeaponShortName() {
+    const opt = DOM["weaponSelect"] && DOM["weaponSelect"].selectedOptions[0];
+    if (!opt) return "";
+    return opt.text.split(" ")[0]; // "M777 Howitzer (155mm) - US" -> "M777"
+}
+
+function showCopyChatStatus(msg, isError) {
+    const el = DOM["copyChatStatus"];
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = isError ? "#ef4444" : "#22c55e";
+    clearTimeout(showCopyChatStatus._t);
+    showCopyChatStatus._t = setTimeout(() => { el.textContent = ""; }, 2500);
+}
+
+function copyTextToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text);
+    }
+    // fallback สำหรับเบราว์เซอร์/บริบทที่ไม่รองรับ Clipboard API (เช่น http ไม่ใช่ https)
+    return new Promise((resolve, reject) => {
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.focus(); ta.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            ok ? resolve() : reject(new Error('execCommand copy failed'));
+        } catch (e) { reject(e); }
+    });
+}
+
+function copyToChatTeam() {
+    const traj = getActiveTraj();
+    if (!traj || !currentCalcData) { showCopyChatStatus("⚠️ กรุณาคำนวณก่อน (ใส่พิกัดเป้าหมาย)", true); return; }
+
+    const weapon = getWeaponShortName();
+    const tgtXStr = DOM["targetX"].value || "0000";
+    const tgtYStr = DOM["targetY"].value || "0000";
+    const tof = traj.tof.toFixed(0);
+
+    const msg = `FIRE MISSION | ${weapon} | Grid: ${tgtXStr} ${tgtYStr} | Time to impact ${tof}s`;
+    copyTextToClipboard(msg)
+        .then(() => showCopyChatStatus("✅ Copy ข้อความทีมแล้ว!"))
+        .catch(() => showCopyChatStatus("❌ Copy ไม่สำเร็จ ลองอีกครั้ง", true));
+}
+
+function copyToChatGunner() {
+    const traj = getActiveTraj();
+    if (!traj || !currentCalcData) { showCopyChatStatus("⚠️ กรุณาคำนวณก่อน (ใส่พิกัดเป้าหมาย)", true); return; }
+
+    const weapon = getWeaponShortName();
+    const isMortar = traj.isMortar;
+    const chargeLabel = isMortar ? "Ring" : "Charge";
+    const chargeNum = (traj.chargeCode || "").replace(/[^0-9]/g, '') || "AUTO";
+    const azi = Math.round(traj.azi);
+    const elev = Math.round(traj.elev);
+    const tof = traj.tof.toFixed(0);
+
+    const msg = `FIRE MISSION | ${weapon} | ${chargeLabel} ${chargeNum} | AZI ${azi} | ELEV ${elev} | ToF ${tof}s`;
+    copyTextToClipboard(msg)
+        .then(() => showCopyChatStatus("✅ Copy ข้อความพลยิงแล้ว!"))
+        .catch(() => showCopyChatStatus("❌ Copy ไม่สำเร็จ ลองอีกครั้ง", true));
+}
 
 function resetData() {
     DOM["targetX"].value = "0000"; DOM["targetY"].value = "0000"; DOM["targetZ"].value = "00";

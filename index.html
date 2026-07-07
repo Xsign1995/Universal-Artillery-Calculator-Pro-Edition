@@ -1723,7 +1723,10 @@ function createTextSprite(message, color) {
     context.fillStyle = color; context.textAlign = "center"; context.textBaseline = "middle";
     context.fillText(message, 256, 128);
     const texture = new THREE.CanvasTexture(canvas); texture.minFilter = THREE.LinearFilter;
-    const spriteMaterial = new THREE.SpriteMaterial({ map: texture, depthTest: false }); return new THREE.Sprite(spriteMaterial);
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture, depthTest: false });
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.renderOrder = 10; // สูงสุดเสมอ ไม่ให้เส้นวิถีกระสุน/กริดวาดทับป้าย
+    return sprite;
 }
 
 // สร้าง label หลายบรรทัด/มีพื้นหลังจาง ๆ เพื่อให้อ่านง่ายเหมือนกับ label ใน 2D (เช่น "Max: 123m", "Alt @100m: 45.6m")
@@ -1744,6 +1747,7 @@ function createDataLabelSprite(lines, textColor) {
     const texture = new THREE.CanvasTexture(canvas); texture.minFilter = THREE.LinearFilter;
     const spriteMaterial = new THREE.SpriteMaterial({ map: texture, depthTest: false });
     const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.renderOrder = 10; // สูงสุดเสมอ ไม่ให้เส้นวิถีกระสุน/กริดวาดทับป้าย
     sprite.userData.aspect = canvas.width / canvas.height;
     return sprite;
 }
@@ -1767,6 +1771,7 @@ function updateGroundPlane3D(gunX, gunY) {
         const geometry = new THREE.PlaneGeometry(meta.width, meta.height);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true, opacity: 0.95 });
         groundPlane3D = new THREE.Mesh(geometry, material);
+        groundPlane3D.renderOrder = -1; // ต่ำสุดเสมอ อยู่ใต้กริดและทุกอย่าง
         groundPlane3D.rotation.x = -Math.PI / 2; // วางราบกับพื้น (แกน Y ขึ้น ตรงกับระบบ dz ของโค้ดนี้)
         scene.add(groundPlane3D);
         groundPlaneMapName = currentMapName;
@@ -1820,14 +1825,17 @@ function updateTacticalGrid3D(dx, dy, dist) {
     if (tacticalGridGroup3D) { scene.remove(tacticalGridGroup3D); tacticalGridGroup3D.children.forEach(l => { l.geometry.dispose(); l.material.dispose(); }); }
     tacticalGridGroup3D = new THREE.Group();
 
-    const bgMap = MapBackground.getCurrent();
-    // สีเดียวกับ 2D: โทนสว่างบนพื้นครีมตอนไม่มีแผนที่, โทนขาวโปร่งแสงตอนมีแผนที่ทับอยู่
-    const levels = bgMap
-        ? [ { step: 10, color: 0xffffff, opacity: 0.06 }, { step: 100, color: 0xffffff, opacity: 0.12 }, { step: 1000, color: 0xffffff, opacity: 0.25 } ]
-        : [ { step: 10, color: 0xd1cbb8, opacity: 0.5 }, { step: 100, color: 0xb3ab94, opacity: 0.8 }, { step: 1000, color: 0x1e293b, opacity: 1.0 } ];
+    // ใช้สีอ่อนคงที่เสมอ ไม่ว่าจะเลือกแผนที่ไว้หรือไม่ (กันความรู้สึกว่าสีกริดไม่คงที่/สลับไปมา)
+    // opacity ตั้งค่าต่ำ เพราะตอนมองเฉียง เส้นกริดจำนวนมากจะบีบอัด/ซ้อนทับกันในมุมมอง (perspective foreshortening)
+    // ทำให้ opacity สะสมสูงกว่าที่ตั้งไว้มาก ต้องตั้งต้นให้ต่ำเพื่อไม่ให้ผลรวมดูเข้มเกินไป
+    const levels = [
+        { step: 10, color: 0xffffff, opacity: 0.05 },
+        { step: 100, color: 0xffffff, opacity: 0.08 },
+        { step: 1000, color: 0xffffff, opacity: 0.14 },
+    ];
 
-    // ครอบคลุมพื้นที่รอบ gun-target ให้เห็นกริดกว้างพอ (padding เผื่อขอบ เหมือนกล้อง 3D มองเห็นกว้างกว่าระยะ gun-target ตรง ๆ)
-    const halfSpan = Math.max(dist * 1.2, 500);
+    // ครอบคลุมพื้นที่รอบ gun-target ให้เห็นกริดกว้างพอ แต่ไม่กว้างเกินจำเป็น (ลดจำนวนเส้นซ้อนทับตอนมองเฉียง)
+    const halfSpan = Math.max(dist * 1.0, 400);
     const centerX = dx / 2, centerZ = -dy / 2;
     const minX = centerX - halfSpan, maxX = centerX + halfSpan;
     const minZ = centerZ - halfSpan, maxZ = centerZ + halfSpan;
@@ -1841,8 +1849,10 @@ function updateTacticalGrid3D(dx, dy, dist) {
         for (let gz = Math.floor(minZ / step) * step; gz <= maxZ; gz += step) { points.push(new THREE.Vector3(minX, 0, gz), new THREE.Vector3(maxX, 0, gz)); }
         if (points.length === 0) return;
         const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity });
-        tacticalGridGroup3D.add(new THREE.LineSegments(geometry, material));
+        const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
+        const gridLine = new THREE.LineSegments(geometry, material);
+        gridLine.renderOrder = 0; // วาดก่อนสุด อยู่ชั้นล่างสุดเสมอ ไม่ให้ทับป้าย/เส้นวิถีกระสุน
+        tacticalGridGroup3D.add(gridLine);
     });
 
     tacticalGridGroup3D.position.y = Math.max(dist * 0.002, 0.1); // ยกเหนือพื้นแผนที่ตามสัดส่วนระยะยิง กันเส้นจมภาพ/กระพริบ (Z-fighting)
@@ -1854,7 +1864,7 @@ function update3DScene() {
     const { dx, dy, dz, gunX, gunY, windSpeed, windDir, milSystem, low, high } = currentCalcData;
     const dist = Math.sqrt(dx*dx + dy*dy); if (dist === 0) return; 
 
-    const gridSize = Math.max(dist, 1000) * 2; const markerScale = Math.max(dist * 0.015, 10); const labelScale = Math.max(dist * 0.12, 18);
+    const gridSize = Math.max(dist, 1000) * 2; const markerScale = Math.max(dist * 0.010, 7); const labelScale = Math.max(dist * 0.12, 18);
 
     dynamicCurves.forEach(obj => { scene.remove(obj); if (obj.geometry) obj.geometry.dispose(); if (obj.material) obj.material.dispose(); }); dynamicCurves = [];
     dynamicLabels3D.forEach(obj => { scene.remove(obj); if (obj.material && obj.material.map) obj.material.map.dispose(); if (obj.material) obj.material.dispose(); }); dynamicLabels3D = [];
@@ -1863,9 +1873,9 @@ function update3DScene() {
     if (typeof gunX === 'number' && typeof gunY === 'number') { updateGroundPlane3D(gunX, gunY); }
 
     if (!gunMesh3D) {
-        gunMesh3D = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), new THREE.MeshBasicMaterial({ color: 0x22c55e })); scene.add(gunMesh3D);
-        targetMesh3D = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), new THREE.MeshBasicMaterial({ color: 0xef4444 })); scene.add(targetMesh3D);
-        poleMesh3D = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xef4444, opacity: 0.5, transparent: true })); scene.add(poleMesh3D);
+        gunMesh3D = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), new THREE.MeshBasicMaterial({ color: 0x22c55e })); gunMesh3D.renderOrder = 1; scene.add(gunMesh3D);
+        targetMesh3D = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), new THREE.MeshBasicMaterial({ color: 0xef4444 })); targetMesh3D.renderOrder = 1; scene.add(targetMesh3D);
+        poleMesh3D = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xef4444, opacity: 0.5, transparent: true })); poleMesh3D.renderOrder = 1; scene.add(poleMesh3D);
         gunLabel3D = createTextSprite("GUN", "#22c55e"); scene.add(gunLabel3D);
         targetLabel3D = createTextSprite("TARGET", "#ef4444"); scene.add(targetLabel3D);
     }
@@ -1914,12 +1924,14 @@ function update3DScene() {
         const colorCode = trajInfo.color === "rgba(234, 179, 8, 1)" ? 0xeab308 : 0x3b82f6;
         const colorHex = trajInfo.color === "rgba(234, 179, 8, 1)" ? "#eab308" : "#3b82f6";
         const lineMesh = new THREE.Line(new THREE.BufferGeometry().setFromPoints(smoothPoints), new THREE.LineBasicMaterial({ color: colorCode, linewidth: 2 }));
+        lineMesh.renderOrder = 1; // สูงกว่ากริด (0) แต่ต่ำกว่า label (10)
         scene.add(lineMesh); dynamicCurves.push(lineMesh);
         
         const dropMat = new THREE.LineBasicMaterial({ color: colorCode, opacity: 0.15, transparent: true });
         for(let i=10; i<smoothPoints.length; i+=10) {
             const pt = smoothPoints[i];
             const dLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([pt, new THREE.Vector3(pt.x, 0, pt.z)]), dropMat);
+            dLine.renderOrder = 1;
             scene.add(dLine); dynamicCurves.push(dLine);
         }
 
@@ -1942,6 +1954,7 @@ function update3DScene() {
             const dotMat = new THREE.MeshBasicMaterial({ color: 0xa855f7 });
             const dot = new THREE.Mesh(dotGeom, dotMat);
             dot.position.copy(alt100Point);
+            dot.renderOrder = 1;
             scene.add(dot); dynamicCurves.push(dot);
 
             addLabel(createDataLabelSprite([`ALT@100m: ${trajInfo.alt100m.toFixed(1)}m`], "#e9d5ff"), new THREE.Vector3(alt100Point.x, alt100Point.y + labelScale * 0.4, alt100Point.z), labelScale * 0.32);
@@ -1965,6 +1978,7 @@ function update3DScene() {
             ]);
             const fuzeMarker = new THREE.LineSegments(fuzeGeom, matX);
             fuzeMarker.position.copy(fuzePoint);
+            fuzeMarker.renderOrder = 1;
             scene.add(fuzeMarker); dynamicCurves.push(fuzeMarker);
 
             addLabel(createDataLabelSprite([`💥 FUZE: ${(trajInfo.fuzeY - dz).toFixed(0)}m`], "#fca5a5"), new THREE.Vector3(fuzePoint.x, fuzePoint.y + labelScale * 0.4, fuzePoint.z), labelScale * 0.32);

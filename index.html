@@ -98,6 +98,25 @@
         
         canvas { background: #020617; border-radius: 10px; display: block; width: 100%; height: auto; border: 1px solid #334155; margin-bottom: 15px; }
         .map-wrapper { position: relative; margin-bottom: 15px; }
+
+        /* เปลี่ยน min-width จาก 190px เป็น fit-content เพื่อให้กรอบเมนูหดพอดีกับตัวอักษร */
+        .map-context-menu { position: absolute; z-index: 50; background: rgba(15, 23, 42, 0.97); border: 1px solid #475569; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); padding: 6px; display: flex; flex-direction: column; gap: 4px; min-width: fit-content; }
+
+        /* เปลี่ยนขนาดตัวอักษรเป็น 14px และลบความกว้าง width: 100% ออกเพื่อให้ปุ่มสั้นลง */
+        .map-context-btn { margin: 0; padding: 8px 15px; font-size: 14px; text-align: center; border-radius: 6px; background: transparent; color: #e5e7eb; font-weight: bold; cursor: pointer; border: none; }
+        .map-context-btn:hover { filter: brightness(1.3); }
+
+        /* ตั้งให้ปุ่ม Target เป็นสีแดงล้วน */
+        .map-context-btn.target { background: #dc262680; color: white; }
+        .map-context-btn.target:hover { background: #b91c1c9c; }
+
+        /* ตั้งให้ปุ่ม Gun เป็นสีที่ต้องการ (ในที่นี้คงสีน้ำเงินเดิมไว้ ถ้าจะเปลี่ยนก็เปลี่ยนตรง background ได้) */
+        .map-context-btn.gun { background: #1d4ed8; color: white; }
+        .map-context-btn.gun:hover { background: #1e40af; }
+
+        /* ปุ่มยกเลิก */
+        .map-context-btn.cancel { background: #475569; color: white; font-weight: normal; }
+        .map-context-btn.cancel:hover { background: #334155; }
         .map-controls { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 5px; z-index: 10; }
         .map-controls button { width: 32px; height: 32px; padding: 0; margin: 0; background: rgba(30, 41, 59, 0.9); color: white; border: 1px solid #475569; border-radius: 4px; font-size: 16px; display: flex; align-items: center; justify-content: center; }
         .map-controls button:hover { background: #3b82f6; }
@@ -404,6 +423,11 @@
                 <button onclick="resetMap()" title="Reset View">⟲</button>
                 <button onclick="zoomMap(0.8)" title="Zoom Out">-</button>
             </div>
+            <div id="mapContextMenu" class="map-context-menu" style="display:none;">
+                <button onclick="applyMapContextMenu('target')" class="map-context-btn target">🎯 Set Target Position</button>
+                <button onclick="applyMapContextMenu('gun')" class="map-context-btn gun">● Set Gun Position</button>
+                <button onclick="hideMapContextMenu()" class="map-context-btn cancel">✕ ยกเลิก</button>
+            </div>
         </div>
         
         <div class="graph-title" style="margin-top: 15px; color: #38bdf8; display: flex; justify-content: space-between; align-items: center;">
@@ -476,7 +500,7 @@ const DOM = (() => {
         "offsetDisplay", "offCoords", "offMeters", "undoOffsetBtn", "applyCorrectionBtn",
         "adjustStep", "foX", "foY", "impactDist", "impactAzi", "foAziUnit", "foResult", "foCorrectionResult",
         "memoryList", "saveName", "editNameInput", "editModal", "deleteModal",
-        "mapBgSelect", "mapBgStatus", "copyChatStatus",
+        "mapBgSelect", "mapBgStatus", "copyChatStatus", "mapContextMenu",
     ];
     const cache = {};
     const build = () => { ids.forEach(id => { cache[id] = document.getElementById(id); }); };
@@ -2010,6 +2034,74 @@ mapCanvas.addEventListener('wheel', (e) => { e.preventDefault(); if (mapMode ===
 function zoomMap(factor) { if (mapMode === 'auto') mapMode = 'free'; mapZoom *= factor; redrawMapOnly(); MapBackground.notifyViewChanged(); }
 function resetMap() { mapMode = 'auto'; redrawMapOnly(); MapBackground.notifyViewChanged(); }
 function zoomToTarget() { mapMode = 'target'; mapZoom = 5; redrawMapOnly(); MapBackground.notifyViewChanged(); }
+
+// ═══════════════════════════════════════════════════════════════════
+// MAP DOUBLE-CLICK CONTEXT MENU — ดับเบิลคลิกบนแผนที่เพื่อเลือกตั้งพิกัด Gun/Target
+// ═══════════════════════════════════════════════════════════════════
+let pendingMapWorldCoord = null; // พิกัดโลก (เมตร) ที่เพิ่งดับเบิลคลิกไว้ รอผู้ใช้เลือก Target/Gun
+
+function screenToWorldCoord(offsetX, offsetY) {
+    // canvas ถูก CSS ปรับขนาดแสดงผล (width:100%) ต่างจาก internal resolution (700x700)
+    // ต้องคูณ scale factor ก่อน ไม่งั้นตำแหน่งคลิกจะเพี้ยนตามขนาดจอ
+    const scaleX = mapCanvas.width / mapCanvas.clientWidth;
+    const scaleY = mapCanvas.height / mapCanvas.clientHeight;
+    const canvasX = offsetX * scaleX;
+    const canvasY = offsetY * scaleY;
+    // สูตรผกผันของ toCanvasX/toCanvasY ใน drawGraph: toCanvasX(x) = w/2 + (x - mapCamX) * mapZoom
+    const worldX = mapCamX + (canvasX - mapCanvas.width / 2) / mapZoom;
+    const worldY = mapCamY - (canvasY - mapCanvas.height / 2) / mapZoom;
+    return { x: worldX, y: worldY };
+}
+
+mapCanvas.addEventListener('dblclick', (e) => {
+    pendingMapWorldCoord = screenToWorldCoord(e.offsetX, e.offsetY);
+    showMapContextMenu(e.offsetX, e.offsetY);
+});
+
+function showMapContextMenu(offsetX, offsetY) {
+    const menu = DOM["mapContextMenu"];
+    if (!menu) return;
+    // จำกัดตำแหน่งไม่ให้ popup ล้นขอบ wrapper (กันเมนูโผล่นอกจอตอนดับเบิลคลิกใกล้ขอบแผนที่)
+    const wrapperW = mapCanvas.clientWidth, wrapperH = mapCanvas.clientHeight;
+    const menuW = 200, menuH = 120; // ประมาณขนาด popup
+    const left = Math.min(offsetX, wrapperW - menuW - 5);
+    const top = Math.min(offsetY, wrapperH - menuH - 5);
+    menu.style.left = Math.max(5, left) + "px";
+    menu.style.top = Math.max(5, top) + "px";
+    menu.style.display = "flex";
+}
+
+function hideMapContextMenu() {
+    const menu = DOM["mapContextMenu"];
+    if (menu) menu.style.display = "none";
+    pendingMapWorldCoord = null;
+}
+
+function applyMapContextMenu(role) {
+    if (!pendingMapWorldCoord) { hideMapContextMenu(); return; }
+    const { x, y } = pendingMapWorldCoord;
+
+    if (role === 'target') {
+        DOM["targetX"].value = formatMetersToArma(x, 4);
+        DOM["targetY"].value = formatMetersToArma(y, 4);
+        clearOffset(); resetFOState(); mapMode = 'target';
+    } else if (role === 'gun') {
+        DOM["gunX"].value = formatMetersToArma(x, 4);
+        DOM["gunY"].value = formatMetersToArma(y, 4);
+    }
+
+    hideMapContextMenu();
+    calculate();
+}
+
+// คลิกที่อื่นนอกเมนู (บนแผนที่หรือนอกแผนที่) ให้ปิดเมนูอัตโนมัติ
+document.addEventListener('click', (e) => {
+    const menu = DOM["mapContextMenu"];
+    if (!menu || menu.style.display === "none") return;
+    if (!menu.contains(e.target) && e.target !== mapCanvas) { hideMapContextMenu(); }
+});
+// ป้องกันการคลิกครั้งแรกของ dblclick (ที่ทำให้เกิด 'click' event ก่อน dblclick) ปิดเมนูตัวเองทันทีที่เพิ่งเปิด
+mapCanvas.addEventListener('click', (e) => e.stopPropagation());
 
 // ═══════════════════════════════════════════════════════════════════
 // COPY TO CHAT — สร้างข้อความ FIRE MISSION สำหรับแจ้งทีม/พลยิง จากผลคำนวณล่าสุด

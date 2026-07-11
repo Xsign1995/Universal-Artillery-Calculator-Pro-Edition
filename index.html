@@ -2152,7 +2152,7 @@ function copyToChatTeam() {
     const weapon = getWeaponShortName();
     const tgtXStr = DOM["targetX"].value || "0000";
     const tgtYStr = DOM["targetY"].value || "0000";
-    const tof = traj.tof.toFixed(0);
+    const tof = traj.tof.toFixed(1);
 
     const msg = `FIRE MISSION | ${weapon} | Grid: ${tgtXStr} ${tgtYStr} | Time to impact ${tof}s`;
     copyTextToClipboard(msg)
@@ -2170,7 +2170,7 @@ function copyToChatGunner() {
     const chargeNum = (traj.chargeCode || "").replace(/[^0-9]/g, '') || "AUTO";
     const azi = Math.round(traj.azi);
     const elev = Math.round(traj.elev);
-    const tof = traj.tof.toFixed(0);
+    const tof = traj.tof.toFixed(1);
 
     const msg = `FIRE MISSION | ${weapon} | ${chargeLabel} ${chargeNum} | AZI ${azi} | ELEV ${elev} | ToF ${tof}s`;
     copyTextToClipboard(msg)

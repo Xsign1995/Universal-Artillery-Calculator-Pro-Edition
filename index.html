@@ -570,37 +570,42 @@ const ArtilleryPhysics = (() => {
         if (d > table[maxIndex][0]) { d = table[maxIndex][0]; isClamped = true; }
         
         const cols = table[0].length;
-        let idxElev = 1, idxTof = 2, idxPeakAlt = -1, idxAngle = -1, idxCW = -1, idxLW = -1;
-        if (cols >= 9) { idxPeakAlt = 5; idxAngle = 6; idxCW = 7; idxLW = 8; }
+        let idxElev = 1, idxTof = 2, idxDElev = -1, idxDTof = -1, idxPeakAlt = -1, idxAngle = -1, idxCW = -1, idxLW = -1;
+        if (cols >= 9) { idxDElev = 3; idxDTof = 4; idxPeakAlt = 5; idxAngle = 6; idxCW = 7; idxLW = 8; }
 
         const hasWindData = (idxCW !== -1 && idxLW !== -1);
         const hasPeakAlt = (idxPeakAlt !== -1);
         const hasAngle = (idxAngle !== -1);
+        const hasDeltaData = (idxDElev !== -1 && idxDTof !== -1); // 🔥 D ELEV / D ToF PER 100m DR — ค่าจากตารางยิงจริง (ยังไม่เคยถูกใช้งาน)
         
-        const packResult = (elev, tof, peakAlt, angle, cw, lw) => ({
+        const packResult = (elev, tof, peakAlt, angle, cw, lw, dElev, dTof) => ({
             elev, tof, 
             peakAlt: hasPeakAlt ? Math.max(0, peakAlt) : 0,
             angleImpact: hasAngle ? Math.max(0, angle) : 0, 
             crossWind: hasWindData ? Math.max(0, cw) : 0, 
             longWind: hasWindData ? Math.max(0, lw) : 0, 
-            hasWindData, hasPeakAlt, hasAngle, clamped: isClamped 
+            dElevPer100m: hasDeltaData ? dElev : 0,
+            dTofPer100m: hasDeltaData ? dTof : 0,
+            hasWindData, hasPeakAlt, hasAngle, hasDeltaData, clamped: isClamped 
         });
 
         for (let i = 0; i < maxIndex; i++) {
             if (d >= table[i][0] && d <= table[i+1][0]) {
-                if (d === table[i][0]) return packResult(table[i][idxElev], table[i][idxTof], hasPeakAlt ? table[i][idxPeakAlt] : 0, hasAngle ? table[i][idxAngle] : 0, hasWindData ? table[i][idxCW] : 0, hasWindData ? table[i][idxLW] : 0);
-                if (d === table[i+1][0]) return packResult(table[i+1][idxElev], table[i+1][idxTof], hasPeakAlt ? table[i+1][idxPeakAlt] : 0, hasAngle ? table[i+1][idxAngle] : 0, hasWindData ? table[i+1][idxCW] : 0, hasWindData ? table[i+1][idxLW] : 0);
+                if (d === table[i][0]) return packResult(table[i][idxElev], table[i][idxTof], hasPeakAlt ? table[i][idxPeakAlt] : 0, hasAngle ? table[i][idxAngle] : 0, hasWindData ? table[i][idxCW] : 0, hasWindData ? table[i][idxLW] : 0, hasDeltaData ? table[i][idxDElev] : 0, hasDeltaData ? table[i][idxDTof] : 0);
+                if (d === table[i+1][0]) return packResult(table[i+1][idxElev], table[i+1][idxTof], hasPeakAlt ? table[i+1][idxPeakAlt] : 0, hasAngle ? table[i+1][idxAngle] : 0, hasWindData ? table[i+1][idxCW] : 0, hasWindData ? table[i+1][idxLW] : 0, hasDeltaData ? table[i+1][idxDElev] : 0, hasDeltaData ? table[i+1][idxDTof] : 0);
 
                 if (maxIndex < 2) {
                     let r1 = table[i][0], e1 = table[i][idxElev], t1 = table[i][idxTof];
                     let pa1 = hasPeakAlt ? table[i][idxPeakAlt] : 0, ag1 = hasAngle ? table[i][idxAngle] : 0;
                     let cw1 = hasWindData ? table[i][idxCW] : 0, lw1 = hasWindData ? table[i][idxLW] : 0;
+                    let de1 = hasDeltaData ? table[i][idxDElev] : 0, dt1 = hasDeltaData ? table[i][idxDTof] : 0;
                     let r2 = table[i+1][0], e2 = table[i+1][idxElev], t2 = table[i+1][idxTof];
                     let pa2 = hasPeakAlt ? table[i+1][idxPeakAlt] : 0, ag2 = hasAngle ? table[i+1][idxAngle] : 0;
                     let cw2 = hasWindData ? table[i+1][idxCW] : 0, lw2 = hasWindData ? table[i+1][idxLW] : 0;
+                    let de2 = hasDeltaData ? table[i+1][idxDElev] : 0, dt2 = hasDeltaData ? table[i+1][idxDTof] : 0;
                     
                     let ratio = (d - r1) / (r2 - r1);
-                    return packResult( e1 + ratio*(e2-e1), t1 + ratio*(t2-t1), pa1 + ratio*(pa2-pa1), ag1 + ratio*(ag2-ag1), cw1 + ratio*(cw2-cw1), lw1 + ratio*(lw2-lw1) );
+                    return packResult( e1 + ratio*(e2-e1), t1 + ratio*(t2-t1), pa1 + ratio*(pa2-pa1), ag1 + ratio*(ag2-ag1), cw1 + ratio*(cw2-cw1), lw1 + ratio*(lw2-lw1), de1 + ratio*(de2-de1), dt1 + ratio*(dt2-dt1) );
                 }
 
                 let p0, p1, p2;
@@ -617,11 +622,13 @@ const ArtilleryPhysics = (() => {
                     hasPeakAlt ? interCurve(table[p0][idxPeakAlt], table[p1][idxPeakAlt], table[p2][idxPeakAlt], d) : 0,
                     hasAngle ? interCurve(table[p0][idxAngle], table[p1][idxAngle], table[p2][idxAngle], d) : 0,
                     hasWindData ? interCurve(table[p0][idxCW], table[p1][idxCW], table[p2][idxCW], d) : 0,
-                    hasWindData ? interCurve(table[p0][idxLW], table[p1][idxLW], table[p2][idxLW], d) : 0
+                    hasWindData ? interCurve(table[p0][idxLW], table[p1][idxLW], table[p2][idxLW], d) : 0,
+                    hasDeltaData ? interCurve(table[p0][idxDElev], table[p1][idxDElev], table[p2][idxDElev], d) : 0,
+                    hasDeltaData ? interCurve(table[p0][idxDTof], table[p1][idxDTof], table[p2][idxDTof], d) : 0
                 );
             }
         }
-        return packResult( table[maxIndex][idxElev], table[maxIndex][idxTof], hasPeakAlt ? table[maxIndex][idxPeakAlt] : 0, hasAngle ? table[maxIndex][idxAngle] : 0, hasWindData ? table[maxIndex][idxCW] : 0, hasWindData ? table[maxIndex][idxLW] : 0 );
+        return packResult( table[maxIndex][idxElev], table[maxIndex][idxTof], hasPeakAlt ? table[maxIndex][idxPeakAlt] : 0, hasAngle ? table[maxIndex][idxAngle] : 0, hasWindData ? table[maxIndex][idxCW] : 0, hasWindData ? table[maxIndex][idxLW] : 0, hasDeltaData ? table[maxIndex][idxDElev] : 0, hasDeltaData ? table[maxIndex][idxDTof] : 0 );
     }
 
     function calculateAltAtLast100m(interpData) {
@@ -634,7 +641,7 @@ const ArtilleryPhysics = (() => {
         if (!traj || dist <= 0) return null;
         let pts = [];
         let g = 9.81;
-        let T = traj.tof;
+        let T = traj.tof; // ToF จริงที่คำนวณจาก dz — ใช้ยิงจริงและใช้เป็นกรอบเวลาสำหรับหา fuze crossing
         
         const milSystem = currentWeaponObj.milSystem || 6400;
         let elevRad = traj.elev * (Math.PI / (milSystem / 2)); 
@@ -649,28 +656,64 @@ const ArtilleryPhysics = (() => {
         if (c < 0.01) c = 0.01; 
 
         let v_y0 = (dz + 0.5 * g * T * T) / T;
-        let exactFuzeTime = null;
-        let exactBurstX = null;
 
+        // สร้างเส้นโค้งดิบ (raw parabola) ก่อน แล้วค่อยหาความสูงสุดจริงที่มันไปถึงด้วยการสแกน
+        let rawPts = [];
         for (let i = 0; i <= 100; i++) {
             let t = i / 100;
             let currentX = dist * ((1 - Math.exp(-c * t)) / (1 - Math.exp(-c)));
-            let currentY = (v_y0 * (t * T)) - (0.5 * g * (t * T) * (t * T));
-            pts.push({ x: currentX, y: currentY, t_norm: t });
+            let flatY = (v_y0 * (t * T)) - (0.5 * g * (t * T) * (t * T));
+            rawPts.push({ x: currentX, y: flatY, t_norm: t });
+        }
+        let rawApexIdx = 0;
+        for (let i = 1; i < rawPts.length; i++) { if (rawPts[i].y > rawPts[rawApexIdx].y) rawApexIdx = i; }
+        // กรณี v_y0 <= 0 (dz ติดลบมากจนกระสุนพุ่งลงตั้งแต่ต้น) apex ดิบจะตกที่ t=0 พอดี ต้องขยับจุดยึดเข้ามาเล็กน้อย
+        if (rawApexIdx === 0) rawApexIdx = 5;
+        else if (rawApexIdx === rawPts.length - 1) rawApexIdx = rawPts.length - 6;
+        const rawPeak = rawPts[rawApexIdx].y;
+
+        // ยึดจุดสูงสุด (apex) ของเส้นโค้งจำลองให้ตรงกับ peakAlt จริงจากตารางกระสุน (ถ้ามี)
+        const targetPeakAlt = (typeof traj.peakAlt === 'number' && isFinite(traj.peakAlt)) ? traj.peakAlt : null;
+        let peakScale = 1, peakOffset = 0;
+        if (targetPeakAlt !== null && targetPeakAlt > 0) {
+            if (rawPeak > 0.5) peakScale = targetPeakAlt / rawPeak;
+            else peakOffset = targetPeakAlt - rawPeak;
+        }
+        if (!isFinite(peakScale) || peakScale <= 0) peakScale = 1;
+        if (!isFinite(peakOffset)) peakOffset = 0;
+
+        let exactFuzeTime = null;
+        let exactBurstX = null;
+        const burstAlt = dz + airburstH;
+
+        const t_apex_norm = rawPts[rawApexIdx].t_norm;
+        for (let i = 0; i <= 100; i++) {
+            let t = i / 100;
+            let flatY = rawPts[i].y;
+            let weight;
+            if (t_apex_norm <= 0 || t_apex_norm >= 1) weight = 0;
+            else if (t <= t_apex_norm) weight = t / t_apex_norm;
+            else weight = (1 - t) / (1 - t_apex_norm);
+            let currentY = flatY + (peakScale - 1) * rawPeak * weight + peakOffset * weight;
+            pts.push({ x: rawPts[i].x, y: currentY, t_norm: t });
         }
 
         if (airburstH > 0) {
-            for (let i = 0; i < pts.length - 1; i++) {
-                if (pts[i].t_norm >= 0.5 && pts[i].y > (dz + airburstH) && pts[i+1].y <= (dz + airburstH)) {
+            // หาจุดตัดแรกที่ผ่าน apex แล้ว (ขาลง) โดยไม่ fix เวลาไว้ตายตัวที่ 0.5
+            let apexIdx = 0;
+            for (let i = 1; i < pts.length; i++) { if (pts[i].y > pts[apexIdx].y) apexIdx = i; }
+
+            for (let i = apexIdx; i < pts.length - 1; i++) {
+                if (pts[i].y >= burstAlt && pts[i+1].y < burstAlt) {
                     let p1 = pts[i]; let p2 = pts[i+1];
-                    let frac = (p1.y - (dz + airburstH)) / (p1.y - p2.y);
+                    let frac = (p1.y - burstAlt) / (p1.y - p2.y);
                     exactBurstX = p1.x + frac * (p2.x - p1.x);
                     exactFuzeTime = (p1.t_norm + frac * (p2.t_norm - p1.t_norm)) * T;
                     break;
                 }
             }
         }
-        return { pts, fuzeTime: exactFuzeTime, burstX: exactBurstX };
+        return { pts, fuzeTime: exactFuzeTime, burstX: exactBurstX, burstAlt: burstAlt, apexAlt: Math.max(...pts.map(p => p.y)) };
     };
 
     return { getInterpolatedData, calculateAltAtLast100m, getDragSimulatedPoints };
@@ -1132,10 +1175,10 @@ function calculateFOCorrection() {
         let aimBearingDeg = Math.atan2(dx, dy) * 180 / Math.PI; aimBearingDeg = (aimBearingDeg + 360) % 360;
         const aimBearingMil = aimBearingDeg * (milSystem / 360);
 
-        let effectiveDz = dz + airburstH;
+        let effectiveDz = dz + airburstH; // ใช้เฉพาะหา fuze crossing เท่านั้น ห้ามใช้กับ Elevation/Charge selection
 
         let chargeCodeHigh = DOM["chargeVelHigh"].value;
-        if (chargeCodeHigh === 'auto') chargeCodeHigh = findBestCharge(aimGridDistance, effectiveDz);
+        if (chargeCodeHigh === 'auto') chargeCodeHigh = findBestCharge(aimGridDistance, dz);
         let tableSourceHigh = currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
         if (!tableSourceHigh[chargeCodeHigh]) chargeCodeHigh = Object.keys(tableSourceHigh)[0];
         const tableHigh = tableSourceHigh[chargeCodeHigh];
@@ -1165,7 +1208,7 @@ function calculateFOCorrection() {
             if (finalInterpDataHigh && finalInterpDataHigh.clamped) { finalInterpDataHigh = null; }
 
             if (finalInterpDataHigh) {
-                const angleOfSiteMilHigh = Math.atan(effectiveDz / aimDistH) * (halfMil / Math.PI); 
+                const angleOfSiteMilHigh = Math.atan(dz / aimDistH) * (halfMil / Math.PI); 
                 finalElevHigh = finalInterpDataHigh.elev - angleOfSiteMilHigh;
                 finalAziHigh = (aimBearingMil + deflHighMil + milSystem) % milSystem;
             }
@@ -1263,7 +1306,7 @@ function calculate() {
     let aimBearingDeg = Math.atan2(dx, dy) * 180 / Math.PI; aimBearingDeg = (aimBearingDeg + 360) % 360; const aimBearingMil = aimBearingDeg * (milSystem / 360);
     const MAX_ELEVATION_MIL = currentLimits.maxElev; const MIN_ELEVATION_MIL = currentLimits.minElev;
     
-    // 🔥 Air Fuze Logic applied to elevation solving 🔥
+    // 🔥 Air Fuze Logic: effectiveDz ใช้เฉพาะหา fuze crossing point เท่านั้น ห้ามใช้กับ Elevation/ToF/PeakAlt/Charge selection ที่ใช้ยิงจริง
     let effectiveDz = dz + airburstH;
 
     let offsetNotice = `<div style="min-height: 16px; text-align: right; color:#eab308; font-size:11px; margin-top:2px;">`;
@@ -1284,7 +1327,7 @@ function calculate() {
 
     // ================= 1. High Angle =================
     let chargeCodeHigh = DOM["chargeVelHigh"].value;
-    if (chargeCodeHigh === 'auto') chargeCodeHigh = findBestCharge(aimGridDistance, effectiveDz);
+    if (chargeCodeHigh === 'auto') chargeCodeHigh = findBestCharge(aimGridDistance, dz);
     let tableSourceHigh = currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
     if (!tableSourceHigh[chargeCodeHigh]) chargeCodeHigh = Object.keys(tableSourceHigh)[0];
     const tableHigh = tableSourceHigh[chargeCodeHigh];
@@ -1312,13 +1355,23 @@ function calculate() {
 
     if (finalInterpDataHigh) {
         let baseTof = finalInterpDataHigh.tof; let g_const = 9.81; 
-        let tofRootTerm = (baseTof * baseTof) - (8 * effectiveDz / g_const);
-        tofHighToPass = (tofRootTerm >= 0) ? (baseTof + Math.sqrt(tofRootTerm)) / 2 : baseTof;
-        const angleOfSiteMilHigh = Math.atan(effectiveDz / aimDistH) * (halfMil / Math.PI); 
+        const angleOfSiteMilHigh = Math.atan(dz / aimDistH) * (halfMil / Math.PI); 
         finalElevHigh = finalInterpDataHigh.elev - angleOfSiteMilHigh;
         finalAziHigh = (aimBearingMil + deflHighMil + milSystem) % milSystem; finalAziHighToPass = finalAziHigh;
 
-        let vy = (effectiveDz + 0.5 * g_const * tofHighToPass * tofHighToPass) / tofHighToPass;
+        // 🔥 ยืนยันจากคู่มือเกม (Ballistic Table): "TIME OF FLIGHT PER 100M DR" = 
+        // "Change in projectile flight time for a 100m DIFFERENCE IN TARGET ALTITUDE" — 
+        // เป็นอัตราต่อความสูงเป้าหมาย (dz) โดยตรง ไม่ใช่ต่อระยะทาง (range) — ใช้ dz หารด้วย 100 คูณอัตรานี้ตรงๆ
+        if (finalInterpDataHigh.hasDeltaData) {
+            let tofChange = (dz / 100) * finalInterpDataHigh.dTofPer100m;
+            tofHighToPass = baseTof - tofChange; // High Angle: มุมกระทบเป็นขาลงชัน เป้าสูงกว่า -> ถึงเร็วกว่า -> ลบออก
+        } else {
+            // ตารางไม่มีข้อมูล D ELEV/D ToF (fallback) — ใช้สูตรพาราโบลาสมมาตรเดิม
+            let tofRootTerm = (baseTof * baseTof) - (8 * dz / g_const);
+            tofHighToPass = (tofRootTerm >= 0) ? (baseTof + Math.sqrt(tofRootTerm)) / 2 : baseTof;
+        }
+
+        let vy = (dz + 0.5 * g_const * tofHighToPass * tofHighToPass) / tofHighToPass;
         trajHigh = {
             tof: tofHighToPass,
             elev: finalElevHigh,
@@ -1355,7 +1408,14 @@ function calculate() {
         let chargeDisplayHigh = isMortar ? chargeCodeHigh.replace('c', 'RING ') : chargeCodeHigh.replace('c', 'CHARGE ');
         
         let tofStatHigh = `<div class="stat" style="border-left-color: #a855f7; margin-bottom: ${airburstH > 0 && fuzeTimeHigh !== null ? '5px' : '0'};"><span>Time of Flight:</span> <b>~${tofHighToPass.toFixed(1)} วินาที</b></div>`;
-        let fuzeStatHigh = (airburstH > 0 && fuzeTimeHigh !== null) ? `<div class="stat" style="border-left-color: #38bdf8; margin-bottom: 0; background: rgba(56, 189, 248, 0.1);"><span>⏱️ Air Fuze Timer:</span> <b style="color:#38bdf8;">${fuzeTimeHigh.toFixed(1)} วินาที</b></div>` : "";
+        let fuzeStatHigh = "";
+        if (airburstH > 0) {
+            if (fuzeTimeHigh !== null) {
+                fuzeStatHigh = `<div class="stat" style="border-left-color: #38bdf8; margin-bottom: 0; background: rgba(56, 189, 248, 0.1);"><span>⏱️ Air Fuze Timer:</span> <b style="color:#38bdf8;">${fuzeTimeHigh.toFixed(1)} วินาที</b></div>`;
+            } else {
+                fuzeStatHigh = `<div class="stat stat-error" style="margin-bottom: 0;">⚠️ ตั้ง Air Fuze ไม่ได้: ความสูงระเบิด (${(dz + airburstH).toFixed(0)}m เทียบปืน) เกินจุดสูงสุดของวิถีกระสุน</div>`;
+            }
+        }
         
         if (isMortar) {
             htmlHigh += `<div class="highlight-box high-angle" style="margin-top: 0;"><div class="load-instruction-box"><span class="load-label">⚙️ LOAD AMMO:</span><span class="load-value">${chargeDisplayHigh}</span></div><div class="stat" style="flex-direction: column; align-items: stretch;"><div style="display: flex; justify-content: space-between; align-items: center;"><span>Elevation (ตั้งมุมเงย):</span> <b style="font-size: 16px; ${isElevHighError ? 'color:#ef4444;' : ''}">${finalElevHigh.toFixed(0)} MILs</b></div>${elevWarningHigh}</div><div class="stat"><span>Aim Azimuth (ตั้งทิศทาง):</span> <b style="font-size: 16px;">${finalAziHigh.toFixed(0)}</b></div><div style="text-align: right; font-size: 11px; color: ${windColorHigh}; margin-bottom: 6px;">${windTextHigh}</div>${tofStatHigh}${fuzeStatHigh}${offsetNotice}</div>`;
@@ -1405,16 +1465,23 @@ function calculate() {
             if (finalInterpDataLow && finalInterpDataLow.clamped) { continue; }
 
             if (finalInterpDataLow) {
-                const angleOfSiteMilLow = Math.atan(effectiveDz / aimDistL) * (halfMil / Math.PI); 
+                const angleOfSiteMilLow = Math.atan(dz / aimDistL) * (halfMil / Math.PI); 
                 finalElevLowMil = finalInterpDataLow.elev + angleOfSiteMilLow;
                 
-                // 🔥 Patch: เพิ่มการชดเชย ToF (Time of Flight) ตามความสูงแบบเดียวกับ High Angle
+                // 🔥 ยืนยันจากคู่มือเกม (Ballistic Table): "TIME OF FLIGHT PER 100M DR" = 
+                // "Change in projectile flight time for a 100m DIFFERENCE IN TARGET ALTITUDE" — 
+                // เป็นอัตราต่อความสูงเป้าหมาย (dz) โดยตรง ไม่ใช่ต่อระยะทาง (range) — ใช้ dz หารด้วย 100 คูณอัตรานี้ตรงๆ
                 let baseTofL = finalInterpDataLow.tof;
-                let tofRootTermL = (baseTofL * baseTofL) - (8 * effectiveDz / 9.81);
-                tofLowToPass_temp = (tofRootTermL >= 0) ? (baseTofL + Math.sqrt(tofRootTermL)) / 2 : baseTofL;
+                if (finalInterpDataLow.hasDeltaData) {
+                    let tofChange = (dz / 100) * finalInterpDataLow.dTofPer100m;
+                    tofLowToPass_temp = baseTofL + tofChange; // ยืนยันจากข้อมูลจริง: เป้าสูงกว่า (dz+) ต้องใช้เวลานานขึ้น (ไม่ใช่สั้นลง)
+                } else {
+                    // ตารางไม่มีข้อมูล D ELEV/D ToF (fallback) — ใช้สูตรพาราโบลาสมมาตรเดิม
+                    let tofRootTermL = (baseTofL * baseTofL) - (8 * dz / 9.81);
+                    tofLowToPass_temp = (tofRootTermL >= 0) ? (baseTofL + Math.sqrt(tofRootTermL)) / 2 : baseTofL;
+                }
 
-                // คำนวณ maxHLow_temp โดยใช้ tofLowToPass_temp ที่ชดเชย dz เรียบร้อยแล้ว
-                let maxHLow_temp = finalInterpDataLow.hasPeakAlt ? finalInterpDataLow.peakAlt : Math.pow(((effectiveDz + 0.5 * 9.81 * tofLowToPass_temp * tofLowToPass_temp) / tofLowToPass_temp), 2) / (2 * 9.81);
+                let maxHLow_temp = finalInterpDataLow.hasPeakAlt ? finalInterpDataLow.peakAlt : Math.pow(((dz + 0.5 * 9.81 * tofLowToPass_temp * tofLowToPass_temp) / tofLowToPass_temp), 2) / (2 * 9.81);
                 
                 let isValidElev = finalElevLowMil >= MIN_ELEVATION_MIL && finalElevLowMil <= MAX_ELEVATION_MIL;
                 let clearsMask = maxHLow_temp >= minClearance;
@@ -1465,7 +1532,14 @@ function calculate() {
             let chargeDisplayLow = bestLowCalc.cId.replace('c', 'CHARGE ');
             
             let tofStatLow = `<div class="stat" style="border-left-color: #3b82f6; margin-bottom: ${airburstH > 0 && fuzeTimeLow !== null ? '5px' : '0'};"><span>Time of Flight:</span> <b>~${tofLowToPass.toFixed(1)} วินาที</b></div>`;
-            let fuzeStatLow = (airburstH > 0 && fuzeTimeLow !== null) ? `<div class="stat" style="border-left-color: #38bdf8; margin-bottom: 0; background: rgba(56, 189, 248, 0.1);"><span>⏱️ Air Fuze Timer:</span> <b style="color:#38bdf8;">${fuzeTimeLow.toFixed(1)} วินาที</b></div>` : "";
+            let fuzeStatLow = "";
+            if (airburstH > 0) {
+                if (fuzeTimeLow !== null) {
+                    fuzeStatLow = `<div class="stat" style="border-left-color: #38bdf8; margin-bottom: 0; background: rgba(56, 189, 248, 0.1);"><span>⏱️ Air Fuze Timer:</span> <b style="color:#38bdf8;">${fuzeTimeLow.toFixed(1)} วินาที</b></div>`;
+                } else {
+                    fuzeStatLow = `<div class="stat stat-error" style="margin-bottom: 0;">⚠️ ตั้ง Air Fuze ไม่ได้: ความสูงระเบิด (${(dz + airburstH).toFixed(0)}m เทียบปืน) เกินจุดสูงสุดของวิถีกระสุน</div>`;
+                }
+            }
             
             htmlLow += `<div class="highlight-box low-angle-box" style="margin-top: 0;"><div class="load-instruction-box low-angle"><span class="load-label">⚙️ LOAD AMMO:</span><span class="load-value">${chargeDisplayLow}</span></div><div class="stat stat-low" style="flex-direction: column; align-items: stretch;"><div style="display: flex; justify-content: space-between; align-items: center;"><span>Elevation (ตั้งมุมเงย):</span> <b style="font-size: 16px; ${isElevLowError ? 'color:#ef4444;' : ''}">${isNaN(finalElevLowMil) ? "ERROR" : finalElevLowMil.toFixed(0) + " MILs"}</b></div>${elevWarningLow}</div><div class="stat stat-low"><span>Aim Azimuth (ตั้งทิศทาง):</span> <b style="font-size: 16px;">${finalAziLowToPass.toFixed(0)}</b></div><div style="text-align: right; font-size: 11px; color: ${windColorLow}; margin-bottom: 6px;">${windTextLow}</div>${tofStatLow}${fuzeStatLow}${clearanceMsg}${offsetNotice}</div>`;
         } else {

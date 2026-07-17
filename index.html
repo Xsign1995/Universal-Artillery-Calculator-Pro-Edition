@@ -1362,9 +1362,11 @@ function calculate() {
         // 🔥 ยืนยันจากคู่มือเกม (Ballistic Table): "TIME OF FLIGHT PER 100M DR" = 
         // "Change in projectile flight time for a 100m DIFFERENCE IN TARGET ALTITUDE" — 
         // เป็นอัตราต่อความสูงเป้าหมาย (dz) โดยตรง ไม่ใช่ต่อระยะทาง (range) — ใช้ dz หารด้วย 100 คูณอัตรานี้ตรงๆ
+        // ✅ ยืนยันจากการทดสอบยิงจริงในเกม (High Angle, เป้าต่ำกว่าปืน, ตำแหน่งตกถูกแต่ ToF ยาวเกินจริง):
+        // ทิศทางต้องเหมือน Low Angle คือ "บวก" ไม่ใช่ "ลบ" (เดิมเดาผิดทิศทางเพราะไม่มีข้อมูลยืนยัน)
         if (finalInterpDataHigh.hasDeltaData) {
             let tofChange = (dz / 100) * finalInterpDataHigh.dTofPer100m;
-            tofHighToPass = baseTof - tofChange; // High Angle: มุมกระทบเป็นขาลงชัน เป้าสูงกว่า -> ถึงเร็วกว่า -> ลบออก
+            tofHighToPass = baseTof + tofChange;
         } else {
             // ตารางไม่มีข้อมูล D ELEV/D ToF (fallback) — ใช้สูตรพาราโบลาสมมาตรเดิม
             let tofRootTerm = (baseTof * baseTof) - (8 * dz / g_const);

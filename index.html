@@ -1209,7 +1209,13 @@ function calculateFOCorrection() {
 
             if (finalInterpDataHigh) {
                 const angleOfSiteMilHigh = Math.atan(dz / aimDistH) * (halfMil / Math.PI); 
-                finalElevHigh = finalInterpDataHigh.elev - angleOfSiteMilHigh;
+                // ✅ ใช้สูตรเดียวกับ calculate() หลัก — ดูคอมเมนต์อธิบายเต็มที่นั่น
+                if (finalInterpDataHigh.hasDeltaData) {
+                    let elevCorrection = (dz / 100) * finalInterpDataHigh.dElevPer100m;
+                    finalElevHigh = finalInterpDataHigh.elev - elevCorrection;
+                } else {
+                    finalElevHigh = finalInterpDataHigh.elev - angleOfSiteMilHigh;
+                }
                 finalAziHigh = (aimBearingMil + deflHighMil + milSystem) % milSystem;
             }
         }
@@ -1356,22 +1362,27 @@ function calculate() {
     if (finalInterpDataHigh) {
         let baseTof = finalInterpDataHigh.tof; let g_const = 9.81; 
         const angleOfSiteMilHigh = Math.atan(dz / aimDistH) * (halfMil / Math.PI); 
-        finalElevHigh = finalInterpDataHigh.elev - angleOfSiteMilHigh;
+
+        // ✅ ยืนยันจากคู่มือเกม + ข้อมูลทดสอบจริง (5052m, dz=+146, Charge 2):
+        // "D ELEV PER 100M DR" = การเปลี่ยนแปลง Elevation ต่อความสูงเป้าหมายต่างกัน 100m (ไม่ใช่ต่อระยะทาง)
+        // ทดสอบแล้วตรงกับคำตอบที่ถูกต้องจริง (คำนวณได้ 1185.3 mils เทียบกับค่าที่ถูกต้อง 1185 mils)
+        // ใช้แทนสูตรตรีโกณมิติเดิม (atan(dz/dist)) ซึ่งให้ค่าคลาดเคลื่อนมาก (ทำให้กระสุนเลยเป้าไป 200m)
+        // ⚠️ ยังไม่ได้ยืนยันซ้ำกับเคสอื่น (เช่น เป้าต่ำกว่าปืนที่ระยะไกลกว่านี้) - ควรทดสอบเพิ่มเติม
+        if (finalInterpDataHigh.hasDeltaData) {
+            let elevCorrection = (dz / 100) * finalInterpDataHigh.dElevPer100m;
+            finalElevHigh = finalInterpDataHigh.elev - elevCorrection;
+        } else {
+            // ตารางไม่มีข้อมูล D ELEV/D ToF (fallback) — ใช้สูตรตรีโกณมิติเดิม
+            finalElevHigh = finalInterpDataHigh.elev - angleOfSiteMilHigh;
+        }
         finalAziHigh = (aimBearingMil + deflHighMil + milSystem) % milSystem; finalAziHighToPass = finalAziHigh;
 
-        // 🔥 ยืนยันจากคู่มือเกม (Ballistic Table): "TIME OF FLIGHT PER 100M DR" = 
-        // "Change in projectile flight time for a 100m DIFFERENCE IN TARGET ALTITUDE" — 
-        // เป็นอัตราต่อความสูงเป้าหมาย (dz) โดยตรง ไม่ใช่ต่อระยะทาง (range) — ใช้ dz หารด้วย 100 คูณอัตรานี้ตรงๆ
-        // ✅ ยืนยันจากการทดสอบยิงจริงในเกม (High Angle, เป้าต่ำกว่าปืน, ตำแหน่งตกถูกแต่ ToF ยาวเกินจริง):
-        // ทิศทางต้องเหมือน Low Angle คือ "บวก" ไม่ใช่ "ลบ" (เดิมเดาผิดทิศทางเพราะไม่มีข้อมูลยืนยัน)
-        if (finalInterpDataHigh.hasDeltaData) {
-            let tofChange = (dz / 100) * finalInterpDataHigh.dTofPer100m;
-            tofHighToPass = baseTof + tofChange;
-        } else {
-            // ตารางไม่มีข้อมูล D ELEV/D ToF (fallback) — ใช้สูตรพาราโบลาสมมาตรเดิม
-            let tofRootTerm = (baseTof * baseTof) - (8 * dz / g_const);
-            tofHighToPass = (tofRootTerm >= 0) ? (baseTof + Math.sqrt(tofRootTerm)) / 2 : baseTof;
-        }
+        // ✅ ยืนยันแล้ว: ตัวแปรนี้คือ "เวลากระทบพื้น" (ToF เต็ม) ไม่ใช่เวลาระเบิดกลางอากาศ (fuze time)
+        // fuze time เป็นผลลัพธ์จากขั้นตอนถัดไป (getDragSimulatedPoints หาจุดตัด burstAlt) ไม่ใช่ค่านี้โดยตรง
+        // เดิมเข้าใจผิดว่าต้องปรับ ToF ให้ตรงกับ fuze time (51.2s) แต่จริงๆ ToF ควรตรงกับเวลากระทบพื้น (~51.9s)
+        // ยืนยันจาก 2 แหล่งอิสระที่คำนวณเวลากระทบพื้นเหมือนกัน: armacalc.pages.dev (51.9s) และสูตรพาราโบลาสมมาตรนี้ (51.92s)
+        let tofRootTerm = (baseTof * baseTof) - (8 * dz / g_const);
+        tofHighToPass = (tofRootTerm >= 0) ? (baseTof + Math.sqrt(tofRootTerm)) / 2 : baseTof;
 
         let vy = (dz + 0.5 * g_const * tofHighToPass * tofHighToPass) / tofHighToPass;
         trajHigh = {

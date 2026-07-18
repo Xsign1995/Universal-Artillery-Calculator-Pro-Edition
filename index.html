@@ -176,6 +176,25 @@
         .mini-input.range { border: 1px solid rgba(244, 63, 94, 0.5); color: #fff; }
         .mini-input.fuze { border: 1px solid rgba(56, 189, 248, 0.5); color: #fff; }
         .btn-mini-clear { width: auto; margin: 0; padding: 4px 6px; font-size: 10px; }
+
+        /* Air Fuze Angle Toggle (LO/HI vertical slider) — controls which trajectory's
+           Air Fuze Point marker is shown on the Tactical Top-Down Map only. */
+        .fuze-angle-switch { position: relative; width: 28px; height: 46px; background: #1e293b; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 14px; cursor: pointer; flex-shrink: 0; }
+        .fuze-angle-switch .fuze-angle-knob {
+            position: absolute; left: 50%; top: 2px; width: 20px; height: 20px; border-radius: 50%;
+            background: #38bdf8; box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+            transform: translateX(-50%);
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+        .fuze-angle-switch.mode-high .fuze-angle-knob { transform: translateX(-50%) translateY(22px); background: #eab308; }
+        .fuze-angle-switch-txt { position: absolute; left: 0; right: 0; text-align: center; font-size: 9px; font-weight: bold; pointer-events: none; transition: opacity 0.2s ease; }
+        .fuze-angle-switch-txt.txt-hi { top: 3px; color: #fef08a; }
+        .fuze-angle-switch-txt.txt-lo { bottom: 3px; color: #bae6fd; }
+        /* ตัวหนังสือของโหมดที่ "ไม่ได้เลือก" จะจางลง — โหมดที่เลือกอยู่จะสว่างเต็ม */
+        .fuze-angle-switch.mode-low .fuze-angle-switch-txt.txt-hi,
+        .fuze-angle-switch.mode-high .fuze-angle-switch-txt.txt-lo { opacity: 0.3; }
+        .fuze-angle-switch.locked { cursor: not-allowed; opacity: 0.55; }
+        .fuze-angle-switch.locked .fuze-angle-knob { background: #64748b; }
         
         .fo-result-box { margin-top: 10px; font-size: 14px; color: #eab308; text-align: center; background: rgba(234, 179, 8, 0.1); padding: 8px; border-radius: 6px; }
         .fo-correction-box { margin-top: 8px; font-size: 13px; color: #e5e7eb; background: rgba(15, 23, 42, 0.8); padding: 10px; border-radius: 8px; border: 1px solid #38bdf8; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.1); }
@@ -283,7 +302,7 @@
                         <div><label>Z (Height)</label><input type="number" id="targetZ" value="00" step="any"></div>
                     </div>
 
-                    <div style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <div style="margin-top: 8px; display: grid; grid-template-columns: 2fr 3fr; gap: 8px;">
                         <div class="mini-input-row range">
                             <span class="mini-label range">Range Offset</span>
                             <div style="display:flex; align-items:center; gap: 4px;">
@@ -294,7 +313,12 @@
                         
                         <div class="mini-input-row fuze">
                             <span class="mini-label fuze">Air Fuze (m)</span>
-                            <div style="display:flex; align-items:center; gap: 4px;">
+                            <div style="display:flex; align-items:center; gap: 6px;">
+                                <div id="fuzeAngleSwitch" class="fuze-angle-switch mode-low" onclick="toggleFuzeAngleMode()" title="เลือกแสดงจุด Air Fuze Point บน Tactical Map เฉพาะมุม Low หรือ High Angle">
+                                    <span class="fuze-angle-switch-txt txt-hi">HI</span>
+                                    <span class="fuze-angle-switch-txt txt-lo">LO</span>
+                                    <div class="fuze-angle-knob"></div>
+                                </div>
                                 <input type="number" id="airburstHeight" value="0" min="0" step="5" class="mini-input fuze" onchange="calculate()">
                                 <button onclick="document.getElementById('airburstHeight').value=0; calculate()" class="btn-mini-clear" style="background: #3b82f6; color: white;">ล้าง</button>
                             </div>
@@ -725,6 +749,37 @@ const calculateAltAtLast100m = ArtilleryPhysics.calculateAltAtLast100m;
 const getDragSimulatedPoints = (traj, dist, dz, airburstH = 0) => ArtilleryPhysics.getDragSimulatedPoints(traj, dist, dz, airburstH, currentWeapon);
 
 let airburstDataPack = null;
+// LO/HI toggle: เลือกว่าจะแสดงจุด Air Fuze Point บน Tactical Top-Down Map จากวิถี Low หรือ High Angle
+// (ไม่กระทบ Trajectory Profile ซึ่งยังคงแสดงทั้ง 2 เส้นเหมือนเดิม)
+// อาวุธที่มีแต่ตารางยิง High Angle เท่านั้น (เช่น มอร์ตาร์) จะถูกล็อคปุ่มไว้ที่ HI เสมอ เลื่อนลง LO ไม่ได้
+let fuzeAngleMode = 'low';
+function toggleFuzeAngleMode() {
+    const el = document.getElementById('fuzeAngleSwitch');
+    if (el && el.classList.contains('locked')) return; // ล็อคอยู่ (อาวุธ High Angle only) ห้ามสลับ
+    fuzeAngleMode = (fuzeAngleMode === 'low') ? 'high' : 'low';
+    syncFuzeAngleSwitchUI();
+    calculate();
+}
+function syncFuzeAngleSwitchUI() {
+    const el = document.getElementById('fuzeAngleSwitch');
+    if (!el) return;
+    el.classList.toggle('mode-low', fuzeAngleMode === 'low');
+    el.classList.toggle('mode-high', fuzeAngleMode === 'high');
+}
+// เรียกทุกครั้งที่เปลี่ยนอาวุธ/โปรไฟล์ — ถ้าอาวุธเป็น High Angle only ให้ล็อคปุ่มไว้ที่ HI
+function applyFuzeAngleLock(isHighAngleOnly) {
+    const el = document.getElementById('fuzeAngleSwitch');
+    if (!el) return;
+    if (isHighAngleOnly) {
+        fuzeAngleMode = 'high';
+        el.classList.add('locked');
+        el.title = "อาวุธนี้มีเฉพาะตารางยิง High Angle — ไม่สามารถเลื่อนไป LO ได้";
+    } else {
+        el.classList.remove('locked');
+        el.title = "เลือกแสดงจุด Air Fuze Point บน Tactical Map เฉพาะมุม Low หรือ High Angle";
+    }
+    syncFuzeAngleSwitchUI();
+}
 
 // Global State
 let currentWeaponId = 'm777'; let currentWeapon = weaponLibrary[currentWeaponId];
@@ -1062,6 +1117,8 @@ function changeProfile() {
         lowAngleClearanceSection.style.display = "block"; chargeLowDiv.style.display = "block";
         chargeSetupTitle.innerText = "Charge Setup (ความแรงดินส่ง)"; chargeLabelTexts.forEach(el => el.innerText = "Charge Level");
     }
+    applyFuzeAngleLock(isMortar);
+
 
     const ammoSelect = DOM["ammoSelect"]; ammoSelect.innerHTML = "";
     for (const aId in currentAmmoList) { ammoSelect.innerHTML += `<option value="${aId}">${currentAmmoList[aId].name}</option>`; }
@@ -1573,7 +1630,8 @@ function calculate() {
 
     airburstDataPack = null;
     if (airburstH > 0) {
-        let activeSim = isMortar ? simDataHigh : (simDataLow || simDataHigh);
+        // มอร์ตาร์มีแค่ High Angle เท่านั้น จึงบังคับใช้ simDataHigh เสมอ; อาวุธอื่นให้ตาม fuzeAngleMode ที่ผู้ใช้เลือก (fallback ไปอีกฝั่งถ้าฝั่งที่เลือกไม่มีข้อมูล)
+        let activeSim = isMortar ? simDataHigh : (fuzeAngleMode === 'high' ? (simDataHigh || simDataLow) : (simDataLow || simDataHigh));
         if (activeSim && activeSim.burstX !== null) {
             let ratio = activeSim.burstX / aimGridDistance;
             airburstDataPack = {

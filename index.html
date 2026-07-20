@@ -169,7 +169,7 @@
         .mini-input-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 6px; }
         .mini-input-row.range { background: rgba(244, 63, 94, 0.1); border: 1px dashed rgba(244, 63, 94, 0.4); }
         .mini-input-row.fuze { background: rgba(56, 189, 248, 0.1); border: 1px dashed rgba(56, 189, 248, 0.4); }
-        .mini-label { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+        .mini-label { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; margin-left: -4px; }
         .mini-label.range { color: #fb7185; }
         .mini-label.fuze { color: #38bdf8; }
         .mini-input { width: 55px; padding: 4px; font-size: 12px; margin: 0; }
@@ -302,10 +302,10 @@
                         <div><label>Z (Height)</label><input type="number" id="targetZ" value="00" step="any"></div>
                     </div>
 
-                    <div style="margin-top: 8px; display: grid; grid-template-columns: 2fr 3fr; gap: 8px;">
+                    <div style="margin-top: 8px; display: grid; grid-template-columns: 6fr 3fr; gap: 8px;">
                         <div class="mini-input-row range">
-                            <span class="mini-label range">Range Offset</span>
-                            <div style="display:flex; align-items:center; gap: 4px;">
+                            <span class="mini-label range">Range Offset </span>
+                            <div style="display:flex; align-items:center; gap: 6px;">
                                 <input type="number" id="rangeOffset" value="0" step="10" class="mini-input range" onchange="calculate()">
                                 <button onclick="document.getElementById('rangeOffset').value=0; calculate()" class="btn-mini-clear" style="background: #f43f5e; color: white;">ล้าง</button>
                             </div>

@@ -689,38 +689,14 @@ const ArtilleryPhysics = (() => {
             let flatY = (v_y0 * (t * T)) - (0.5 * g * (t * T) * (t * T));
             rawPts.push({ x: currentX, y: flatY, t_norm: t });
         }
-        let rawApexIdx = 0;
-        for (let i = 1; i < rawPts.length; i++) { if (rawPts[i].y > rawPts[rawApexIdx].y) rawApexIdx = i; }
-        // กรณี v_y0 <= 0 (dz ติดลบมากจนกระสุนพุ่งลงตั้งแต่ต้น) apex ดิบจะตกที่ t=0 พอดี ต้องขยับจุดยึดเข้ามาเล็กน้อย
-        if (rawApexIdx === 0) rawApexIdx = 5;
-        else if (rawApexIdx === rawPts.length - 1) rawApexIdx = rawPts.length - 6;
-        const rawPeak = rawPts[rawApexIdx].y;
-
-        // ยึดจุดสูงสุด (apex) ของเส้นโค้งจำลองให้ตรงกับ peakAlt จริงจากตารางกระสุน (ถ้ามี)
-        const targetPeakAlt = (typeof traj.peakAlt === 'number' && isFinite(traj.peakAlt)) ? traj.peakAlt : null;
-        let peakScale = 1, peakOffset = 0;
-        if (targetPeakAlt !== null && targetPeakAlt > 0) {
-            if (rawPeak > 0.5) peakScale = targetPeakAlt / rawPeak;
-            else peakOffset = targetPeakAlt - rawPeak;
-        }
-        if (!isFinite(peakScale) || peakScale <= 0) peakScale = 1;
-        if (!isFinite(peakOffset)) peakOffset = 0;
+        // ไม่บังคับให้เส้นโค้งผ่านจุด peakAlt จริงจากตารางอีกต่อไป (การยืด/บีบแบบ weight เชิงเส้น
+        // ทำให้เกิดรอยหักที่ apex และรูปทรงบิดเบี้ยวเมื่อ dz มาก) — ใช้ raw parabola ตรงๆ เป็นเส้นวาด
+        // เพื่อความสมูทต่อเนื่องเสมอ ส่วนค่า peakAlt จริงจากตารางยังใช้แสดงเป็นตัวเลขอ้างอิงแยกต่างหากได้
+        pts = rawPts.map(p => ({ x: p.x, y: p.y, t_norm: p.t_norm }));
 
         let exactFuzeTime = null;
         let exactBurstX = null;
         const burstAlt = dz + airburstH;
-
-        const t_apex_norm = rawPts[rawApexIdx].t_norm;
-        for (let i = 0; i <= 100; i++) {
-            let t = i / 100;
-            let flatY = rawPts[i].y;
-            let weight;
-            if (t_apex_norm <= 0 || t_apex_norm >= 1) weight = 0;
-            else if (t <= t_apex_norm) weight = t / t_apex_norm;
-            else weight = (1 - t) / (1 - t_apex_norm);
-            let currentY = flatY + (peakScale - 1) * rawPeak * weight + peakOffset * weight;
-            pts.push({ x: rawPts[i].x, y: currentY, t_norm: t });
-        }
 
         if (airburstH > 0) {
             // หาจุดตัดแรกที่ผ่าน apex แล้ว (ขาลง) โดยไม่ fix เวลาไว้ตายตัวที่ 0.5
@@ -1842,7 +1818,9 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
 
             ctx.fillStyle = traj.color; ctx.beginPath(); ctx.arc(toX(maxPt.x), toY(maxPt.y), 5, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = "white"; ctx.font = "bold 16px sans-serif"; ctx.textAlign = "center";
-            ctx.fillText(`Max: ${traj.peakAlt.toFixed(0)}m`, toX(maxPt.x), toY(maxPt.y) - 12);
+            // แสดงค่าสูงสุดที่วาดจริงบนกราฟ (maxYVal) แทนค่า traj.peakAlt จากตาราง
+            // เพื่อให้ตัวเลข label กับตำแหน่งจุด marker ตรงกันเสมอ (ไม่บังคับกราฟให้ผ่าน peakAlt อีกแล้ว)
+            ctx.fillText(`Max: ${maxYVal.toFixed(0)}m`, toX(maxPt.x), toY(maxPt.y) - 12);
 
             if (traj.alt100m !== null) {
                 let x100 = dist - 100;

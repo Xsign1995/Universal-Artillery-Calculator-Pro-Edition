@@ -239,7 +239,8 @@
                     <b class="section-label label-purple">⚔️ Weapon & Map System</b>
                     <div class="grid-1" style="margin-bottom: 8px;">
                         <select id="weaponSelect" title="Select weapon" onchange="changeWeapon()">
-                            <option value="m777" selected>M777 Howitzer (155mm) - US</option>
+                            <option value="m777" selected>M777 Howitzer (155mm) - US (PandaMods)</option>
+                            <option value="m777a1">M777A1 Howitzer (155mm) - US (CIE Artillery)</option>
                             <option value="m252">M252 Mortar (81mm) - US</option>
                             <option value="2b14">2B14 Podnos (82mm) - Soviet</option>
                         </select>
@@ -409,33 +410,34 @@
             <label for="mapBgSelect" style="flex-shrink:0;">แผนที่:</label>
             <select id="mapBgSelect" onchange="onMapBgChange()">
                 <option value="">— ไม่แสดงแผนที่ —</option>
-                <option value="Serhiivka_CIE">Serhiivka_CIE</option>
-                <option value="Udachne">Udachne</option>
-                <option value="DonAir">DonAir</option>
-                <option value="Serhiivka_WCS">Serhiivka_WCS</option>
-                <option value="Everon">Everon</option>
-                <option value="Kolguyev">Kolguyev</option>
-                <option value="Zarichne">Zarichne</option>
-                <option value="Arland">Arland</option>
-                <option value="Yunakivka">Yunakivka</option>
-                <option value="Ruha">Ruha</option>
-                <option value="Rostov">Rostov</option>
-                <option value="Grotov">Grotov</option>
-                <option value="Chervonopilia">Chervonopilia</option>
-                <option value="Faschivka">Faschivka</option>
-                <option value="Orlivka">Orlivka</option>
-                <option value="Donetsk">Donetsk</option>
-                <option value="Bakhmut">Bakhmut</option>
-                <option value="Chernarus">Chernarus</option>
-                <option value="Fallujah">Fallujah</option>
                 <option value="Anizay">Anizay</option>
+                <option value="Arland">Arland</option>
+                <option value="Bakhmut">Bakhmut</option>
+                <option value="Bakhmut Skini">Bakhmut Skini</option>
+                <option value="Belleau Wood">Belleau Wood</option>
+                <option value="Chernarus">Chernarus</option>
+                <option value="Chervonopilia">Chervonopilia</option>
+                <option value="DonAir">DonAir</option>
+                <option value="Donetsk">Donetsk</option>
+                <option value="Everon">Everon</option>
+                <option value="Fallujah">Fallujah</option>
+                <option value="Faschivka">Faschivka</option>
                 <option value="Gogland">Gogland</option>
-                <option value="Takistan">Takistan</option>
+                <option value="Grotov">Grotov</option>
+                <option value="Kolguyev">Kolguyev</option>
                 <option value="Marnivka">Marnivka</option>
+                <option value="Orlivka">Orlivka</option>
                 <option value="Predniprovsk">Predniprovsk</option>
-                <option value="West_Zagoria">West_Zagoria</option>
+                <option value="Rostov">Rostov</option>
+                <option value="Ruha">Ruha</option>
+                <option value="Serhiivka_CIE">Serhiivka_CIE</option>
+                <option value="Serhiivka_WCS">Serhiivka_WCS</option>
+                <option value="Takistan">Takistan</option>
+                <option value="Udachne">Udachne</option>
+                <option value="West Zagoria">West Zagoria</option>
+                <option value="Yunakivka">Yunakivka</option>
                 <option value="Zargabad">Zargabad</option>
-                <option value="Belleau_Wood">Belleau_Wood</option>
+                <option value="Zarichne">Zarichne</option>
             </select>
             <span id="mapBgStatus" class="map-status"></span>
         </div>
@@ -780,11 +782,11 @@ const MapBackground = (() => {
     const GROUP_SIZE = 256;
     // โซนที่ยอมให้เลือกได้เท่านั้น (ตรงกับ <option> ใน dropdown) กันเลือกแมปที่ไม่มีจริง
     const ALLOWED_MAPS = new Set([
-        "Serhiivka_CIE", "Udachne", "DonAir", "Serhiivka_WCS", "Everon", "Kolguyev",
-        "Zarichne", "Arland", "Yunakivka", "Ruha", "Rostov", "Grotov", "Chervonopilia",
-        "Faschivka", "Orlivka", "Donetsk", "Bakhmut", "Chernarus", "Fallujah", "Anizay",
-        "Gogland", "Takistan", "Marnivka", "Predniprovsk", "West_Zagoria", "Zargabad",
-        "Belleau_Wood",
+        "Anizay", "Arland", "Bakhmut", "Bakhmut Skini", "Belleau Wood", "Chernarus",
+        "Chervonopilia", "DonAir", "Donetsk", "Everon", "Fallujah", "Faschivka",
+        "Gogland", "Grotov", "Kolguyev", "Marnivka", "Orlivka", "Predniprovsk",
+        "Rostov", "Ruha", "Serhiivka_CIE", "Serhiivka_WCS", "Takistan", "Udachne",
+        "West Zagoria", "Yunakivka", "Zargabad", "Zarichne",
     ]);
 
     // zoom level แรกที่โหลดตอนเลือกแมป (ภาพกว้าง ๆ โหลดไว ใช้เป็นภาพตั้งต้น/fallback)
@@ -1210,8 +1212,9 @@ function calculateFOCorrection() {
 
         let effectiveDz = dz + airburstH; // ใช้เฉพาะหา fuze crossing เท่านั้น ห้ามใช้กับ Elevation/Charge selection
 
+        const minClearanceFO = parseFloat(DOM["minClearance"].value) || 0;
         let chargeCodeHigh = DOM["chargeVelHigh"].value;
-        if (chargeCodeHigh === 'auto') chargeCodeHigh = findBestCharge(aimGridDistance, dz);
+        if (chargeCodeHigh === 'auto') chargeCodeHigh = findBestCharge(aimGridDistance, dz, windSpeed, windDirDeg, aimBearingDeg, minClearanceFO);
         let tableSourceHigh = currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
         if (!tableSourceHigh[chargeCodeHigh]) chargeCodeHigh = Object.keys(tableSourceHigh)[0];
         const tableHigh = tableSourceHigh[chargeCodeHigh];
@@ -1282,29 +1285,67 @@ function applyFOCorrection() {
     resetFOState(); mapMode = 'target'; calculate();
 }
 
-function findBestCharge(dist, dz = 0) {
+function findBestCharge(dist, dz = 0, windSpeed = 0, windDirDeg = 0, aimBearingDeg = 0, minClearance = 0) {
     let tableSource = currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
-    let keys = Object.keys(tableSource); keys.sort((a, b) => a.localeCompare(b));
+    // 🔥 เรียงตามเลข Charge จริง (c1, c2, ... c10) ไม่ใช่เรียงแบบ string เพื่อให้ตรงกับ Low Angle auto-select
+    let keys = Object.keys(tableSource).sort((a, b) => parseInt(a.replace(/[^0-9]/g, '')) - parseInt(b.replace(/[^0-9]/g, '')));
     const limitMin = currentLimits ? currentLimits.minElev : 0; const limitMax = currentLimits ? currentLimits.maxElev : 6400;
-    const halfMil = currentWeapon.milSystem ? currentWeapon.milSystem / 2 : 3200;
+    const milSystem = currentWeapon.milSystem || 6400; const halfMil = milSystem / 2;
+    const driftCoeff = currentWeapon.windDriftCoeff || 0.3725; const rangeCoeff = currentWeapon.windRangeCoeff || 0.40;
+
+    // 🔥 คำนวณ elevation จริงสำหรับ Charge นี้ โดยใช้สูตรเดียวกับ calculate() ทุกประการ
+    // (รวมผลลม + ใช้ dElevPer100m ถ้าตารางมีข้อมูล) เพื่อให้ AUTO เลือก Charge ที่ตรงกับผลจริงที่จะคำนวณออกมา
+    function evalCharge(table) {
+        let aimDistH = dist; let aimBearingDegH = aimBearingDeg; let finalInterpDataHigh = null;
+        for (let iter = 0; iter < 4; iter++) {
+            let cw = windSpeed * Math.sin((windDirDeg - aimBearingDegH) * (Math.PI / 180));
+            let hw = windSpeed * Math.cos((windDirDeg - aimBearingDegH) * (Math.PI / 180));
+            let baseInterp = getInterpolatedData(aimDistH, table); if (!baseInterp) return null;
+            let rangeAdj = baseInterp.hasWindData ? (hw / 10) * baseInterp.longWind : hw * baseInterp.tof * rangeCoeff;
+            let virtualDist = aimDistH + rangeAdj;
+            finalInterpDataHigh = getInterpolatedData(virtualDist, table);
+            if (finalInterpDataHigh.hasWindData) {
+                let deflDeg = ((cw / 10) * finalInterpDataHigh.crossWind) * (360 / milSystem);
+                aimBearingDegH = aimBearingDeg + deflDeg; aimDistH = dist / Math.cos(deflDeg * Math.PI / 180);
+            } else {
+                let driftMeters = cw * finalInterpDataHigh.tof * driftCoeff;
+                let deflRad = Math.atan(driftMeters / dist);
+                aimBearingDegH = aimBearingDeg + (deflRad * 180 / Math.PI); aimDistH = dist / Math.cos(deflRad);
+            }
+        }
+        if (!finalInterpDataHigh || finalInterpDataHigh.clamped) return null;
+
+        let elev;
+        if (finalInterpDataHigh.hasDeltaData) {
+            elev = finalInterpDataHigh.elev - (dz / 100) * finalInterpDataHigh.dElevPer100m;
+        } else {
+            const angleOfSite = Math.atan(dz / aimDistH) * (halfMil / Math.PI);
+            elev = finalInterpDataHigh.elev - angleOfSite;
+        }
+        return { elev, peakAlt: finalInterpDataHigh.hasPeakAlt ? finalInterpDataHigh.peakAlt : Infinity };
+    }
+
+    let fallback = null;
+    for (const cId of keys) {
+        let table = tableSource[cId];
+        if (!table || table.length === 0) continue; // ข้ามตาราง Charge ที่ยังไม่มีข้อมูล (placeholder ว่าง)
+        let minRange = table[0][0]; let maxRange = table[table.length - 1][0];
+        if (dist < minRange || dist > maxRange) continue;
+        let result = evalCharge(table);
+        if (!result) continue;
+        let isValidElev = result.elev >= limitMin && result.elev <= limitMax;
+        if (!fallback && isValidElev) fallback = cId; // เก็บตัวเลือกแรกที่มุมเงยใช้ได้ไว้เผื่อไม่มีตัวไหนผ่านเงื่อนไข clearance
+        if (isValidElev && result.peakAlt >= minClearance) return cId;
+    }
+    if (fallback) return fallback;
 
     for (const cId of keys) {
         let table = tableSource[cId];
-        let minRange = table[0][0]; let maxRange = table[table.length - 1][0];
-        if (dist >= minRange && dist <= maxRange) {
-            let interp = getInterpolatedData(dist, table);
-            if (interp) {
-                let angleOfSite = Math.atan(dz / dist) * (halfMil / Math.PI);
-                let estimatedElev = interp.elev - angleOfSite;
-                if (estimatedElev >= limitMin && estimatedElev <= limitMax) return cId;
-            }
-        }
-    }
-    for (const cId of keys) {
-        let maxRange = tableSource[cId][tableSource[cId].length - 1][0];
+        if (!table || table.length === 0) continue;
+        let maxRange = table[table.length - 1][0];
         if (dist <= maxRange) return cId;
     }
-    return keys[keys.length - 1]; 
+    return keys.find(cId => tableSource[cId] && tableSource[cId].length > 0) || keys[keys.length - 1];
 }
 
 function adjustTarget(dirX, dirY) {
@@ -1366,7 +1407,7 @@ function calculate() {
 
     // ================= 1. High Angle =================
     let chargeCodeHigh = DOM["chargeVelHigh"].value;
-    if (chargeCodeHigh === 'auto') chargeCodeHigh = findBestCharge(aimGridDistance, dz);
+    if (chargeCodeHigh === 'auto') chargeCodeHigh = findBestCharge(aimGridDistance, dz, windSpeed, windDirDeg, aimBearingDeg, minClearance);
     let tableSourceHigh = currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
     if (!tableSourceHigh[chargeCodeHigh]) chargeCodeHigh = Object.keys(tableSourceHigh)[0];
     const tableHigh = tableSourceHigh[chargeCodeHigh];
@@ -1433,6 +1474,7 @@ function calculate() {
             fuzeTimeHigh = simDataHigh.fuzeTime;
             trajHigh.fuzeX = simDataHigh.burstX;
             trajHigh.fuzeY = dz + airburstH;
+            trajHigh.fuzeTime = fuzeTimeHigh;
         }
         
         let elevWarningHigh = ""; let isElevHighError = false; let limitText = isMortar ? "Ring" : "Charge";
@@ -1556,6 +1598,7 @@ function calculate() {
                 fuzeTimeLow = simDataLow.fuzeTime;
                 trajLow.fuzeX = simDataLow.burstX;
                 trajLow.fuzeY = dz + airburstH;
+                trajLow.fuzeTime = fuzeTimeLow;
             }
 
             let elevWarningLow = ""; let isElevLowError = false;
@@ -2154,6 +2197,60 @@ mapCanvas.addEventListener('mousemove', (e) => { if(isPanning){ mapCamX -= (e.of
 mapCanvas.addEventListener('mouseup', () => isPanning = false); mapCanvas.addEventListener('mouseleave', () => isPanning = false);
 mapCanvas.addEventListener('wheel', (e) => { e.preventDefault(); if (mapMode === 'auto') mapMode = 'free'; mapZoom *= e.deltaY > 0 ? 0.9 : 1.1; if (!isRedrawing) { isRedrawing = true; requestAnimationFrame(() => { redrawMapOnly(); isRedrawing = false; }); } MapBackground.notifyViewChanged(); });
 
+// ===== Touch support (มือถือ/iPad): ลากนิ้วเดียว = pan, สองนิ้ว = pinch zoom =====
+mapCanvas.style.touchAction = 'none'; // กันเบราว์เซอร์แย่ง gesture (scroll/zoom หน้าเว็บ) ไปจาก canvas
+function getCanvasOffset(touch) {
+    const rect = mapCanvas.getBoundingClientRect();
+    return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+}
+function getTouchDistance(t0, t1) {
+    const dx = t0.clientX - t1.clientX, dy = t0.clientY - t1.clientY;
+    return Math.hypot(dx, dy);
+}
+function scheduleMapRedraw() {
+    if (!isRedrawing) { isRedrawing = true; requestAnimationFrame(() => { redrawMapOnly(); isRedrawing = false; }); }
+    MapBackground.notifyViewChanged();
+}
+let touchPinchStartDist = null;
+let touchPinchStartZoom = null;
+
+mapCanvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (e.touches.length === 1) {
+        isPanning = true;
+        const p = getCanvasOffset(e.touches[0]);
+        startPanX = p.x; startPanY = p.y;
+    } else if (e.touches.length === 2) {
+        isPanning = false;
+        touchPinchStartDist = getTouchDistance(e.touches[0], e.touches[1]);
+        touchPinchStartZoom = mapZoom;
+    }
+}, { passive: false });
+
+mapCanvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (e.touches.length === 1 && isPanning) {
+        const p = getCanvasOffset(e.touches[0]);
+        mapCamX -= (p.x - startPanX) / mapZoom;
+        mapCamY += (p.y - startPanY) / mapZoom;
+        startPanX = p.x; startPanY = p.y;
+        mapMode = 'free';
+        scheduleMapRedraw();
+    } else if (e.touches.length === 2 && touchPinchStartDist) {
+        if (mapMode === 'auto') mapMode = 'free';
+        const newDist = getTouchDistance(e.touches[0], e.touches[1]);
+        mapZoom = touchPinchStartZoom * (newDist / touchPinchStartDist);
+        scheduleMapRedraw();
+    }
+}, { passive: false });
+
+function touchEndHandler(e) {
+    if (e.touches.length === 0) { isPanning = false; touchPinchStartDist = null; }
+    else if (e.touches.length === 1) { touchPinchStartDist = null; const p = getCanvasOffset(e.touches[0]); startPanX = p.x; startPanY = p.y; isPanning = true; }
+}
+mapCanvas.addEventListener('touchend', touchEndHandler);
+mapCanvas.addEventListener('touchcancel', touchEndHandler);
+
 function zoomMap(factor) { if (mapMode === 'auto') mapMode = 'free'; mapZoom *= factor; redrawMapOnly(); MapBackground.notifyViewChanged(); }
 function resetMap() { mapMode = 'auto'; redrawMapOnly(); MapBackground.notifyViewChanged(); }
 function zoomToTarget() { mapMode = 'target'; mapZoom = 5; redrawMapOnly(); MapBackground.notifyViewChanged(); }
@@ -2273,11 +2370,22 @@ function copyToChatTeam() {
     if (!traj || !currentCalcData) { showCopyChatStatus("⚠️ กรุณาคำนวณก่อน (ใส่พิกัดเป้าหมาย)", true); return; }
 
     const weapon = getWeaponShortName();
-    const tgtXStr = DOM["targetX"].value || "0000";
-    const tgtYStr = DOM["targetY"].value || "0000";
+    const hasOffset = (Math.abs(aimOffsetX) >= 0.01 || Math.abs(aimOffsetY) >= 0.01);
+    let tgtXStr, tgtYStr, gridLabel;
+    if (hasOffset) {
+        const prefLenX = (DOM["targetX"].value || "0000").replace('-', '').split('.')[0].length;
+        const prefLenY = (DOM["targetY"].value || "0000").replace('-', '').split('.')[0].length;
+        tgtXStr = formatMetersToArma(currentCalcData.targetX + aimOffsetX, prefLenX);
+        tgtYStr = formatMetersToArma(currentCalcData.targetY + aimOffsetY, prefLenY);
+        gridLabel = "Grid";
+    } else {
+        tgtXStr = DOM["targetX"].value || "0000";
+        tgtYStr = DOM["targetY"].value || "0000";
+        gridLabel = "Grid";
+    }
     const tof = traj.tof.toFixed(1);
 
-    const msg = `FIRE MISSION | ${weapon} | Grid: ${tgtXStr} ${tgtYStr} | Time to impact ${tof}s`;
+    const msg = `FIRE MISSION | ${weapon} | ${gridLabel}: ${tgtXStr} ${tgtYStr} | Time to impact ${tof}s`;
     copyTextToClipboard(msg)
         .then(() => showCopyChatStatus("✅ Copy ข้อความทีมแล้ว!"))
         .catch(() => showCopyChatStatus("❌ Copy ไม่สำเร็จ ลองอีกครั้ง", true));
@@ -2295,7 +2403,23 @@ function copyToChatGunner() {
     const elev = Math.round(traj.elev);
     const tof = traj.tof.toFixed(1);
 
-    const msg = `FIRE MISSION | ${weapon} | ${chargeLabel} ${chargeNum} | AZI ${azi} | ELEV ${elev} | ToF ${tof}s`;
+    const hasOffset = (Math.abs(aimOffsetX) >= 0.01 || Math.abs(aimOffsetY) >= 0.01);
+    let gridPart = "";
+    if (hasOffset) {
+        const prefLenX = (DOM["targetX"].value || "0000").replace('-', '').split('.')[0].length;
+        const prefLenY = (DOM["targetY"].value || "0000").replace('-', '').split('.')[0].length;
+        const tgtXStr = formatMetersToArma(currentCalcData.targetX + aimOffsetX, prefLenX);
+        const tgtYStr = formatMetersToArma(currentCalcData.targetY + aimOffsetY, prefLenY);
+        gridPart = ` | Grid: ${tgtXStr} ${tgtYStr}`;
+    }
+
+    let fuzePart = "";
+    const airburstH = parseFloat(DOM["airburstHeight"].value) || 0;
+    if (airburstH > 0 && traj.fuzeTime !== undefined && traj.fuzeTime !== null) {
+        fuzePart = ` | Air Fuze Timer ${traj.fuzeTime.toFixed(1)}s`;
+    }
+
+    const msg = `FIRE MISSION | ${weapon} | ${chargeLabel} ${chargeNum} | AZI ${azi} | ELEV ${elev} | ToF ${tof}s${fuzePart}${gridPart}`;
     copyTextToClipboard(msg)
         .then(() => showCopyChatStatus("✅ Copy ข้อความพลยิงแล้ว!"))
         .catch(() => showCopyChatStatus("❌ Copy ไม่สำเร็จ ลองอีกครั้ง", true));

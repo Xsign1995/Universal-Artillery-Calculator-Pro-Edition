@@ -1264,7 +1264,9 @@ function calculateFOCorrection() {
             correctionText += `<div style='font-size:13px; display:flex; justify-content:space-between;'><span>Aim Azimuth (หันหน้า):</span> <b style="color:#fff;">${finalAziHigh.toFixed(0)}</b></div></div>`;
             enableApplyCorrectionBtn();
         } else { 
-            correctionText += `<div style='color:#ef4444; font-size: 12px; margin-top: 4px;'>⚠️ จุดยิงแก้อยู่นอกระยะของ ${chargeCodeHigh} แนะนำให้ปรับแก้แบบ Manual</div>`; 
+            let userSelectedHighFO = DOM["chargeVelHigh"].value;
+            let chargeLabelFO = userSelectedHighFO === 'auto' ? "AUTO CHARGE" : (isMortar ? chargeCodeHigh.replace('c', 'Ring ') : chargeCodeHigh.replace('c', 'Charge '));
+            correctionText += `<div style='color:#ef4444; font-size: 12px; margin-top: 4px;'>⚠️ จุดยิงแก้อยู่นอกระยะของ ${chargeLabelFO} แนะนำให้ปรับแก้แบบ Manual</div>`; 
             disableApplyCorrectionBtn(); 
         }
         if(!isNaN(finalElevHigh)) {
@@ -1474,7 +1476,6 @@ function calculate() {
             fuzeTimeHigh = simDataHigh.fuzeTime;
             trajHigh.fuzeX = simDataHigh.burstX;
             trajHigh.fuzeY = dz + airburstH;
-            trajHigh.fuzeTime = fuzeTimeHigh;
         }
         
         let elevWarningHigh = ""; let isElevHighError = false; let limitText = isMortar ? "Ring" : "Charge";
@@ -1511,7 +1512,8 @@ function calculate() {
             htmlHigh += `<div style="color: #eab308; font-size: 13px; font-weight: bold; margin-bottom: 8px; margin-top: 12px;">↗️ HIGH ANGLE TARGET</div><div class="load-instruction-box"><span class="load-label">⚙️ LOAD AMMO:</span><span class="load-value">${chargeDisplayHigh}</span></div><div class="stat" style="flex-direction: column; align-items: stretch; border-left-color: #eab308;"><div style="display: flex; justify-content: space-between; align-items: center;"><span>Elevation (ตั้งมุมเงย):</span> <b style="font-size: 16px; ${isElevHighError ? 'color:#ef4444;' : ''}">${finalElevHigh.toFixed(0)} MILs</b></div>${elevWarningHigh}</div><div class="stat" style="border-left-color: #eab308;"><span>Aim Azimuth (ตั้งทิศทาง):</span> <b style="font-size: 16px;">${finalAziHigh.toFixed(0)}</b></div><div style="text-align: right; font-size: 11px; color: ${windColorHigh}; margin-bottom: 6px;">${windTextHigh}</div>${tofStatHigh}${fuzeStatHigh}${offsetNotice}`;
         }
     } else {
-        let chargeDisplayHigh = isMortar ? chargeCodeHigh.replace('c', 'RING ') : chargeCodeHigh.replace('c', 'CHARGE ');
+        let userSelectedHigh = DOM["chargeVelHigh"].value;
+        let chargeDisplayHigh = userSelectedHigh === 'auto' ? "AUTO CHARGE" : (isMortar ? chargeCodeHigh.replace('c', 'RING ') : chargeCodeHigh.replace('c', 'CHARGE '));
         if (isMortar) {
             htmlHigh += `<div class="highlight-box high-angle" style="margin-top: 0; border-color: #ef4444;"><div class="stat stat-error">⚠️ ${chargeDisplayHigh}: OUT OF TABLE RANGE</div></div>`;
         } else {
@@ -1598,7 +1600,6 @@ function calculate() {
                 fuzeTimeLow = simDataLow.fuzeTime;
                 trajLow.fuzeX = simDataLow.burstX;
                 trajLow.fuzeY = dz + airburstH;
-                trajLow.fuzeTime = fuzeTimeLow;
             }
 
             let elevWarningLow = ""; let isElevLowError = false;
@@ -1634,7 +1635,7 @@ function calculate() {
         } else {
             let userSelectedLow = DOM["chargeVelLow"].value;
             let displayCharge = userSelectedLow === 'auto' ? "AUTO CHARGE" : userSelectedLow.replace('c', 'CHARGE ');
-            htmlLow += `<div style="color: #ef4444; font-size: 13px; font-weight: bold; margin-bottom: 8px; margin-top: 12px;">↗️ LOW ANGLE TARGET</div><div class="stat stat-error">⚠️ ${displayCharge}: OUT OF TABLE RANGE</div>`;
+            htmlLow += `<div style="color: #38bdf8; font-size: 13px; font-weight: bold; margin-bottom: 8px; margin-top: 12px;">↘️ LOW ANGLE TARGET</div><div class="stat stat-error">⚠️ ${displayCharge}: OUT OF TABLE RANGE</div>`;
         }
     }
 
@@ -2370,22 +2371,11 @@ function copyToChatTeam() {
     if (!traj || !currentCalcData) { showCopyChatStatus("⚠️ กรุณาคำนวณก่อน (ใส่พิกัดเป้าหมาย)", true); return; }
 
     const weapon = getWeaponShortName();
-    const hasOffset = (Math.abs(aimOffsetX) >= 0.01 || Math.abs(aimOffsetY) >= 0.01);
-    let tgtXStr, tgtYStr, gridLabel;
-    if (hasOffset) {
-        const prefLenX = (DOM["targetX"].value || "0000").replace('-', '').split('.')[0].length;
-        const prefLenY = (DOM["targetY"].value || "0000").replace('-', '').split('.')[0].length;
-        tgtXStr = formatMetersToArma(currentCalcData.targetX + aimOffsetX, prefLenX);
-        tgtYStr = formatMetersToArma(currentCalcData.targetY + aimOffsetY, prefLenY);
-        gridLabel = "Grid";
-    } else {
-        tgtXStr = DOM["targetX"].value || "0000";
-        tgtYStr = DOM["targetY"].value || "0000";
-        gridLabel = "Grid";
-    }
+    const tgtXStr = DOM["targetX"].value || "0000";
+    const tgtYStr = DOM["targetY"].value || "0000";
     const tof = traj.tof.toFixed(1);
 
-    const msg = `FIRE MISSION | ${weapon} | ${gridLabel}: ${tgtXStr} ${tgtYStr} | Time to impact ${tof}s`;
+    const msg = `FIRE MISSION | ${weapon} | Grid: ${tgtXStr} ${tgtYStr} | Time to impact ${tof}s`;
     copyTextToClipboard(msg)
         .then(() => showCopyChatStatus("✅ Copy ข้อความทีมแล้ว!"))
         .catch(() => showCopyChatStatus("❌ Copy ไม่สำเร็จ ลองอีกครั้ง", true));
@@ -2403,23 +2393,7 @@ function copyToChatGunner() {
     const elev = Math.round(traj.elev);
     const tof = traj.tof.toFixed(1);
 
-    const hasOffset = (Math.abs(aimOffsetX) >= 0.01 || Math.abs(aimOffsetY) >= 0.01);
-    let gridPart = "";
-    if (hasOffset) {
-        const prefLenX = (DOM["targetX"].value || "0000").replace('-', '').split('.')[0].length;
-        const prefLenY = (DOM["targetY"].value || "0000").replace('-', '').split('.')[0].length;
-        const tgtXStr = formatMetersToArma(currentCalcData.targetX + aimOffsetX, prefLenX);
-        const tgtYStr = formatMetersToArma(currentCalcData.targetY + aimOffsetY, prefLenY);
-        gridPart = ` | Grid: ${tgtXStr} ${tgtYStr}`;
-    }
-
-    let fuzePart = "";
-    const airburstH = parseFloat(DOM["airburstHeight"].value) || 0;
-    if (airburstH > 0 && traj.fuzeTime !== undefined && traj.fuzeTime !== null) {
-        fuzePart = ` | Air Fuze Timer ${traj.fuzeTime.toFixed(1)}s`;
-    }
-
-    const msg = `FIRE MISSION | ${weapon} | ${chargeLabel} ${chargeNum} | AZI ${azi} | ELEV ${elev} | ToF ${tof}s${fuzePart}${gridPart}`;
+    const msg = `FIRE MISSION | ${weapon} | ${chargeLabel} ${chargeNum} | AZI ${azi} | ELEV ${elev} | ToF ${tof}s`;
     copyTextToClipboard(msg)
         .then(() => showCopyChatStatus("✅ Copy ข้อความพลยิงแล้ว!"))
         .catch(() => showCopyChatStatus("❌ Copy ไม่สำเร็จ ลองอีกครั้ง", true));

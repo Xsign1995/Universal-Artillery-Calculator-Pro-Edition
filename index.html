@@ -1484,7 +1484,7 @@ function calculate() {
         
         let windTextHigh = "ไม่มีลม"; let windColorHigh = "#94a3b8"; 
         if (windSpeed > 0) {
-            let hwCalc = windSpeed * Math.cos((windDirDeg - aimBearingDeg) * (Math.PI / 180));
+            let hwCalc = windSpeed * Math.cos((windDirDeg - aimBearingDegH) * (Math.PI / 180));
             let cwText = ""; let hwText = "";
             if (hwCalc > 0.1) hwText = "ลมทวนหน้า (ชดเชยมุมเงยแล้ว)"; else if (hwCalc < -0.1) hwText = "ลมตามหลัง (ชดเชยมุมเงยแล้ว)";
             if (Math.abs(deflHighMil) > 0.05) { cwText = deflHighMil > 0 ? `เผื่อขวา ${Math.abs(deflHighMil).toFixed(0)} MILs` : `เผื่อซ้าย ${Math.abs(deflHighMil).toFixed(0)} MILs`; }
@@ -1575,7 +1575,7 @@ function calculate() {
                 
                 let isValidElev = finalElevLowMil >= MIN_ELEVATION_MIL && finalElevLowMil <= MAX_ELEVATION_MIL;
                 let clearsMask = maxHLow_temp >= minClearance;
-                let currentResult = { cId: cId, deflLowMil: deflLowMil, finalInterpDataLow: finalInterpDataLow, finalElevLowMil: finalElevLowMil, tofLowToPass: tofLowToPass_temp, maxHLow: maxHLow_temp, isValidElev: isValidElev, clearsMask: clearsMask };
+                let currentResult = { cId: cId, deflLowMil: deflLowMil, finalInterpDataLow: finalInterpDataLow, finalElevLowMil: finalElevLowMil, tofLowToPass: tofLowToPass_temp, maxHLow: maxHLow_temp, isValidElev: isValidElev, clearsMask: clearsMask, aimBearingDegL: aimBearingDegL };
                 if (!bestLowCalc) { bestLowCalc = currentResult; } else if (!bestLowCalc.isValidElev && currentResult.isValidElev) { bestLowCalc = currentResult; }
                 if (currentResult.isValidElev && currentResult.clearsMask) { bestLowCalc = currentResult; break; }
             }
@@ -1608,7 +1608,7 @@ function calculate() {
 
             let windTextLow = "ไม่มีลม"; let windColorLow = "#94a3b8";
             if (windSpeed > 0) {
-                let hwCalc = windSpeed * Math.cos((windDirDeg - aimBearingDeg) * (Math.PI / 180));
+                let hwCalc = windSpeed * Math.cos((windDirDeg - bestLowCalc.aimBearingDegL) * (Math.PI / 180));
                 let cwText = ""; let hwText = "";
                 if (hwCalc > 0.1) hwText = "ลมทวนหน้า (ชดเชยมุมเงยแล้ว)"; else if (hwCalc < -0.1) hwText = "ลมตามหลัง (ชดเชยมุมเงยแล้ว)";
                 if (Math.abs(bestLowCalc.deflLowMil) > 0.05) { cwText = bestLowCalc.deflLowMil > 0 ? `เผื่อขวา ${Math.abs(bestLowCalc.deflLowMil).toFixed(0)} MILs` : `เผื่อซ้าย ${Math.abs(bestLowCalc.deflLowMil).toFixed(0)} MILs`; }

@@ -1476,6 +1476,7 @@ function calculate() {
             fuzeTimeHigh = simDataHigh.fuzeTime;
             trajHigh.fuzeX = simDataHigh.burstX;
             trajHigh.fuzeY = dz + airburstH;
+            trajHigh.fuzeTime = fuzeTimeHigh;
         }
         
         let elevWarningHigh = ""; let isElevHighError = false; let limitText = isMortar ? "Ring" : "Charge";
@@ -1600,6 +1601,7 @@ function calculate() {
                 fuzeTimeLow = simDataLow.fuzeTime;
                 trajLow.fuzeX = simDataLow.burstX;
                 trajLow.fuzeY = dz + airburstH;
+                trajLow.fuzeTime = fuzeTimeLow;
             }
 
             let elevWarningLow = ""; let isElevLowError = false;
@@ -2371,8 +2373,17 @@ function copyToChatTeam() {
     if (!traj || !currentCalcData) { showCopyChatStatus("⚠️ กรุณาคำนวณก่อน (ใส่พิกัดเป้าหมาย)", true); return; }
 
     const weapon = getWeaponShortName();
-    const tgtXStr = DOM["targetX"].value || "0000";
-    const tgtYStr = DOM["targetY"].value || "0000";
+    const hasOffset = (Math.abs(aimOffsetX) >= 0.01 || Math.abs(aimOffsetY) >= 0.01);
+    let tgtXStr, tgtYStr;
+    if (hasOffset) {
+        const prefLenX = (DOM["targetX"].value || "0000").replace('-', '').split('.')[0].length;
+        const prefLenY = (DOM["targetY"].value || "0000").replace('-', '').split('.')[0].length;
+        tgtXStr = formatMetersToArma(currentCalcData.targetX + aimOffsetX, prefLenX);
+        tgtYStr = formatMetersToArma(currentCalcData.targetY + aimOffsetY, prefLenY);
+    } else {
+        tgtXStr = DOM["targetX"].value || "0000";
+        tgtYStr = DOM["targetY"].value || "0000";
+    }
     const tof = traj.tof.toFixed(1);
 
     const msg = `FIRE MISSION | ${weapon} | Grid: ${tgtXStr} ${tgtYStr} | Time to impact ${tof}s`;
@@ -2393,7 +2404,23 @@ function copyToChatGunner() {
     const elev = Math.round(traj.elev);
     const tof = traj.tof.toFixed(1);
 
-    const msg = `FIRE MISSION | ${weapon} | ${chargeLabel} ${chargeNum} | AZI ${azi} | ELEV ${elev} | ToF ${tof}s`;
+    const hasOffset = (Math.abs(aimOffsetX) >= 0.01 || Math.abs(aimOffsetY) >= 0.01);
+    let gridPart = "";
+    if (hasOffset) {
+        const prefLenX = (DOM["targetX"].value || "0000").replace('-', '').split('.')[0].length;
+        const prefLenY = (DOM["targetY"].value || "0000").replace('-', '').split('.')[0].length;
+        const tgtXStr = formatMetersToArma(currentCalcData.targetX + aimOffsetX, prefLenX);
+        const tgtYStr = formatMetersToArma(currentCalcData.targetY + aimOffsetY, prefLenY);
+        gridPart = ` | Grid: ${tgtXStr} ${tgtYStr}`;
+    }
+
+    let fuzePart = "";
+    const airburstH = parseFloat(DOM["airburstHeight"].value) || 0;
+    if (airburstH > 0 && traj.fuzeTime !== undefined && traj.fuzeTime !== null) {
+        fuzePart = ` | Air Fuze Timer ${traj.fuzeTime.toFixed(1)}s`;
+    }
+
+    const msg = `FIRE MISSION | ${weapon} | ${chargeLabel} ${chargeNum} | AZI ${azi} | ELEV ${elev} | ToF ${tof}s${fuzePart}${gridPart}`;
     copyTextToClipboard(msg)
         .then(() => showCopyChatStatus("✅ Copy ข้อความพลยิงแล้ว!"))
         .catch(() => showCopyChatStatus("❌ Copy ไม่สำเร็จ ลองอีกครั้ง", true));

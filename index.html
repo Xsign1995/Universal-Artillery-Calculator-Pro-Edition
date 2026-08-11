@@ -24,11 +24,11 @@
 
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #e5e7eb; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .container { display: grid; grid-template-columns: minmax(750px, 1.8fr) minmax(480px, 1fr) 300px; gap: 20px; max-width: 1600px; width: 100%; }
-        @media (max-width: 1080px) { .container { grid-template-columns: 1fr; } .map-panel { grid-column: span 1; } }
+        .container { display: grid; grid-template-columns: minmax(750px, 1.6fr) minmax(600px, 1fr) 300px; gap: 20px; max-width: 1800px; width: 100%; }
+        @media (max-width: 1250px) { .container { grid-template-columns: 1fr; } .map-panel { grid-column: span 1; } }
         @media (max-width: 480px) { .main-calc-layout { grid-template-columns: 1fr !important; } }
         .card { background: #1e293b; padding: 20px; border-radius: 14px; box-shadow: 0 15px 35px rgba(0,0,0,0.35); }
-        .main-calc-layout { display: grid; grid-template-columns: 350px 1fr; gap: 20px; margin-top: 15px; }
+        .main-calc-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px; }
         h2 { margin-top: 0; color: #22c55e; font-size: 20px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; gap: 10px; text-align: center;}
         .section { margin-bottom: 12px; background: #0f172a; padding: 10px; border-radius: 10px;}
         .section-transparent { padding: 0; background: none; }
@@ -97,7 +97,7 @@
         #memoryList::-webkit-scrollbar-thumb { background: #38bdf8; border-radius: 4px; }
         
         canvas { background: #020617; border-radius: 10px; display: block; width: 100%; height: auto; border: 1px solid #334155; margin-bottom: 15px; }
-        .map-wrapper { position: relative; margin-bottom: 15px; }
+        .map-wrapper { position: relative; margin-bottom: 15px; max-width: 600px; margin-left: auto; margin-right: auto; }
 
         /* เปลี่ยน min-width จาก 190px เป็น fit-content เพื่อให้กรอบเมนูหดพอดีกับตัวอักษร */
         .map-context-menu { position: absolute; z-index: 50; background: rgba(15, 23, 42, 0.97); border: 1px solid #475569; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); padding: 6px; display: flex; flex-direction: column; gap: 4px; min-width: fit-content; }
@@ -128,11 +128,12 @@
         .map-status.loading { color: #eab308; }
         .map-status.error { color: #ef4444; }
         .map-status.ready { color: #22c55e; }
+
         #graph { aspect-ratio: 1 / 1 ; cursor: grab; }
         #graph:active { cursor: grabbing; }
-        #trajectoryGraph { aspect-ratio: 1 / 1; width: 100%; }
+        #trajectoryGraph { aspect-ratio: 16 / 9; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto; }
         .graph-title { color: #94a3b8; font-size: 13px; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; }
-        #trajectory3D { aspect-ratio: 1 / 1; width: 100%; background: #020617; border-radius: 10px; border: 1px solid #334155; overflow: hidden; display: none; }
+        #trajectory3D { aspect-ratio: 16 / 9; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto; background: #020617; border-radius: 10px; border: 1px solid #334155; overflow: hidden; display: none; }
         .toggle-3d-btn { background: #334155; color: white; padding: 4px 10px; margin: 0; font-size: 11px; width: auto; border-radius: 6px; }
         .toggle-3d-btn.active { background: #a855f7; box-shadow: 0 0 10px rgba(168, 85, 247, 0.5); }
         .hidden-for-mortar { display: block; }
@@ -303,9 +304,9 @@
                         <div><label>Z (Height)</label><input type="number" id="targetZ" value="00" step="any"></div>
                     </div>
 
-                    <div style="margin-top: 8px; display: grid; grid-template-columns: 6fr 3fr; gap: 8px;">
+                    <div style="margin-top: 8px; display: grid; grid-template-columns: 4fr 5fr; gap: 8px;">
                         <div class="mini-input-row range">
-                            <span class="mini-label range">Range Offset </span>
+                            <span class="mini-label range" style="line-height: 1.2;">Range<br>Offset</span>
                             <div style="display:flex; align-items:center; gap: 6px;">
                                 <input type="number" id="rangeOffset" value="0" step="10" class="mini-input range" onchange="calculate()">
                                 <button onclick="document.getElementById('rangeOffset').value=0; calculate()" class="btn-mini-clear" style="background: #f43f5e; color: white;">ล้าง</button>
@@ -461,7 +462,7 @@
             <button id="viewToggleBtn" class="toggle-3d-btn" onclick="toggleViewMode()">SWITCH TO 3D VIEW</button>
         </div>
         
-        <canvas id="trajectoryGraph" width="700" height="700"></canvas>
+        <canvas id="trajectoryGraph" width="960" height="540"></canvas>
         <div id="trajectory3D"></div>
     </div>
 
@@ -541,6 +542,23 @@ const DOM = (() => {
 
 // ---------- JS FUNCTIONS ----------
 function getGridScale() { return 1; }
+
+// รองรับจอความละเอียดสูง (retina / 1440p+ scaling): เพิ่มความละเอียดจริงของ canvas
+// ตาม devicePixelRatio แต่คงพิกัดในโค้ดวาดภาพให้เป็นพิกัด "ลอจิคัล" เดิม (700x700 เป็นต้น)
+// เพื่อไม่กระทบสัดส่วน/ตำแหน่ง/ขนาดตัวอักษรที่ออกแบบไว้ ป้องกันตัวอักษรเบลอ
+function setupHiDPICanvas(canvas, logicalW, logicalH, maxDpr = Infinity) {
+    const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
+    const targetW = Math.round(logicalW * dpr);
+    const targetH = Math.round(logicalH * dpr);
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
+    }
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return ctx;
+}
+
 
 function parseArmaGrid(elId) {
     let el = DOM[elId];
@@ -955,7 +973,7 @@ const MapBackground = (() => {
     function visibleTileRange(meta, z) {
         const lvl = meta.levels[z];
         const scaleImgToWorld = meta.width / lvl.width; // เมตรต่อ 1 พิกเซลภาพระดับนี้
-        const w = mapCanvas.width, h = mapCanvas.height;
+        const w = 700, h = 700; // logical canvas size (ตรงกับ drawGraph, ไม่ใช่ backing-store ที่ scale ตาม DPR)
         const viewMinX = mapCamX - w / (2 * mapZoom);
         const viewMaxX = mapCamX + w / (2 * mapZoom);
         const viewMinY = mapCamY - h / (2 * mapZoom);
@@ -1670,8 +1688,73 @@ function calculate() {
     if (is3DMode) update3DScene();
 }
 
+// วาดเลขพิกัดกริดตรงขอบแผนที่ (เลียนแบบสไตล์แผนที่ในเกม Arma Reforger)
+// เลขที่โชว์ = พิกัดโลก(เมตร) / 100 นับจากมุมล่างซ้ายของแมป (ตรงกับระบบ parseArmaGrid 3 หลัก)
+function drawGridEdgeLabels(ctx, w, h, viewMinX, viewMaxX, viewMinY, viewMaxY, toCanvasX, toCanvasY, mapZoom, bgMap) {
+    // เลือกระยะห่างของเส้นกริดที่จะแปะเลข ให้เหมาะกับระดับซูมปัจจุบัน (พยายามให้มีป้ายห่างกันพอเหมาะบนจอ)
+    // ต่ำสุดที่ 500m เสมอ (ไม่โชว์ป้ายถี่กว่า 500m แม้จะซูมเข้าลึกแค่ไหนก็ตาม)
+    const candidateSteps = [500, 1000, 2000, 5000, 10000];
+    const minPxGap = 55; // ระยะห่างขั้นต่ำระหว่างป้ายบนจอ (px) ก่อนจะถือว่าโอเค
+    let step = candidateSteps[candidateSteps.length - 1];
+    for (const s of candidateSteps) { if (s * mapZoom >= minPxGap) { step = s; break; } }
+
+    const barSizeTB = 24;  // ความหนาแถบพื้นหลังบน-ล่าง
+    const barSizeLR = 30;  // ความหนาแถบพื้นหลังซ้าย-ขวา (กว้างกว่าเพราะตัวเลขไม่หมุนแล้ว ต้องมีที่พอ)
+    const bg = "rgba(255, 255, 255, 0.5)";
+    const fg = "#1f1a0f";
+    const tick = "rgba(31,26,15,0.6)";
+
+    ctx.save();
+
+    // แถบพื้นหลังทั้ง 4 ขอบ กันตัวเลขไปทับแผนที่จนอ่านยาก
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, barSizeTB);            // บน
+    ctx.fillRect(0, h - barSizeTB, w, barSizeTB);  // ล่าง
+    ctx.fillRect(0, 0, barSizeLR, h);            // ซ้าย
+    ctx.fillRect(w - barSizeLR, 0, barSizeLR, h);  // ขวา
+
+    ctx.font = "bold 14px monospace";
+    ctx.fillStyle = fg;
+    ctx.strokeStyle = tick;
+    ctx.lineWidth = 1;
+
+    // เส้นกริดแนวตั้ง -> ป้ายเลขคอลัมน์ (X) ที่ขอบบนและล่าง
+    ctx.textAlign = "center";
+    ctx.beginPath();
+    for (let gx = Math.floor(viewMinX / step) * step; gx <= viewMaxX; gx += step) {
+        const px = toCanvasX(gx);
+        if (px < barSizeLR || px > w - barSizeLR) continue;
+        const label = String(Math.round(gx / 100)).padStart(3, '0');
+        ctx.textBaseline = "top";
+        ctx.fillText(label, px, 4);
+        ctx.textBaseline = "bottom";
+        ctx.fillText(label, px, h - 4);
+        ctx.moveTo(px, 0); ctx.lineTo(px, barSizeTB * 0.4);
+        ctx.moveTo(px, h); ctx.lineTo(px, h - barSizeTB * 0.4);
+    }
+
+    // เส้นกริดแนวนอน -> ป้ายเลขแถว (Y) ที่ขอบซ้ายและขวา (แนวนอน ไม่หมุน)
+    for (let gy = Math.floor(viewMinY / step) * step; gy <= viewMaxY; gy += step) {
+        const py = toCanvasY(gy);
+        if (py < barSizeTB || py > h - barSizeTB) continue;
+        const label = String(Math.round(gy / 100)).padStart(3, '0');
+
+        ctx.textBaseline = "middle";
+        ctx.textAlign = "left";
+        ctx.fillText(label, 4, py);
+        ctx.textAlign = "right";
+        ctx.fillText(label, w - 4, py);
+
+        ctx.moveTo(0, py); ctx.lineTo(barSizeLR * 0.3, py);
+        ctx.moveTo(w, py); ctx.lineTo(w - barSizeLR * 0.3, py);
+    }
+    ctx.stroke();
+    ctx.restore();
+}
+
 function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg) {
-    const ctx = mapCanvas.getContext("2d"); const w = mapCanvas.width, h = mapCanvas.height;
+    const w = 700, h = 700;
+    const ctx = setupHiDPICanvas(mapCanvas, w, h);
     const bgMap = MapBackground.getCurrent();
     if (!bgMap) { ctx.fillStyle = "#e6e1cd"; ctx.fillRect(0, 0, w, h); }
     const padding = 60;
@@ -1740,6 +1823,9 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg) {
     const drawGrid = (step, color, width) => { ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); for(let gx = Math.floor(viewMinX / step) * step; gx <= viewMaxX; gx += step) { let px = toCanvasX(gx); ctx.moveTo(px, 0); ctx.lineTo(px, h); } for(let gy = Math.floor(viewMinY / step) * step; gy <= viewMaxY; gy += step) { let py = toCanvasY(gy); ctx.moveTo(0, py); ctx.lineTo(w, py); } ctx.stroke(); };
     if (!bgMap) { if (mapZoom > 0.5) drawGrid(10, "#d1cbb8", 1); drawGrid(100, "#b3ab94", 1.5); drawGrid(1000, "#1e293b", 2.0); }
     else { if (mapZoom > 0.5) drawGrid(10, "rgba(255,255,255,0.06)", 1); drawGrid(100, "rgba(255,255,255,0.12)", 1.5); drawGrid(1000, "rgba(255,255,255,0.25)", 2.0); }
+
+    // ป้ายพิกัดกริดตรงขอบแผนที่ (สไตล์ Arma Reforger: เลข 3 หลัก = ระยะ/100m นับจากมุมล่างซ้ายของแมป)
+    drawGridEdgeLabels(ctx, w, h, viewMinX, viewMaxX, viewMinY, viewMaxY, toCanvasX, toCanvasY, mapZoom, bgMap);
     
     const cx1 = toCanvasX(x1), cy1 = toCanvasY(y1); const cx2 = toCanvasX(x2), cy2 = toCanvasY(y2);
     ctx.setLineDash([6, 4]); ctx.strokeStyle = "#333"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx1, cy1); ctx.lineTo(cx2, cy2); ctx.stroke(); ctx.setLineDash([]);
@@ -1772,8 +1858,8 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg) {
 
 function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
     const canvas = DOM["trajectoryGraph"];
-    const ctx = canvas.getContext("2d");
-    const w = canvas.width, h = canvas.height;
+    const w = 960, h = 540;
+    const ctx = setupHiDPICanvas(canvas, w, h, 1);
     
     if (window.trajectoryAnimId) { cancelAnimationFrame(window.trajectoryAnimId); window.trajectoryAnimId = null; }
     if (!dist || dist <= 0) { ctx.clearRect(0, 0, w, h); return; }
@@ -2264,15 +2350,17 @@ function zoomToTarget() { mapMode = 'target'; mapZoom = 5; redrawMapOnly(); MapB
 let pendingMapWorldCoord = null; // พิกัดโลก (เมตร) ที่เพิ่งดับเบิลคลิกไว้ รอผู้ใช้เลือก Target/Gun
 
 function screenToWorldCoord(offsetX, offsetY) {
-    // canvas ถูก CSS ปรับขนาดแสดงผล (width:100%) ต่างจาก internal resolution (700x700)
+    // canvas ถูก CSS ปรับขนาดแสดงผล (width:100%) ต่างจาก internal ลอจิคัล (700x700)
     // ต้องคูณ scale factor ก่อน ไม่งั้นตำแหน่งคลิกจะเพี้ยนตามขนาดจอ
-    const scaleX = mapCanvas.width / mapCanvas.clientWidth;
-    const scaleY = mapCanvas.height / mapCanvas.clientHeight;
+    // ใช้ค่าลอจิคัลคงที่ (700) แทน canvas.width ตรงๆ เพราะ canvas.width ตอนนี้ถูกขยายตาม devicePixelRatio เพื่อความคมชัด
+    const logicalSize = 700;
+    const scaleX = logicalSize / mapCanvas.clientWidth;
+    const scaleY = logicalSize / mapCanvas.clientHeight;
     const canvasX = offsetX * scaleX;
     const canvasY = offsetY * scaleY;
     // สูตรผกผันของ toCanvasX/toCanvasY ใน drawGraph: toCanvasX(x) = w/2 + (x - mapCamX) * mapZoom
-    const worldX = mapCamX + (canvasX - mapCanvas.width / 2) / mapZoom;
-    const worldY = mapCamY - (canvasY - mapCanvas.height / 2) / mapZoom;
+    const worldX = mapCamX + (canvasX - logicalSize / 2) / mapZoom;
+    const worldY = mapCamY - (canvasY - logicalSize / 2) / mapZoom;
     return { x: worldX, y: worldY };
 }
 
@@ -2342,6 +2430,17 @@ function getWeaponShortName() {
     return opt.text.split(" ")[0]; // "M777 Howitzer (155mm) - US" -> "M777"
 }
 
+function getAmmoShortName() {
+    let raw = (currentAmmo && currentAmmo.name) ? currentAmmo.name : "";
+    if (!raw) {
+        const opt = DOM["ammoSelect"] && DOM["ammoSelect"].selectedOptions[0];
+        raw = opt ? opt.text : "";
+    }
+    if (!raw) return "";
+    // ตัดขนาดลำกล้อง (เช่น "155mm ") และคำว่า "Shell" ออก เช่น "155mm M107 HE Shell" -> "M107 HE"
+    return raw.replace(/^\d+\s*mm\s*/i, "").replace(/\s*Shell\s*$/i, "").trim();
+}
+
 function showCopyChatStatus(msg, isError) {
     const el = DOM["copyChatStatus"];
     if (!el) return;
@@ -2397,6 +2496,7 @@ function copyToChatGunner() {
     if (!traj || !currentCalcData) { showCopyChatStatus("⚠️ กรุณาคำนวณก่อน (ใส่พิกัดเป้าหมาย)", true); return; }
 
     const weapon = getWeaponShortName();
+    const ammo = getAmmoShortName();
     const isMortar = traj.isMortar;
     const chargeLabel = isMortar ? "Ring" : "Charge";
     const chargeNum = (traj.chargeCode || "").replace(/[^0-9]/g, '') || "AUTO";
@@ -2420,7 +2520,8 @@ function copyToChatGunner() {
         fuzePart = ` | Air Fuze Timer ${traj.fuzeTime.toFixed(1)}s`;
     }
 
-    const msg = `FIRE MISSION | ${weapon} | ${chargeLabel} ${chargeNum} | AZI ${azi} | ELEV ${elev} | ToF ${tof}s${fuzePart}${gridPart}`;
+    const weaponPart = `${weapon}  | ${ammo}`;
+    const msg = `| ${weaponPart} | ${chargeLabel} ${chargeNum} | AZI ${azi} | ELEV ${elev} | ToF ${tof}s${fuzePart}${gridPart}`;
     copyTextToClipboard(msg)
         .then(() => showCopyChatStatus("✅ Copy ข้อความพลยิงแล้ว!"))
         .catch(() => showCopyChatStatus("❌ Copy ไม่สำเร็จ ลองอีกครั้ง", true));

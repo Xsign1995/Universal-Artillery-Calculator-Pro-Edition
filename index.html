@@ -232,6 +232,21 @@
         #memoryList::-webkit-scrollbar-track { background: transparent; }
         #memoryList::-webkit-scrollbar-thumb { background: var(--tblue-dim); border-radius: 4px; }
 
+        .history-panel { grid-column: 1 / -1; margin-top: 18px; }
+        #historyList { max-height: 620px; overflow-y: auto; padding-right: 6px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-content: start; }
+        @media (max-width: 1100px) { #historyList { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 700px) { #historyList { grid-template-columns: 1fr; } }
+        #historyList::-webkit-scrollbar { width: 6px; }
+        #historyList::-webkit-scrollbar-track { background: transparent; }
+        #historyList::-webkit-scrollbar-thumb { background: var(--tblue-dim); border-radius: 4px; }
+        .history-item { background: rgba(0,0,0,0.35); border: 1px solid var(--line); border-left: 3px solid #a855f7; border-radius: 4px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+        .history-item .hist-title { font-weight: bold; color: #c084fc; font-size: 13px; display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+        .history-item .hist-time { color: #64748b; font-size: 10px; font-weight: normal; white-space: nowrap; }
+        .history-item .hist-detail { color: #94a3b8; font-size: 11px; line-height: 1.5; }
+        .history-item .hist-actions { display: flex; gap: 6px; margin-top: 2px; }
+        .history-item .hist-actions button { flex: 1; margin: 0; padding: 6px 4px; font-size: 11px; }
+        .history-empty { grid-column: 1 / -1; text-align: center; color: #64748b; font-size: 13px; padding: 20px; }
+
         canvas { background: #020507; border-radius: 2px; display: block; width: 100%; height: auto; border: 1px solid var(--line); margin-bottom: 15px; }
         .map-wrapper { position: relative; margin-bottom: 15px; max-width: 600px; margin-left: auto; margin-right: auto; }
 
@@ -359,7 +374,7 @@
     <div class="card">
         <h2>
             <span>Universal Artillery Calculator</span>
-            <span class="charge-badge-green">Arma Reforger 1.8 UPDATED</span>
+            <span class="charge-badge-green">Arma Reforger 1.7 UPDATED</span>
         </h2>
         
         <div class="main-calc-layout">
@@ -596,7 +611,7 @@
 
     <div class="right-col" style="display: flex; flex-direction: column; gap: 20px;">
         <div class="card">
-            <h2 style="color:#eab308; font-size: 16px;">🔭 FO SPOTTER (หาพิกัดจุดตก)</h2>
+            <h2 style="color:#eab308; font-size: 16px;">🔭 FO SPOTTER</h2>
             <div class="section section-transparent">
                 <div class="grid-2">
                     <div><label>FO X (East)</label><input type="text" inputmode="decimal" id="foX" value="0000" onchange="formatCoord(this)"></div>
@@ -616,7 +631,7 @@
                 
                 <div class="grid-2" style="margin-top: 10px;">
                     <button onclick="calculateImpactPoint()" style="background: #eab308; color: #0f172a; margin: 0;">🔭 แสดงบนแผนที่</button>
-                    <button onclick="calculateFOCorrection()" style="background: #38bdf8; color: #0f172a; margin: 0;">🛠️ แนะนำปรับแก้</button>
+                    <button onclick="calculateFOCorrection()" style="background: #38bdf8; color: #0f172a; margin: 0;">🛠️ ปรับชดเชย</button>
                 </div>
                 
                 <div id="foResult" class="fo-result-box" style="display: none;"></div>
@@ -639,6 +654,25 @@
             <div id="memoryList"></div>
         </div>
     </div>
+
+    <div class="card history-panel">
+        <h2 style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#c084fc; font-size: 16px;">📜 ประวัติการยิง (Fire History)</span>
+            <button onclick="openDeleteAllHistoryModal()" class="btn-delete" style="margin:0; padding: 6px 12px; font-size: 12px;">🗑️ ลบทั้งหมด</button>
+        </h2>
+        <div id="historyList"></div>
+    </div>
+</div>
+
+<div id="deleteAllHistoryModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <h3 style="margin-top: 0; color: #ff4757; font-size: 18px;">⚠️ ยืนยันการลบประวัติทั้งหมด</h3>
+        <p style="font-size: 14px; color: #7c8b96; margin-bottom: 5px;">คุณต้องการลบประวัติการยิงทั้งหมดใช่หรือไม่? การลบนี้ไม่สามารถย้อนกลับได้</p>
+        <div class="modal-buttons">
+            <button onclick="closeDeleteAllHistoryModal()" class="btn-cancel">ยกเลิก (Cancel)</button>
+            <button onclick="confirmDeleteAllHistory()" class="btn-confirm">ลบทั้งหมด (Delete All)</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -655,6 +689,7 @@ const DOM = (() => {
         "offsetDisplay", "offCoords", "offMeters", "undoOffsetBtn", "applyCorrectionBtn",
         "adjustStep", "foX", "foY", "impactDist", "impactAzi", "foAziUnit", "foResult", "foCorrectionResult",
         "memoryList", "saveName", "editNameInput", "editModal", "deleteModal",
+        "historyList",
         "mapBgSelect", "mapBgStatus", "copyChatStatus", "mapContextMenu",
     ];
     const cache = {};
@@ -914,6 +949,10 @@ let foPosition = null; let foImpactPoint = null;
 let aimOffsetX = 0; let aimOffsetY = 0; let offsetHistory = [];
 let savedTargets = [];
 try { const localData = localStorage.getItem('m777_memory'); savedTargets = localData ? JSON.parse(localData) : []; } catch (e) { savedTargets = []; }
+
+let historyToDeleteIndex = -1;
+let historyLog = [];
+try { const h = localStorage.getItem('m777_history'); historyLog = h ? JSON.parse(h) : []; } catch (e) { historyLog = []; }
 
 let mapMode = 'auto'; let mapCamX = 0; let mapCamY = 0; let mapZoom = 1;
 let isPanning = false; let startPanX, startPanY; let isRedrawing = false;
@@ -1205,6 +1244,7 @@ function autoLoadFromLocalStorage() {
             if (savedTargets.length > 0) { loadMemory(savedTargets.length - 1); }
         }
     } catch (e) {}
+    renderHistoryList();
 }
 
 function changeWeapon() {
@@ -1810,6 +1850,8 @@ function calculate() {
     }
 
     currentCalcData = { dx: effDx, dy: effDy, dz: dz, gunX: gunX, gunY: gunY, targetX: targetX, targetY: targetY, aimGridDistance: aimGridDistance, windSpeed: windSpeed, windDir: windDirDeg, milSystem: milSystem, low: trajLow, high: trajHigh };
+
+    logHistory({ aimGridDistance, dz, trajLow, trajHigh });
 
     drawGraph(gunX, gunY, targetX, targetY, windSpeed, windDirDeg);
     drawTrajectory(aimGridDistance, dz, trajLow, trajHigh, milSystem);
@@ -2701,6 +2743,133 @@ function openDeleteModal(index) { memoryToDeleteIndex = index; DOM['deleteModal'
 function closeDeleteModal() { DOM['deleteModal'].style.display = 'none'; memoryToDeleteIndex = -1; }
 function confirmDeleteMemory() { if (memoryToDeleteIndex > -1) { savedTargets.splice(memoryToDeleteIndex, 1); localStorage.setItem('m777_memory', JSON.stringify(savedTargets)); renderMemoryList(); } closeDeleteModal(); }
 function forceLoadFromLocalStorage() { try { const localData = localStorage.getItem('m777_memory'); if (localData) { savedTargets = JSON.parse(localData); renderMemoryList(); alert("✅ โหลดข้อมูลจาก Local Storage เรียบร้อยแล้ว!"); } else { alert("⚠️ ยังไม่มีข้อมูลเป้าหมายถูกบันทึกไว้ในระบบ"); } } catch (error) { console.error("Error loading from localStorage", error); alert("❌ เกิดข้อผิดพลาดในการอ่านข้อมูลจากระบบ"); } }
+
+// ═══════════════════════════════════════════════════════════════════
+// FIRE HISTORY — บันทึกตำแหน่งการยิงที่เคยกด Calculate ไปแล้วโดยอัตโนมัติ
+// ═══════════════════════════════════════════════════════════════════
+const HISTORY_MAX = 200; // เก็บสูงสุดในระบบ (การแสดงผลจะโชว์ล่าสุดก่อน + เลื่อนดูได้)
+
+function logHistory(calcSummary) {
+    // ป้องกันไม่ให้บันทึกซ้ำถ้าพิกัด/ปืน/กระสุนเหมือนรายการล่าสุดเป๊ะ (กันสแปมตอนพิมพ์เลขปรับทีละหลัก)
+    const gunXRaw = DOM["gunX"].value, gunYRaw = DOM["gunY"].value, gunZRaw = DOM["gunZ"].value;
+    const targetXRaw = DOM["targetX"].value, targetYRaw = DOM["targetY"].value, targetZRaw = DOM["targetZ"].value;
+    const windSpeedRaw = DOM["windSpeed"].value, windDirRaw = DOM["windDir"].value;
+    const minClearanceRaw = DOM["minClearance"].value, airburstRaw = DOM["airburstHeight"].value, rangeOffsetRaw = DOM["rangeOffset"].value;
+
+    const weaponOpt = DOM["weaponSelect"] && DOM["weaponSelect"].selectedOptions[0];
+    const ammoOpt = DOM["ammoSelect"] && DOM["ammoSelect"].selectedOptions[0];
+    const weaponLabel = weaponOpt ? weaponOpt.text : currentWeaponId;
+    const ammoLabel = ammoOpt ? ammoOpt.text : currentAmmoId;
+
+    const entry = {
+        t: Date.now(),
+        weaponId: currentWeaponId, weaponLabel: weaponLabel,
+        ammoId: currentAmmoId, ammoLabel: ammoLabel,
+        gunX: gunXRaw, gunY: gunYRaw, gunZ: gunZRaw,
+        targetX: targetXRaw, targetY: targetYRaw, targetZ: targetZRaw,
+        windSpeed: windSpeedRaw, windDir: windDirRaw,
+        minClearance: minClearanceRaw, airburstHeight: airburstRaw, rangeOffset: rangeOffsetRaw,
+        chargeVelHigh: DOM["chargeVelHigh"] ? DOM["chargeVelHigh"].value : null,
+        chargeVelLow: DOM["chargeVelLow"] ? DOM["chargeVelLow"].value : null,
+        dist: Math.round(calcSummary.aimGridDistance || 0),
+        dz: Math.round(calcSummary.dz || 0),
+        elevHigh: calcSummary.trajHigh ? Math.round(calcSummary.trajHigh.elev) : null,
+        aziHigh: calcSummary.trajHigh ? Math.round(calcSummary.trajHigh.azi) : null,
+        tofHigh: calcSummary.trajHigh ? calcSummary.trajHigh.tof : null,
+        chargeHigh: calcSummary.trajHigh ? calcSummary.trajHigh.chargeCode : null,
+        elevLow: calcSummary.trajLow ? Math.round(calcSummary.trajLow.elev) : null,
+        aziLow: calcSummary.trajLow ? Math.round(calcSummary.trajLow.azi) : null,
+        tofLow: calcSummary.trajLow ? calcSummary.trajLow.tof : null,
+        chargeLow: calcSummary.trajLow ? calcSummary.trajLow.chargeCode : null,
+    };
+
+    const last = historyLog[0];
+    if (last && last.gunX === entry.gunX && last.gunY === entry.gunY && last.gunZ === entry.gunZ &&
+        last.targetX === entry.targetX && last.targetY === entry.targetY && last.targetZ === entry.targetZ &&
+        last.windSpeed === entry.windSpeed && last.windDir === entry.windDir &&
+        last.airburstHeight === entry.airburstHeight && last.rangeOffset === entry.rangeOffset &&
+        last.weaponId === entry.weaponId && last.ammoId === entry.ammoId) {
+        return; // ไม่มีอะไรเปลี่ยนจากครั้งก่อน ไม่ต้องบันทึกซ้ำ
+    }
+
+    historyLog.unshift(entry);
+    if (historyLog.length > HISTORY_MAX) historyLog.length = HISTORY_MAX;
+    try { localStorage.setItem('m777_history', JSON.stringify(historyLog)); } catch (e) { console.error("Error saving history", e); }
+    renderHistoryList();
+}
+
+function formatHistoryTime(ts) {
+    const d = new Date(ts);
+    const pad = n => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function renderHistoryList() {
+    const list = DOM["historyList"] || document.getElementById("historyList");
+    if (!list) return;
+    if (historyLog.length === 0) {
+        list.innerHTML = `<div class="history-empty">ยังไม่มีประวัติการยิง — กด Calculate เพื่อเริ่มบันทึก</div>`;
+        return;
+    }
+    list.innerHTML = historyLog.map((h, index) => {
+        let lines = `<span class="hist-detail">📍 Gun: ${h.gunX}/${h.gunY}/${h.gunZ} → Target: ${h.targetX}/${h.targetY}/${h.targetZ}</span>`;
+        lines += `<span class="hist-detail">📏 ${h.dist}m | ΔH: ${h.dz}m | ${h.weaponLabel}</span>`;
+        if (h.elevHigh !== null) lines += `<span class="hist-detail">🟡 HIGH: ${h.elevHigh} mils / Azi ${h.aziHigh} / ${h.tofHigh !== null ? h.tofHigh.toFixed(1) : '-'}s (${h.chargeHigh || '-'})</span>`;
+        if (h.elevLow !== null) lines += `<span class="hist-detail">🔵 LOW: ${h.elevLow} mils / Azi ${h.aziLow} / ${h.tofLow !== null ? h.tofLow.toFixed(1) : '-'}s (${h.chargeLow || '-'})</span>`;
+        return `<div class="history-item">
+            <div class="hist-title"><span>#${historyLog.length - index}</span><span class="hist-time">${formatHistoryTime(h.t)}</span></div>
+            ${lines}
+            <div class="hist-actions">
+                <button class="btn-load" onclick="loadHistory(${index})">โหลด</button>
+                <button class="btn-delete" onclick="deleteHistory(${index})">ลบ</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function loadHistory(index) {
+    const h = historyLog[index];
+    if (!h) return;
+
+    if (h.weaponId && h.weaponId !== currentWeaponId) {
+        DOM["weaponSelect"].value = h.weaponId;
+        changeWeapon();
+    }
+
+    DOM["gunX"].value = h.gunX; DOM["gunY"].value = h.gunY; DOM["gunZ"].value = h.gunZ;
+    DOM["targetX"].value = h.targetX; DOM["targetY"].value = h.targetY; DOM["targetZ"].value = h.targetZ;
+    formatCoord(DOM["gunX"]); formatCoord(DOM["gunY"]); formatCoord(DOM["targetX"]); formatCoord(DOM["targetY"]);
+    DOM["windSpeed"].value = h.windSpeed; DOM["windDir"].value = h.windDir;
+    DOM["minClearance"].value = h.minClearance; DOM["airburstHeight"].value = h.airburstHeight; DOM["rangeOffset"].value = h.rangeOffset;
+
+    if (h.ammoId && h.ammoId !== currentAmmoId && DOM["ammoSelect"].querySelector(`option[value="${h.ammoId}"]`)) {
+        DOM["ammoSelect"].value = h.ammoId;
+        changeAmmo();
+    }
+
+    if (h.chargeVelHigh && DOM["chargeVelHigh"].querySelector(`option[value="${h.chargeVelHigh}"]`)) DOM["chargeVelHigh"].value = h.chargeVelHigh;
+    if (h.chargeVelLow && DOM["chargeVelLow"].querySelector(`option[value="${h.chargeVelLow}"]`)) DOM["chargeVelLow"].value = h.chargeVelLow;
+
+    clearOffset(); resetFOState(); calculate();
+}
+
+function deleteHistory(index) {
+    historyLog.splice(index, 1);
+    try { localStorage.setItem('m777_history', JSON.stringify(historyLog)); } catch (e) { console.error("Error saving history", e); }
+    renderHistoryList();
+}
+
+function openDeleteAllHistoryModal() {
+    if (historyLog.length === 0) return;
+    document.getElementById('deleteAllHistoryModal').style.display = 'flex';
+}
+function closeDeleteAllHistoryModal() { document.getElementById('deleteAllHistoryModal').style.display = 'none'; }
+function confirmDeleteAllHistory() {
+    historyLog = [];
+    try { localStorage.setItem('m777_history', JSON.stringify(historyLog)); } catch (e) { console.error("Error saving history", e); }
+    renderHistoryList();
+    closeDeleteAllHistoryModal();
+}
 </script>
 
 </body>

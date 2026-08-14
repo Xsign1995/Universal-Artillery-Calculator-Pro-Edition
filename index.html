@@ -374,7 +374,7 @@
     <div class="card">
         <h2>
             <span>Universal Artillery Calculator</span>
-            <span class="charge-badge-green">Arma Reforger 1.7 UPDATED</span>
+            <span class="charge-badge-green">Arma Reforger 1.8 UPDATED</span>
         </h2>
         
         <div class="main-calc-layout">
@@ -481,6 +481,9 @@
                     <div class="grid-2">
                         <div><label>Speed (m/s)</label><input type="number" id="windSpeed" value="0" step="0.1"></div>
                         <div><label>Direction (Deg)</label><input type="number" id="windDir" value="0"></div>
+                    </div>
+                    <div id="windUpdatedRow" style="margin-top: 8px; font-size: 11px; text-align: right; color: #64748b;">
+                        อัปเดตล่าสุด: <span id="windUpdatedTime">-</span>
                     </div>
                 </div>
 
@@ -647,7 +650,7 @@
                     <button onclick="saveMemory()" class="btn-save">Save Target</button>
                 </div>
                 <button onclick="forceLoadFromLocalStorage()" class="btn-reload-storage">
-                    🔄 โหลดข้อมูลที่บันทึกไว้ (Reload Storage)
+                    🔄 Reload Storage
                 </button>
             </div>
             <div style="border-bottom: 1px solid #334155; margin: 15px 0;"></div>
@@ -658,7 +661,7 @@
     <div class="card history-panel">
         <h2 style="display:flex; justify-content:space-between; align-items:center;">
             <span style="color:#c084fc; font-size: 16px;">📜 ประวัติการยิง (Fire History)</span>
-            <button onclick="openDeleteAllHistoryModal()" class="btn-delete" style="margin:0; padding: 6px 12px; font-size: 12px;">🗑️ ลบทั้งหมด</button>
+            <button onclick="openDeleteAllHistoryModal()" class="btn-delete" style="margin:0; padding: 6px 12px; font-size: 12px;">🗑️ DELETE ALL</button>
         </h2>
         <div id="historyList"></div>
     </div>
@@ -669,8 +672,8 @@
         <h3 style="margin-top: 0; color: #ff4757; font-size: 18px;">⚠️ ยืนยันการลบประวัติทั้งหมด</h3>
         <p style="font-size: 14px; color: #7c8b96; margin-bottom: 5px;">คุณต้องการลบประวัติการยิงทั้งหมดใช่หรือไม่? การลบนี้ไม่สามารถย้อนกลับได้</p>
         <div class="modal-buttons">
-            <button onclick="closeDeleteAllHistoryModal()" class="btn-cancel">ยกเลิก (Cancel)</button>
-            <button onclick="confirmDeleteAllHistory()" class="btn-confirm">ลบทั้งหมด (Delete All)</button>
+            <button onclick="closeDeleteAllHistoryModal()" class="btn-cancel">CANCEL</button>
+            <button onclick="confirmDeleteAllHistory()" class="btn-confirm">DELETE ALL</button>
         </div>
     </div>
 </div>
@@ -683,7 +686,7 @@ const DOM = (() => {
     const ids = [
         "weaponSelect", "profileSection", "profileSelect", "ammoSelect",
         "gunX", "gunY", "gunZ", "targetX", "targetY", "targetZ",
-        "windSpeed", "windDir", "minClearance", "airburstHeight", "rangeOffset",
+        "windSpeed", "windDir", "windUpdatedTime", "minClearance", "airburstHeight", "rangeOffset",
         "chargeSetupTitle", "chargeLowDiv", "chargeVelHigh", "chargeVelLow",
         "result", "graph", "trajectoryGraph", "trajectory3D", "viewToggleBtn",
         "offsetDisplay", "offCoords", "offMeters", "undoOffsetBtn", "applyCorrectionBtn",
@@ -953,6 +956,48 @@ try { const localData = localStorage.getItem('m777_memory'); savedTargets = loca
 let historyToDeleteIndex = -1;
 let historyLog = [];
 try { const h = localStorage.getItem('m777_history'); historyLog = h ? JSON.parse(h) : []; } catch (e) { historyLog = []; }
+
+// ตัวนับลำดับ #N ของ Fire History แบบรันต่อเนื่องไม่รีเซ็ตตอนลบอันเก่าทิ้ง (รีเซ็ตเฉพาะตอนกด DELETE ALL)
+let historySeq = 0;
+try {
+    const s = localStorage.getItem('m777_history_seq');
+    historySeq = s ? parseInt(s, 10) : (historyLog[0] && historyLog[0].seq ? historyLog[0].seq : historyLog.length);
+} catch (e) { historySeq = historyLog.length; }
+
+// ═══════════════════════════════════════════════════════════════════
+// WIND DATA TIMESTAMP — แสดงเวลาที่กรอกค่าลมล่าสุด (เขียว < 10 นาที, แดง >= 10 นาที)
+// ═══════════════════════════════════════════════════════════════════
+const WIND_STALE_MS = 10 * 60 * 1000; // 10 นาที
+let windUpdatedAt = null;
+
+function markWindUpdated() {
+    windUpdatedAt = Date.now();
+    renderWindUpdatedTime();
+}
+
+function renderWindUpdatedTime() {
+    const el = DOM["windUpdatedTime"] || document.getElementById("windUpdatedTime");
+    if (!el) return;
+    if (!windUpdatedAt) { el.textContent = '-'; el.style.color = '#64748b'; return; }
+    const diffMs = Date.now() - windUpdatedAt;
+    const diffSec = Math.floor(diffMs / 1000);
+    const mm = Math.floor(diffSec / 60);
+    const ss = diffSec % 60;
+    const pad = n => String(n).padStart(2, '0');
+    el.textContent = `${pad(mm)}:${pad(ss)}`;
+    el.style.color = diffMs < WIND_STALE_MS ? '#22c55e' : '#ef4444';
+}
+
+setInterval(renderWindUpdatedTime, 1000);
+
+function initWindTimestampUI() {
+    const speedEl = document.getElementById("windSpeed");
+    const dirEl = document.getElementById("windDir");
+    if (speedEl) speedEl.addEventListener("input", markWindUpdated);
+    if (dirEl) dirEl.addEventListener("input", markWindUpdated);
+    renderWindUpdatedTime();
+}
+if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", initWindTimestampUI); } else { initWindTimestampUI(); }
 
 let mapMode = 'auto'; let mapCamX = 0; let mapCamY = 0; let mapZoom = 1;
 let isPanning = false; let startPanX, startPanY; let isRedrawing = false;
@@ -2023,7 +2068,64 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg) {
     }
 
     if (foImpactPoint && foPosition) { const cxFO = toCanvasX(foPosition.x); const cyFO = toCanvasY(foPosition.y); const cxImp = toCanvasX(foImpactPoint.x); const cyImp = toCanvasY(foImpactPoint.y); ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(139, 92, 246, 0.7)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cxFO, cyFO); ctx.lineTo(cxImp, cyImp); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = "#8b5cf6"; ctx.beginPath(); ctx.arc(cxFO, cyFO, 5, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#4c1d95"; ctx.font = "bold 11px sans-serif"; ctx.fillText("FO", cxFO + 8, cyFO + 4); ctx.strokeStyle = "#8b5cf6"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(cxImp - 5, cyImp - 5); ctx.lineTo(cxImp + 5, cyImp + 5); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cxImp + 5, cyImp - 5); ctx.lineTo(cxImp - 5, cyImp + 5); ctx.stroke(); ctx.fillStyle = "#4c1d95"; ctx.font = "bold 11px sans-serif"; ctx.fillText("IMPACT", cxImp + 8, cyImp + 4); }
-    if (windSpeed > 0) { const arrowCenterX = 50; const arrowCenterY = h - 50; const arrowLength = 45; ctx.save(); ctx.translate(arrowCenterX, arrowCenterY); ctx.rotate((windDirDeg + 90) * (Math.PI / 180)); let windColor = windSpeed >= 7 ? "#991b1b" : (windSpeed >= 3 ? "#b45309" : "#166534"); ctx.strokeStyle = windColor; ctx.fillStyle = windColor; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(-arrowLength/2, 0); ctx.lineTo(arrowLength/2, 0); ctx.stroke(); ctx.beginPath(); ctx.moveTo(arrowLength/2, 0); ctx.lineTo(arrowLength/2 - 12, -8); ctx.lineTo(arrowLength/2 - 12, 8); ctx.fill(); ctx.restore(); ctx.strokeStyle = "rgba(74, 70, 59, 0.3)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(arrowCenterX, arrowCenterY, 28, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = windColor; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "left"; ctx.fillText(`${windSpeed} m/s`, arrowCenterX + 40, arrowCenterY + 5); }
+    if (windSpeed > 0) {
+        const cx = 58, cy = h - 58, R = 34;
+        let windColor = windSpeed >= 7 ? "#ff4757" : (windSpeed >= 3 ? "#ffb02e" : "#3dff87");
+
+        ctx.save();
+
+        // แผงหลังทรงกลม HUD
+        ctx.beginPath(); ctx.arc(cx, cy, R + 8, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(6,10,13,0.4)"; ctx.fill();
+        ctx.lineWidth = 1; ctx.strokeStyle = "rgba(42,58,74,0.9)"; ctx.stroke();
+
+        // วงแหวนสเกลองศา (ทุก 30°)
+        ctx.strokeStyle = "rgba(79,195,247,0.25)"; ctx.lineWidth = 1;
+        for (let a = 0; a < 360; a += 30) {
+            const rad = a * Math.PI / 180;
+            ctx.beginPath();
+            ctx.moveTo(cx + Math.sin(rad) * (R - 4), cy - Math.cos(rad) * (R - 4));
+            ctx.lineTo(cx + Math.sin(rad) * R, cy - Math.cos(rad) * R);
+            ctx.stroke();
+        }
+        ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(79,195,247,0.45)"; ctx.lineWidth = 1.5; ctx.stroke();
+
+        // ตัวหนอนศึก N/E/S/W
+        ctx.fillStyle = "#4a5761"; ctx.font = "600 9px 'JetBrains Mono', monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("N", cx, cy - R - 9); ctx.fillText("S", cx, cy + R + 9);
+        ctx.fillText("E", cx + R + 9, cy); ctx.fillText("W", cx - R - 9, cy);
+
+        // ลูกศรทิศทางลม (glow ตามความแรง)
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate((windDirDeg + 90) * (Math.PI / 180));
+        const arrowLen = R * 1.15;
+        ctx.shadowColor = windColor; ctx.shadowBlur = 8;
+        ctx.strokeStyle = windColor; ctx.fillStyle = windColor; ctx.lineWidth = 3.5; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(-arrowLen * 0.55, 0); ctx.lineTo(arrowLen * 0.45, 0); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(arrowLen * 0.55, 0); ctx.lineTo(arrowLen * 0.3, -9); ctx.lineTo(arrowLen * 0.3, 9);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+
+        // จุดศูนย์กลาง
+        ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fillStyle = "#d7e2e8"; ctx.fill();
+
+        // ป้ายความเร็วลมสไตล์ HUD
+        const labelText = `${windSpeed} m/s`;
+        ctx.font = "700 13px 'JetBrains Mono', monospace"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+        const labelW = ctx.measureText(labelText).width;
+        const labelX = cx + R + 16, labelY = cy;
+        ctx.fillStyle = "rgba(6,10,13,0.82)";
+        ctx.beginPath();
+        if (ctx.roundRect) { ctx.roundRect(labelX - 6, labelY - 12, labelW + 12, 24, 3); } else { ctx.rect(labelX - 6, labelY - 12, labelW + 12, 24); }
+        ctx.fill();
+        ctx.strokeStyle = windColor; ctx.lineWidth = 1; ctx.stroke();
+        ctx.fillStyle = windColor; ctx.fillText(labelText, labelX, labelY);
+
+        ctx.restore();
+    }
 }
 
 function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
@@ -2747,7 +2849,7 @@ function forceLoadFromLocalStorage() { try { const localData = localStorage.getI
 // ═══════════════════════════════════════════════════════════════════
 // FIRE HISTORY — บันทึกตำแหน่งการยิงที่เคยกด Calculate ไปแล้วโดยอัตโนมัติ
 // ═══════════════════════════════════════════════════════════════════
-const HISTORY_MAX = 200; // เก็บสูงสุดในระบบ (การแสดงผลจะโชว์ล่าสุดก่อน + เลื่อนดูได้)
+const HISTORY_MAX = 50; // เก็บสูงสุดในระบบ 50 จุด (เกินกว่านี้ลบอันเก่าสุดทิ้ง) — แสดงผลล่าสุดก่อน + เลื่อนดูได้
 
 function logHistory(calcSummary) {
     // ป้องกันไม่ให้บันทึกซ้ำถ้าพิกัด/ปืน/กระสุนเหมือนรายการล่าสุดเป๊ะ (กันสแปมตอนพิมพ์เลขปรับทีละหลัก)
@@ -2792,6 +2894,10 @@ function logHistory(calcSummary) {
         return; // ไม่มีอะไรเปลี่ยนจากครั้งก่อน ไม่ต้องบันทึกซ้ำ
     }
 
+    historySeq++;
+    entry.seq = historySeq;
+    try { localStorage.setItem('m777_history_seq', String(historySeq)); } catch (e) {}
+
     historyLog.unshift(entry);
     if (historyLog.length > HISTORY_MAX) historyLog.length = HISTORY_MAX;
     try { localStorage.setItem('m777_history', JSON.stringify(historyLog)); } catch (e) { console.error("Error saving history", e); }
@@ -2817,11 +2923,11 @@ function renderHistoryList() {
         if (h.elevHigh !== null) lines += `<span class="hist-detail">🟡 HIGH: ${h.elevHigh} mils / Azi ${h.aziHigh} / ${h.tofHigh !== null ? h.tofHigh.toFixed(1) : '-'}s (${h.chargeHigh || '-'})</span>`;
         if (h.elevLow !== null) lines += `<span class="hist-detail">🔵 LOW: ${h.elevLow} mils / Azi ${h.aziLow} / ${h.tofLow !== null ? h.tofLow.toFixed(1) : '-'}s (${h.chargeLow || '-'})</span>`;
         return `<div class="history-item">
-            <div class="hist-title"><span>#${historyLog.length - index}</span><span class="hist-time">${formatHistoryTime(h.t)}</span></div>
+            <div class="hist-title"><span>#${h.seq || (historyLog.length - index)}</span><span class="hist-time">${formatHistoryTime(h.t)}</span></div>
             ${lines}
             <div class="hist-actions">
-                <button class="btn-load" onclick="loadHistory(${index})">โหลด</button>
-                <button class="btn-delete" onclick="deleteHistory(${index})">ลบ</button>
+                <button class="btn-load" onclick="loadHistory(${index})">LOAD</button>
+                <button class="btn-delete" onclick="deleteHistory(${index})">DELETE</button>
             </div>
         </div>`;
     }).join('');
@@ -2866,7 +2972,9 @@ function openDeleteAllHistoryModal() {
 function closeDeleteAllHistoryModal() { document.getElementById('deleteAllHistoryModal').style.display = 'none'; }
 function confirmDeleteAllHistory() {
     historyLog = [];
+    historySeq = 0;
     try { localStorage.setItem('m777_history', JSON.stringify(historyLog)); } catch (e) { console.error("Error saving history", e); }
+    try { localStorage.setItem('m777_history_seq', '0'); } catch (e) {}
     renderHistoryList();
     closeDeleteAllHistoryModal();
 }

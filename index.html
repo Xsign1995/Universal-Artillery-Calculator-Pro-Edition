@@ -338,6 +338,44 @@
         .fuze-angle-switch.locked { cursor: not-allowed; opacity: 0.5; }
         .fuze-angle-switch.locked .fuze-angle-knob { background: var(--ink-faint); }
 
+        /* Multi-gun toggle + panel */
+        .multigun-toggle { position: relative; width: 38px; height: 20px; background: #0e151b; border: 1px solid var(--line-bright); border-radius: 10px; cursor: pointer; flex-shrink: 0; display:inline-block; vertical-align: middle; }
+        .multigun-toggle .mg-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--ink-faint); transition: transform 0.15s ease, background 0.15s ease; }
+        .multigun-toggle.on { border-color: var(--phosphor-dim); }
+        .multigun-toggle.on .mg-knob { transform: translateX(18px); background: var(--phosphor); box-shadow: 0 0 6px rgba(61,255,135,0.6); }
+        .mg-battery-label { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--ink-faint); transition: color 0.15s ease, text-shadow 0.15s ease; user-select: none; }
+        .mg-battery-label.on { color: var(--phosphor); text-shadow: 0 0 6px rgba(61,255,135,0.5); }
+        .gun-pos-header { display:flex; align-items:center; justify-content:flex-start; flex-wrap: wrap; gap:8px; margin-bottom: 8px; }
+        .gun-pos-header-left { display:flex; align-items:center; gap:8px; flex-wrap: wrap; }
+        .gun-count-stepper { display:none; align-items:center; gap:4px; }
+        .gun-count-stepper.show { display:flex; }
+        .gun-count-stepper button { width: 22px; height: 22px; padding:0; margin:0; font-size: 13px; line-height: 1; border-radius: 4px; }
+        .gun-count-stepper .gc-val { min-width: 16px; text-align:center; font-family: var(--font-mono); font-size: 12px; color: var(--phosphor-input); }
+        .gun-expand-btn { display:none; width: 24px; height: 24px; padding:0; margin:0; font-size: 11px; border-radius: 4px; background: #0e151b; border: 1px solid var(--line-bright); color: var(--phosphor-input); cursor:pointer; }
+        .gun-expand-btn.show { display:inline-flex; align-items:center; justify-content:center; }
+        .gun-pos-extra { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+        .gun-pos-extra.expanded { display: block; }
+        .gun-pos-extra .gun-row-label { font-size: 11px; color: #94a3b8; margin-bottom: 4px; font-family: var(--font-mono); }
+        .gun-pos-extra .grid-3 { margin-bottom: 8px; }
+        .gun-pos-extra .grid-3:last-child { margin-bottom: 0; }
+
+        /* Firing pattern selector */
+        .fire-pattern-row { display:flex; align-items:center; gap:6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+        .fire-pattern-row select { margin:0; padding: 4px; font-size: 11px; flex: 1; }
+        .sheaf-options { display:none; gap:6px; margin-top: 6px; align-items:center; }
+        .sheaf-options.show { display:flex; }
+        .sheaf-options select { width: 70px; flex: 0 0 auto; margin:0; padding:4px; font-size: 11px; }
+        .sheaf-options input { width: 70px; flex: 0 0 auto; margin:0; padding:4px; font-size: 11px; }
+        .sheaf-options label { font-size: 11px; color: #94a3b8; white-space: nowrap; }
+        .gun-result-block { margin-bottom: 4px; }
+        .gun-result-block + .gun-result-block { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-bright); }
+        .gun-result-title { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--phosphor); margin-bottom: 6px; letter-spacing: 0.5px; }
+        .gun-select-row { display:flex; align-items:center; gap:6px; margin-bottom: 8px; }
+        .gun-select-row select { flex:1; margin:0; padding: 4px; font-size: 12px; }
+        .copy-gunner-multi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 6px; margin-top: 6px; }
+        .copy-gunner-multi-row button { margin:0; padding: 6px 4px; font-size: 11px; background: #7c3aed; color:#fff; border-radius: 4px; }
+        .copy-gunner-multi-row button:hover { filter: brightness(1.15); }
+
         .fo-result-box { margin-top: 10px; font-family: var(--font-mono); font-size: 13px; color: var(--amber); text-align: center; background: rgba(255,176,46,0.08); padding: 9px; border-radius: 2px; border: 1px solid rgba(255,176,46,0.3); }
         .fo-correction-box { margin-top: 8px; font-size: 13px; color: var(--ink); background: rgba(0,0,0,0.4); padding: 11px; border-radius: 2px; border: 1px solid var(--tblue-dim); box-shadow: 0 4px 18px rgba(79,195,247,0.08); }
         .fo-impact-value { font-size: 18px; }
@@ -414,12 +452,25 @@
                 </div>
 
                 <div class="section">
-                    <b class="section-label label-red">● Gun Position (ปืนใหญ่)</b>
+                    <div class="gun-pos-header">
+                        <div class="gun-pos-header-left">
+                            <b class="section-label label-red">● Gun Position (ปืนใหญ่)</b>
+                            <div id="multiGunToggle" class="multigun-toggle" onclick="toggleMultiGun()" title="เปิด/ปิดระบบปืนใหญ่หลายกระบอก"><div class="mg-knob"></div></div>
+                            <span id="mgBatteryLabel" class="mg-battery-label">Battery</span>
+                            <div id="gunCountStepper" class="gun-count-stepper">
+                                <button type="button" onclick="changeGunCount(-1)">−</button>
+                                <span class="gc-val" id="gunCountVal">1</span>
+                                <button type="button" onclick="changeGunCount(1)">+</button>
+                            </div>
+                            <button type="button" id="gunExpandBtn" class="gun-expand-btn" onclick="toggleGunPosExpand()" title="แสดง/ซ่อนพิกัดกระบอกอื่น">▾</button>
+                        </div>
+                    </div>
                     <div class="grid-3">
                         <div><label>X (East)</label><input type="text" inputmode="decimal" id="gunX" value="0000" onchange="formatCoord(this)"></div>
                         <div><label>Y (North)</label><input type="text" inputmode="decimal" id="gunY" value="0000" onchange="formatCoord(this)"></div>
                         <div><label>Z (Height)</label><input type="number" id="gunZ" value="00" step="any"></div>
                     </div>
+                    <div id="gunPosExtra" class="gun-pos-extra"></div>
                 </div>
 
                 <div class="section">
@@ -508,6 +559,10 @@
             </div>
 
             <div class="results-col">
+                <div id="gunSelectRow" class="gun-select-row" style="display:none;">
+                    <label for="gunSelect" style="font-size:11px; color:#94a3b8; white-space:nowrap;">แสดงผลของ:</label>
+                    <select id="gunSelect" onchange="onGunSelectChange()"></select>
+                </div>
                 <div id="result" class="result"></div>
                 
                 <div class="adjust-panel">
@@ -538,6 +593,23 @@
                             <span>ยืนยัน<br>ชดเชย</span>
                         </button>
                     </div>
+
+                    <div id="firePatternRow" class="fire-pattern-row" style="display:none;">
+                        <label style="font-size:11px; color:#94a3b8; white-space:nowrap;">รูปแบบการยิง:</label>
+                        <select id="firePattern" onchange="onFirePatternChange()">
+                            <option value="same">🎯 ยิงจุดเดียวกัน</option>
+                            <option value="sheaf">📏 ยิงแบบหน้ากระดาน</option>
+                        </select>
+                    </div>
+                    <div id="sheafOptions" class="sheaf-options">
+                        <label>แนวแกน:</label>
+                        <select id="sheafAxis" onchange="calculate()">
+                            <option value="x">X (E-W)</option>
+                            <option value="y">Y (N-S)</option>
+                        </select>
+                        <label>ห่าง (m):</label>
+                        <input type="number" id="sheafSpacing" value="50" step="5" min="0" onchange="calculate()">
+                    </div>
                 </div>
 
                 <div class="adjust-panel">
@@ -545,6 +617,7 @@
                         <button id="copyTeamBtn" onclick="copyToChatTeam()" style="background: #64748b; color: #fff; margin: 0;" title="สำหรับแจ้งฝ่ายเดียวกันว่ากำลังยิงเป้าไหน">📢 Chat Team</button>
                         <button id="copyGunnerBtn" onclick="copyToChatGunner()" style="background: #a855f7; color: #fff; margin: 0;" title="สำหรับส่งค่าปืนให้พลยิง">🎯 Chat Gunner</button>
                     </div>
+                    <div id="copyGunnerMultiRow" class="copy-gunner-multi-row" style="display:none;"></div>
                     <div id="copyChatStatus" style="font-size: 11px; color: #64748b; text-align: center; min-height: 16px; margin-top: 6px;"></div>
                 </div>
             </div>
@@ -660,7 +733,7 @@
 
     <div class="card history-panel">
         <h2 style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="color:#c084fc; font-size: 16px;">📜 ประวัติการยิง (Fire History)</span>
+            <span style="color:#c084fc; font-size: 16px;">📜 Fire History (ประวัติการยิง)</span>
             <button onclick="openDeleteAllHistoryModal()" class="btn-delete" style="margin:0; padding: 6px 12px; font-size: 12px;">🗑️ DELETE ALL</button>
         </h2>
         <div id="historyList"></div>
@@ -669,7 +742,7 @@
 
 <div id="deleteAllHistoryModal" class="modal-overlay" style="display: none;">
     <div class="modal-content">
-        <h3 style="margin-top: 0; color: #ff4757; font-size: 18px;">⚠️ ยืนยันการลบประวัติทั้งหมด</h3>
+        <h3 style="margin-top: 0; color: #ff4757; font-size: 18px;">⚠️ CONFIRM DELETION OF ALL HISTORY</h3>
         <p style="font-size: 14px; color: #7c8b96; margin-bottom: 5px;">คุณต้องการลบประวัติการยิงทั้งหมดใช่หรือไม่? การลบนี้ไม่สามารถย้อนกลับได้</p>
         <div class="modal-buttons">
             <button onclick="closeDeleteAllHistoryModal()" class="btn-cancel">CANCEL</button>
@@ -911,6 +984,7 @@ const calculateAltAtLast100m = ArtilleryPhysics.calculateAltAtLast100m;
 const getDragSimulatedPoints = (traj, dist, dz, airburstH = 0) => ArtilleryPhysics.getDragSimulatedPoints(traj, dist, dz, airburstH, currentWeapon);
 
 let airburstDataPack = null;
+let allGunSolutions = [];
 // LO/HI toggle: เลือกว่าจะแสดงจุด Air Fuze Point บน Tactical Top-Down Map จากวิถี Low หรือ High Angle
 // (ไม่กระทบ Trajectory Profile ซึ่งยังคงแสดงทั้ง 2 เส้นเหมือนเดิม)
 // อาวุธที่มีแต่ตารางยิง High Angle เท่านั้น (เช่น มอร์ตาร์) จะถูกล็อคปุ่มไว้ที่ HI เสมอ เลื่อนลง LO ไม่ได้
@@ -950,6 +1024,172 @@ let currentAmmoId = 'he'; let currentAmmo = currentAmmoList[currentAmmoId];
 let memoryToDeleteIndex = -1; let memoryToEditIndex = -1; 
 let foPosition = null; let foImpactPoint = null;
 let aimOffsetX = 0; let aimOffsetY = 0; let offsetHistory = [];
+
+// ═══════════════════════════════════════════════════════════════════
+// MULTI-GUN SUPPORT
+// ═══════════════════════════════════════════════════════════════════
+let multiGunEnabled = false;
+let gunCount = 1;
+const MAX_GUNS = 5;
+let gunPosExpanded = false;
+let selectedGunIndex = 0; // index into current solutions array (0-based) — which gun's result to display
+let extraGunValues = { 2: {x:"0000", y:"0000", z:"00"}, 3: {x:"0000", y:"0000", z:"00"}, 4: {x:"0000", y:"0000", z:"00"}, 5: {x:"0000", y:"0000", z:"00"} };
+
+function toggleMultiGun() {
+    multiGunEnabled = !multiGunEnabled;
+    const toggle = document.getElementById('multiGunToggle');
+    const batteryLabel = document.getElementById('mgBatteryLabel');
+    const stepper = document.getElementById('gunCountStepper');
+    const expandBtn = document.getElementById('gunExpandBtn');
+    const patternRow = document.getElementById('firePatternRow');
+    if (toggle) toggle.classList.toggle('on', multiGunEnabled);
+    if (batteryLabel) batteryLabel.classList.toggle('on', multiGunEnabled);
+    if (stepper) stepper.classList.toggle('show', multiGunEnabled);
+    if (expandBtn) expandBtn.classList.toggle('show', multiGunEnabled && gunCount > 1);
+    if (patternRow) patternRow.style.display = multiGunEnabled ? 'flex' : 'none';
+    if (!multiGunEnabled) {
+        gunCount = 1;
+        document.getElementById('gunCountVal').textContent = '1';
+        renderGunPosExtra();
+        gunPosExpanded = false;
+        if (expandBtn) expandBtn.textContent = '▾';
+        document.getElementById('gunPosExtra').classList.remove('expanded');
+        selectedGunIndex = 0;
+        const firePatternSel = document.getElementById('firePattern');
+        if (firePatternSel) firePatternSel.value = 'same';
+        const sheafOptionsEl = document.getElementById('sheafOptions');
+        if (sheafOptionsEl) sheafOptionsEl.classList.remove('show');
+    }
+    renderGunSelect();
+    renderCopyGunnerMultiRow();
+    calculate();
+}
+
+function changeGunCount(delta) {
+    gunCount = Math.max(1, Math.min(MAX_GUNS, gunCount + delta));
+    document.getElementById('gunCountVal').textContent = String(gunCount);
+    const expandBtn = document.getElementById('gunExpandBtn');
+    if (expandBtn) expandBtn.classList.toggle('show', multiGunEnabled && gunCount > 1);
+    if (selectedGunIndex > gunCount - 1) selectedGunIndex = 0;
+    renderGunPosExtra();
+    renderGunSelect();
+    renderCopyGunnerMultiRow();
+    calculate();
+}
+
+// วาด dropdown เลือกกระบอกที่จะแสดงผล — โผล่เฉพาะตอนเปิดระบบหลายกระบอกและมีมากกว่า 1 กระบอก
+function renderGunSelect() {
+    const row = document.getElementById('gunSelectRow');
+    const sel = document.getElementById('gunSelect');
+    if (!row || !sel) return;
+    const show = multiGunEnabled && gunCount > 1;
+    row.style.display = show ? 'flex' : 'none';
+    if (!show) return;
+    const prevVal = selectedGunIndex;
+    let html = '';
+    for (let i = 0; i < gunCount; i++) html += `<option value="${i}">🔫 Gun ${i + 1}</option>`;
+    sel.innerHTML = html;
+    sel.value = String(Math.min(prevVal, gunCount - 1));
+}
+
+function onGunSelectChange() {
+    const sel = document.getElementById('gunSelect');
+    selectedGunIndex = parseInt(sel.value) || 0;
+    calculate();
+}
+
+function toggleGunPosExpand() {
+    gunPosExpanded = !gunPosExpanded;
+    const extra = document.getElementById('gunPosExtra');
+    const btn = document.getElementById('gunExpandBtn');
+    extra.classList.toggle('expanded', gunPosExpanded);
+    if (btn) btn.textContent = gunPosExpanded ? '▴' : '▾';
+}
+
+function renderGunPosExtra() {
+    const container = document.getElementById('gunPosExtra');
+    if (!container) return;
+    if (!multiGunEnabled || gunCount < 2) { container.innerHTML = ''; return; }
+    let html = '';
+    for (let i = 2; i <= gunCount; i++) {
+        const v = extraGunValues[i];
+        html += `<div class="gun-row-label">🔫 Gun ${i}</div><div class="grid-3">
+            <div><label>X (East)</label><input type="text" inputmode="decimal" id="gun${i}X" value="${v.x}" onchange="formatExtraGunCoord(this, ${i})"></div>
+            <div><label>Y (North)</label><input type="text" inputmode="decimal" id="gun${i}Y" value="${v.y}" onchange="formatExtraGunCoord(this, ${i})"></div>
+            <div><label>Z (Height)</label><input type="number" id="gun${i}Z" value="${v.z}" step="any" onchange="saveExtraGunCoord(${i})"></div>
+        </div>`;
+    }
+    container.innerHTML = html;
+}
+
+function formatExtraGunCoord(el, gunIdx) {
+    formatCoord(el); // handles padding + triggers calculate()
+    saveExtraGunCoord(gunIdx);
+}
+function saveExtraGunCoord(gunIdx) {
+    const xEl = document.getElementById(`gun${gunIdx}X`); const yEl = document.getElementById(`gun${gunIdx}Y`); const zEl = document.getElementById(`gun${gunIdx}Z`);
+    if (!xEl) return;
+    extraGunValues[gunIdx] = { x: xEl.value || "0000", y: yEl.value || "0000", z: zEl.value || "00" };
+}
+
+function parseArmaGridFromEl(el) {
+    if (!el) return 0;
+    let valStr = el.value.trim();
+    if (valStr === "") return 0;
+    let isNeg = valStr.startsWith('-');
+    let str = isNeg ? valStr.substring(1) : valStr;
+    let multiplier = 1; let offset = 0;
+    let intStr = str.split('.')[0];
+    if (str.includes('.')) {
+        if (intStr.length === 3) multiplier = 100;
+        else if (intStr.length === 4) multiplier = 10;
+        else { multiplier = 1; offset = 0; }
+    } else {
+        if (intStr.length === 3) { multiplier = 100; offset = 50; }
+        else if (intStr.length === 4) { multiplier = 10; offset = 5; }
+        else if (intStr.length === 5) { multiplier = 1; offset = 0; }
+        else if (intStr.length < 3) { multiplier = 100; offset = 50; }
+        else { multiplier = 1; offset = 0; }
+    }
+    return ((parseFloat(str) || 0) * multiplier + offset) * (isNeg ? -1 : 1);
+}
+
+// รวบรวมพิกัดปืนทุกกระบอกที่กำลังใช้งานอยู่ (กระบอกที่ 1 เสมอ + กระบอก 2-N ถ้าเปิดระบบหลายกระบอก)
+function collectGunPositions() {
+    const guns = [{ idx: 1, x: parseArmaGrid("gunX"), y: parseArmaGrid("gunY"), z: parseFloat(DOM["gunZ"].value) || 0 }];
+    if (multiGunEnabled && gunCount > 1) {
+        for (let i = 2; i <= gunCount; i++) {
+            const xEl = document.getElementById(`gun${i}X`); const yEl = document.getElementById(`gun${i}Y`); const zEl = document.getElementById(`gun${i}Z`);
+            guns.push({ idx: i, x: parseArmaGridFromEl(xEl), y: parseArmaGridFromEl(yEl), z: parseFloat(zEl && zEl.value) || 0 });
+        }
+    }
+    return guns;
+}
+
+function onFirePatternChange() {
+    const pattern = document.getElementById('firePattern').value;
+    document.getElementById('sheafOptions').classList.toggle('show', pattern === 'sheaf');
+    calculate();
+}
+
+// คำนวณจุดเล็งของแต่ละกระบอกตามโหมดยิง (จุดเดียวกัน หรือ หน้ากระดาน)
+// คืนค่า array ของ {x, y} ความยาวเท่ากับจำนวนกระบอก โดย offset สมมาตรรอบเป้าหมายเดิม
+function computeSheafTargets(targetX, targetY, gunN) {
+    const pattern = multiGunEnabled && gunCount > 1 ? (document.getElementById('firePattern') ? document.getElementById('firePattern').value : 'same') : 'same';
+    if (pattern !== 'sheaf') {
+        return Array.from({ length: gunN }, () => ({ x: targetX, y: targetY }));
+    }
+    const axis = document.getElementById('sheafAxis') ? document.getElementById('sheafAxis').value : 'x';
+    const spacing = parseFloat(document.getElementById('sheafSpacing') ? document.getElementById('sheafSpacing').value : 0) || 0;
+    const results = [];
+    for (let i = 0; i < gunN; i++) {
+        // จัดกึ่งกลางรอบเป้าหมาย: offset ของกระบอกที่ i (0-indexed) = (i - (N-1)/2) * spacing
+        const offset = (i - (gunN - 1) / 2) * spacing;
+        if (axis === 'x') results.push({ x: targetX + offset, y: targetY });
+        else results.push({ x: targetX, y: targetY + offset });
+    }
+    return results;
+}
 let savedTargets = [];
 try { const localData = localStorage.getItem('m777_memory'); savedTargets = localData ? JSON.parse(localData) : []; } catch (e) { savedTargets = []; }
 
@@ -1587,14 +1827,13 @@ function adjustTarget(dirX, dirY) {
     resetFOState(); mapMode = 'target'; calculate();
 }
 
-function calculate() {
-    const gunX = parseArmaGrid("gunX"); const gunY = parseArmaGrid("gunY"); const gunZ = parseFloat(DOM["gunZ"].value) || 0;
-    const targetX = parseArmaGrid("targetX"); const targetY = parseArmaGrid("targetY"); const targetZ = parseFloat(DOM["targetZ"].value) || 0;
+// คำนวณผลลัพธ์วิถีกระสุนสำหรับปืน 1 กระบอก (แยกออกมาจาก calculate() เดิม เพื่อรองรับหลายกระบอก)
+// targetXIn/targetYIn = จุดเล็งจริงของกระบอกนี้ (อาจต่างจากพิกัดเป้าหมายหลัก ถ้าเป็นโหมดยิงแบบหน้ากระดาน)
+function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) {
+    const targetX = targetXIn; const targetY = targetYIn;
     const windSpeed = parseFloat(DOM["windSpeed"].value) || 0; const windDirDeg = parseFloat(DOM["windDir"].value) || 0;
     const minClearance = parseFloat(DOM["minClearance"].value) || 0;
     const airburstH = parseFloat(DOM["airburstHeight"].value) || 0;
-
-    updateOffsetDisplay();
 
     const isMortar = currentWeapon.type === "mortar"; const milSystem = currentWeapon.milSystem || 6400; const halfMil = milSystem / 2;
     const driftCoeff = currentWeapon.windDriftCoeff || 0.3725; const rangeCoeff = currentWeapon.windRangeCoeff || 0.40;
@@ -1608,11 +1847,11 @@ function calculate() {
     let aimGridDistance = Math.max(0, baseGridDistance + rangeOffset);
 
     if (aimGridDistance === 0 && actualGridDistanceReal === 0) {
-        DOM["result"].innerHTML = `<div class="stat stat-base"><span>Real Distance:</span> <b>0m</b></div><div class="stat stat-base"><span>Height Diff:</span> <b>${dz.toFixed(0)}m</b></div><div class="stat stat-base" style="margin-bottom: 8px;"><span>Base Azimuth:</span> <b>0.0 MILs</b></div><div style="text-align:center; padding: 15px; background: rgba(15, 23, 42, 0.5); border-radius: 8px; color: #94a3b8; font-size: 13px;">🎯 โปรดระบุพิกัดเป้าหมาย</div>`;
-        drawGraph(gunX, gunY, targetX, targetY, windSpeed, windDirDeg); 
-        drawTrajectory(0, 0, null, null, milSystem);
-        if (is3DMode) { currentCalcData = null; update3DScene(); }
-        return; 
+        return {
+            resultHTML: `<div class="stat stat-base"><span>Real Distance:</span> <b>0m</b></div><div class="stat stat-base"><span>Height Diff:</span> <b>${dz.toFixed(0)}m</b></div><div class="stat stat-base" style="margin-bottom: 8px;"><span>Base Azimuth:</span> <b>0.0 MILs</b></div><div style="text-align:center; padding: 15px; background: rgba(15, 23, 42, 0.5); border-radius: 8px; color: #94a3b8; font-size: 13px;">🎯 โปรดระบุพิกัดเป้าหมาย</div>`,
+            empty: true, gunX, gunY, gunZ, targetX, targetY, targetZ, dz, milSystem, windSpeed, windDirDeg,
+            trajLow: null, trajHigh: null, aimGridDistance: 0, effDx: 0, effDy: 0, effTargetX, effTargetY, airburstDataPack: null
+        };
     }
 
     let bearingDegReal = Math.atan2(dxReal, dyReal) * 180 / Math.PI; bearingDegReal = (bearingDegReal + 360) % 360; const bearingMilReal = bearingDegReal * (milSystem / 360);
@@ -1873,7 +2112,6 @@ function calculate() {
     }
 
     if (isMortar) { resultHTML += htmlHigh; } else { resultHTML += htmlLow + htmlHigh; }
-    DOM["result"].innerHTML = resultHTML;
 
     let effDx = dx; let effDy = dy;
     if (aimGridDistance > 0 && rangeOffset !== 0) {
@@ -1881,7 +2119,7 @@ function calculate() {
         if (origDist > 0) { let scaleFactor = aimGridDistance / origDist; effDx = dx * scaleFactor; effDy = dy * scaleFactor; }
     }
 
-    airburstDataPack = null;
+    let airburstDataPack = null;
     if (airburstH > 0) {
         // มอร์ตาร์มีแค่ High Angle เท่านั้น จึงบังคับใช้ simDataHigh เสมอ; อาวุธอื่นให้ตาม fuzeAngleMode ที่ผู้ใช้เลือก (fallback ไปอีกฝั่งถ้าฝั่งที่เลือกไม่มีข้อมูล)
         let activeSim = isMortar ? simDataHigh : (fuzeAngleMode === 'high' ? (simDataHigh || simDataLow) : (simDataLow || simDataHigh));
@@ -1894,12 +2132,53 @@ function calculate() {
         }
     }
 
-    currentCalcData = { dx: effDx, dy: effDy, dz: dz, gunX: gunX, gunY: gunY, targetX: targetX, targetY: targetY, aimGridDistance: aimGridDistance, windSpeed: windSpeed, windDir: windDirDeg, milSystem: milSystem, low: trajLow, high: trajHigh };
+    return {
+        resultHTML, empty: false, gunX, gunY, gunZ, targetX, targetY, targetZ, dz, milSystem, windSpeed, windDirDeg,
+        trajLow, trajHigh, aimGridDistance, effDx, effDy, effTargetX, effTargetY, airburstDataPack
+    };
+}
 
-    logHistory({ aimGridDistance, dz, trajLow, trajHigh });
+// ═══════════════════════════════════════════════════════════════════
+// calculate() — orchestrator: รวบรวมพิกัดปืน (1 หรือหลายกระบอก), หาจุดเล็งตามโหมดยิง,
+// เรียก computeSolutionForGun ต่อกระบอก แล้วประกอบผลลัพธ์ทั้งหมดแสดงผล/วาดกราฟ
+// ═══════════════════════════════════════════════════════════════════
+function calculate() {
+    updateOffsetDisplay();
 
-    drawGraph(gunX, gunY, targetX, targetY, windSpeed, windDirDeg);
-    drawTrajectory(aimGridDistance, dz, trajLow, trajHigh, milSystem);
+    const targetX = parseArmaGrid("targetX"); const targetY = parseArmaGrid("targetY"); const targetZ = parseFloat(DOM["targetZ"].value) || 0;
+
+    const guns = collectGunPositions();
+    const aimPoints = computeSheafTargets(targetX, targetY, guns.length);
+
+    const solutions = guns.map((g, i) => computeSolutionForGun(g.x, g.y, g.z, aimPoints[i].x, aimPoints[i].y, targetZ));
+
+    // แสดงผลเฉพาะกระบอกที่เลือกไว้ (dropdown #gunSelect) — ไม่แสดงรวมทุกกระบอกพร้อมกัน
+    if (selectedGunIndex > solutions.length - 1) selectedGunIndex = 0;
+    const displaySol = solutions[selectedGunIndex] || solutions[0];
+    DOM["result"].innerHTML = displaySol.resultHTML;
+
+    // กระบอกที่กำลังแสดงผล (ตามที่เลือกใน dropdown) ใช้เป็นข้อมูลหลักสำหรับแผนที่/กราฟวิถี/ประวัติ/มุมมอง 3D/Copy to Chat
+    // เพื่อให้ทุกอย่างที่แสดงบนหน้าจอ (แผนที่, กราฟ, ปุ่ม Chat Gunner) สอดคล้องกับกระบอกที่เลือกดูอยู่เสมอ
+    const primary = displaySol;
+    const primaryTargetX = aimPoints[selectedGunIndex] ? aimPoints[selectedGunIndex].x : aimPoints[0].x;
+    const primaryTargetY = aimPoints[selectedGunIndex] ? aimPoints[selectedGunIndex].y : aimPoints[0].y;
+
+    if (primary.empty) {
+        drawGraph(primary.gunX, primary.gunY, primaryTargetX, primaryTargetY, primary.windSpeed, primary.windDirDeg, { allGuns: solutions, allAimPoints: aimPoints, selectedIdx: selectedGunIndex });
+        drawTrajectory(0, 0, null, null, primary.milSystem);
+        if (is3DMode) { currentCalcData = null; update3DScene(); }
+        allGunSolutions = solutions;
+        return;
+    }
+
+    airburstDataPack = primary.airburstDataPack;
+    currentCalcData = { dx: primary.effDx, dy: primary.effDy, dz: primary.dz, gunX: primary.gunX, gunY: primary.gunY, targetX: primary.targetX, targetY: primary.targetY, aimGridDistance: primary.aimGridDistance, windSpeed: primary.windSpeed, windDir: primary.windDirDeg, milSystem: primary.milSystem, low: primary.trajLow, high: primary.trajHigh };
+    allGunSolutions = solutions;
+
+    logHistory({ aimGridDistance: primary.aimGridDistance, dz: primary.dz, trajLow: primary.trajLow, trajHigh: primary.trajHigh });
+
+    drawGraph(primary.gunX, primary.gunY, primaryTargetX, primaryTargetY, primary.windSpeed, primary.windDirDeg, { allGuns: solutions, allAimPoints: aimPoints, selectedIdx: selectedGunIndex });
+    drawTrajectory(primary.aimGridDistance, primary.dz, primary.trajLow, primary.trajHigh, primary.milSystem);
     if (is3DMode) update3DScene();
 }
 
@@ -1967,14 +2246,26 @@ function drawGridEdgeLabels(ctx, w, h, viewMinX, viewMaxX, viewMinY, viewMaxY, t
     ctx.restore();
 }
 
-function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg) {
+function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
     const w = 700, h = 700;
     const ctx = setupHiDPICanvas(mapCanvas, w, h);
     const bgMap = MapBackground.getCurrent();
     if (!bgMap) { ctx.fillStyle = "#e6e1cd"; ctx.fillRect(0, 0, w, h); }
     const padding = 60;
     const effX = x2 + aimOffsetX; const effY = y2 + aimOffsetY;
-    const minX = Math.min(x1, x2, effX), maxX = Math.max(x1, x2, effX); const minY = Math.min(y1, y2, effY), maxY = Math.max(y1, y2, effY);
+    const otherGuns = (multiGunInfo && multiGunInfo.allGuns && multiGunInfo.allGuns.length > 1) ? multiGunInfo.allGuns : null;
+    const otherAimPoints = (multiGunInfo && multiGunInfo.allAimPoints) ? multiGunInfo.allAimPoints : null;
+    const selectedIdx = multiGunInfo ? (multiGunInfo.selectedIdx || 0) : 0;
+
+    let minX = Math.min(x1, x2, effX), maxX = Math.max(x1, x2, effX); let minY = Math.min(y1, y2, effY), maxY = Math.max(y1, y2, effY);
+    if (otherGuns) {
+        otherGuns.forEach((g, i) => {
+            if (g.empty) return;
+            minX = Math.min(minX, g.gunX); maxX = Math.max(maxX, g.gunX); minY = Math.min(minY, g.gunY); maxY = Math.max(maxY, g.gunY);
+            const ap = otherAimPoints && otherAimPoints[i] ? otherAimPoints[i] : null;
+            if (ap) { minX = Math.min(minX, ap.x); maxX = Math.max(maxX, ap.x); minY = Math.min(minY, ap.y); maxY = Math.max(maxY, ap.y); }
+        });
+    }
     const rangeX = Math.max(maxX - minX, 100); const rangeY = Math.max(maxY - minY, 100);
     const fitScale = Math.min((w - padding*2) / rangeX, (h - padding*2) / rangeY);
 
@@ -2044,12 +2335,34 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg) {
     
     const cx1 = toCanvasX(x1), cy1 = toCanvasY(y1); const cx2 = toCanvasX(x2), cy2 = toCanvasY(y2);
     ctx.setLineDash([6, 4]); ctx.strokeStyle = "#333"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx1, cy1); ctx.lineTo(cx2, cy2); ctx.stroke(); ctx.setLineDash([]);
-    const strGunX = DOM["gunX"].value || "0000"; const strGunY = DOM["gunY"].value || "0000"; const strTgtX = DOM["targetX"].value || "0000"; const strTgtY = DOM["targetY"].value || "0000";
+    // ใช้พิกัดจริง (เมตร) ของกระบอกที่กำลังแสดงผลอยู่ แปลงกลับเป็นรูปแบบกริด แทนที่จะอ่านจาก input ดิบ (ซึ่งเป็นของกระบอก 1 เท่านั้น)
+    const strGunX = formatMetersToArma(x1, 4); const strGunY = formatMetersToArma(y1, 4); const strTgtX = formatMetersToArma(x2, 4); const strTgtY = formatMetersToArma(y2, 4);
+    const gunLabelText = otherGuns ? `GUN ${selectedIdx + 1}` : "GUN";
     ctx.strokeStyle = "#b91c1c"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx2, cy2, 8, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx2-12, cy2); ctx.lineTo(cx2+12, cy2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx2, cy2-12); ctx.lineTo(cx2, cy2+12); ctx.stroke();
     ctx.font = "bold 16px sans-serif"; ctx.lineWidth = 4; ctx.strokeStyle = bgMap ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.85)"; ctx.strokeText("TARGET", cx2 + 14, cy2 - 14); ctx.fillStyle = bgMap ? "#f8fafc" : "#1f1a0f"; ctx.fillText("TARGET", cx2 + 14, cy2 - 14); ctx.fillStyle = "#fca5a5"; ctx.font = "bold 14px monospace"; ctx.strokeStyle = "rgba(0,0,0,0.85)"; ctx.lineWidth = 4; ctx.strokeText(`[${strTgtX},${strTgtY}]`, cx2 + 14, cy2 + 6); ctx.fillText(`[${strTgtX},${strTgtY}]`, cx2 + 14, cy2 + 6); 
 
     if (aimOffsetX !== 0 || aimOffsetY !== 0) { const cxEff = toCanvasX(effX); const cyEff = toCanvasY(effY); ctx.setLineDash([4, 4]); ctx.strokeStyle = "#a855f7"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx2, cy2); ctx.lineTo(cxEff, cyEff); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = "#a855f7"; ctx.beginPath(); ctx.arc(cxEff, cyEff, 6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#7e22ce"; ctx.font = "bold 11px sans-serif"; ctx.fillText("AIM OFFSET", cxEff + 10, cyEff - 5); }
-    ctx.fillStyle = "#1d4ed8"; ctx.beginPath(); ctx.moveTo(cx1, cy1 - 10); ctx.lineTo(cx1 - 8, cy1 + 6); ctx.lineTo(cx1 + 8, cy1 + 6); ctx.fill(); ctx.font = "bold 16px sans-serif"; ctx.lineWidth = 4; ctx.strokeStyle = bgMap ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.85)"; ctx.strokeText("GUN", cx1 - 14, cy1 + 24); ctx.fillStyle = bgMap ? "#f8fafc" : "#1f1a0f"; ctx.fillText("GUN", cx1 - 14, cy1 + 24); ctx.fillStyle = "#93c5fd"; ctx.font = "bold 14px monospace"; ctx.strokeStyle = "rgba(0,0,0,0.85)"; ctx.lineWidth = 4; ctx.strokeText(`[${strGunX},${strGunY}]`, cx1 - 14, cy1 + 42); ctx.fillText(`[${strGunX},${strGunY}]`, cx1 - 14, cy1 + 42); 
+    ctx.fillStyle = "#1d4ed8"; ctx.beginPath(); ctx.moveTo(cx1, cy1 - 10); ctx.lineTo(cx1 - 8, cy1 + 6); ctx.lineTo(cx1 + 8, cy1 + 6); ctx.fill(); ctx.font = "bold 16px sans-serif"; ctx.lineWidth = 4; ctx.strokeStyle = bgMap ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.85)"; ctx.strokeText(gunLabelText, cx1 - 14, cy1 + 24); ctx.fillStyle = bgMap ? "#f8fafc" : "#1f1a0f"; ctx.fillText(gunLabelText, cx1 - 14, cy1 + 24); ctx.fillStyle = "#93c5fd"; ctx.font = "bold 14px monospace"; ctx.strokeStyle = "rgba(0,0,0,0.85)"; ctx.lineWidth = 4; ctx.strokeText(`[${strGunX},${strGunY}]`, cx1 - 14, cy1 + 42); ctx.fillText(`[${strGunX},${strGunY}]`, cx1 - 14, cy1 + 42); 
+
+    // ปืนกระบอกอื่นที่ไม่ได้เลือกดูอยู่: แสดงแค่จุดมาร์คตำแหน่งปืน (พร้อม TEXT บอกเลขกระบอก), เส้นเล็ง, และจุดมาร์ค TARGET (ไม่มี TEXT ซ้ำ)
+    if (otherGuns) {
+        otherGuns.forEach((g, i) => {
+            if (i === selectedIdx || g.empty) return;
+            const ogx = toCanvasX(g.gunX), ogy = toCanvasY(g.gunY);
+            const ap = otherAimPoints && otherAimPoints[i] ? otherAimPoints[i] : { x: g.targetX, y: g.targetY };
+            const otx = toCanvasX(ap.x), oty = toCanvasY(ap.y);
+
+            // เส้นเล็ง (ของกระบอกอื่นที่ไม่ได้เลือกอยู่)
+            ctx.setLineDash([5, 4]); ctx.strokeStyle = "rgba(30,41,59,0.9)"; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(ogx, ogy); ctx.lineTo(otx, oty); ctx.stroke(); ctx.setLineDash([]);
+
+            // จุดมาร์คตำแหน่งปืน (สามเหลี่ยมเล็กสีเทา-ฟ้า) + TEXT "GUN N"
+            ctx.fillStyle = "rgba(96,165,250,0.85)"; ctx.beginPath(); ctx.moveTo(ogx, ogy - 7); ctx.lineTo(ogx - 6, ogy + 5); ctx.lineTo(ogx + 6, ogy + 5); ctx.fill();
+            ctx.font = "bold 11px sans-serif"; ctx.lineWidth = 3; ctx.strokeStyle = bgMap ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.85)"; ctx.strokeText(`GUN ${i + 1}`, ogx + 9, ogy + 12); ctx.fillStyle = "#bfdbfe"; ctx.fillText(`GUN ${i + 1}`, ogx + 9, ogy + 12);
+
+            // จุดมาร์ค TARGET ของกระบอกนี้ (กากบาทเล็ก ไม่มี TEXT กันซ้อนทับ)
+            ctx.strokeStyle = "rgba(220,38,38,0.7)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(otx, oty, 6, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(otx-9, oty); ctx.lineTo(otx+9, oty); ctx.stroke(); ctx.beginPath(); ctx.moveTo(otx, oty-9); ctx.lineTo(otx, oty+9); ctx.stroke();
+        });
+    }
 
     if (airburstDataPack) {
         const bxCanvas = toCanvasX(airburstDataPack.x);
@@ -2558,10 +2871,16 @@ function update3DScene() {
 
 function redrawMapOnly() {
     // วาดเฉพาะแผนที่ใหม่ ไม่คำนวณใหม่ทั้งหมด ลดอาการกระตุก
-    const gunX = parseArmaGrid("gunX"); const gunY = parseArmaGrid("gunY");
-    const targetX = parseArmaGrid("targetX"); const targetY = parseArmaGrid("targetY");
     const windSpeed = parseFloat(DOM["windSpeed"].value) || 0; const windDirDeg = parseFloat(DOM["windDir"].value) || 0;
-    drawGraph(gunX, gunY, targetX, targetY, windSpeed, windDirDeg); 
+    if (allGunSolutions && allGunSolutions.length > 0) {
+        const sol = allGunSolutions[selectedGunIndex] || allGunSolutions[0];
+        const info = allGunSolutions.length > 1 ? { allGuns: allGunSolutions, allAimPoints: allGunSolutions.map(s => ({ x: s.targetX, y: s.targetY })), selectedIdx: selectedGunIndex } : undefined;
+        drawGraph(sol.gunX, sol.gunY, sol.targetX, sol.targetY, windSpeed, windDirDeg, info);
+    } else {
+        const gunX = parseArmaGrid("gunX"); const gunY = parseArmaGrid("gunY");
+        const targetX = parseArmaGrid("targetX"); const targetY = parseArmaGrid("targetY");
+        drawGraph(gunX, gunY, targetX, targetY, windSpeed, windDirDeg);
+    }
 }
 
 const mapCanvas = DOM["graph"];
@@ -2775,28 +3094,16 @@ function copyToChatTeam() {
         .catch(() => showCopyChatStatus("❌ Copy ไม่สำเร็จ ลองอีกครั้ง", true));
 }
 
-function copyToChatGunner() {
-    const traj = getActiveTraj();
-    if (!traj || !currentCalcData) { showCopyChatStatus("⚠️ กรุณาคำนวณก่อน (ใส่พิกัดเป้าหมาย)", true); return; }
-
-    const weapon = getWeaponShortName();
-    const ammo = getAmmoShortName();
+// สร้างข้อความบรรทัดเดียวสำหรับพลยิง จากข้อมูลผลลัพธ์ของปืน 1 กระบอก (ใช้ร่วมกันทั้งโหมดกระบอกเดียวและหลายกระบอก)
+function buildGunnerLine(sol, weapon, ammo) {
+    const traj = sol.trajLow || sol.trajHigh;
+    if (!traj) return null;
     const isMortar = traj.isMortar;
     const chargeLabel = isMortar ? "Ring" : "Charge";
     const chargeNum = (traj.chargeCode || "").replace(/[^0-9]/g, '') || "AUTO";
     const azi = Math.round(traj.azi);
     const elev = Math.round(traj.elev);
     const tof = traj.tof.toFixed(1);
-
-    const hasOffset = (Math.abs(aimOffsetX) >= 0.01 || Math.abs(aimOffsetY) >= 0.01);
-    let gridPart = "";
-    if (hasOffset) {
-        const prefLenX = (DOM["targetX"].value || "0000").replace('-', '').split('.')[0].length;
-        const prefLenY = (DOM["targetY"].value || "0000").replace('-', '').split('.')[0].length;
-        const tgtXStr = formatMetersToArma(currentCalcData.targetX + aimOffsetX, prefLenX);
-        const tgtYStr = formatMetersToArma(currentCalcData.targetY + aimOffsetY, prefLenY);
-        gridPart = ` | Grid: ${tgtXStr} ${tgtYStr}`;
-    }
 
     let fuzePart = "";
     const airburstH = parseFloat(DOM["airburstHeight"].value) || 0;
@@ -2805,10 +3112,69 @@ function copyToChatGunner() {
     }
 
     const weaponPart = `${weapon}  | ${ammo}`;
-    const msg = `| ${weaponPart} | ${chargeLabel} ${chargeNum} | AZI ${azi} | ELEV ${elev} | ToF ${tof}s${fuzePart}${gridPart}`;
+    return `${weaponPart} | ${chargeLabel} ${chargeNum} | AZI ${azi} | ELEV ${elev} | ToF ${tof}s${fuzePart}`;
+}
+
+function buildGunnerGridPart() {
+    const hasOffset = (Math.abs(aimOffsetX) >= 0.01 || Math.abs(aimOffsetY) >= 0.01);
+    if (!hasOffset || !currentCalcData) return "";
+    const prefLenX = (DOM["targetX"].value || "0000").replace('-', '').split('.')[0].length;
+    const prefLenY = (DOM["targetY"].value || "0000").replace('-', '').split('.')[0].length;
+    const tgtXStr = formatMetersToArma(currentCalcData.targetX + aimOffsetX, prefLenX);
+    const tgtYStr = formatMetersToArma(currentCalcData.targetY + aimOffsetY, prefLenY);
+    return ` | Grid: ${tgtXStr} ${tgtYStr}`;
+}
+
+// ปุ่ม Chat Gunner หลัก: ใช้เฉพาะโหมดปืนเดียว (ข้อความสั้นบรรทัดเดียวแบบเดิม)
+// เกมจำกัดความยาวข้อความแชทและพิมพ์ขึ้นบรรทัดใหม่เองไม่ได้ ดังนั้นโหมดหลายกระบอกจะใช้ปุ่มแยกต่อกระบอกแทน (ดู renderCopyGunnerMultiRow)
+function copyToChatGunner() {
+    const traj = getActiveTraj();
+    if (!traj || !currentCalcData) { showCopyChatStatus("⚠️ กรุณาคำนวณก่อน (ใส่พิกัดเป้าหมาย)", true); return; }
+
+    const weapon = getWeaponShortName();
+    const ammo = getAmmoShortName();
+    const gridPart = buildGunnerGridPart();
+    const line = buildGunnerLine({ trajLow: currentCalcData.low, trajHigh: currentCalcData.high }, weapon, ammo);
+    const msg = `| ${line}${gridPart}`;
+
     copyTextToClipboard(msg)
         .then(() => showCopyChatStatus("✅ Copy ข้อความพลยิงแล้ว!"))
         .catch(() => showCopyChatStatus("❌ Copy ไม่สำเร็จ ลองอีกครั้ง", true));
+}
+
+// Copy ข้อความของกระบอกที่ระบุ (idx = 0-based) เป็นบรรทัดสั้นเดียว — ใช้สำหรับปุ่มแยกต่อกระบอกในโหมดหลายกระบอก
+function copyToChatGunnerFor(idx) {
+    if (!allGunSolutions || !allGunSolutions[idx]) { showCopyChatStatus("⚠️ กรุณาคำนวณก่อน (ใส่พิกัดเป้าหมาย)", true); return; }
+    const sol = allGunSolutions[idx];
+    const traj = sol.trajLow || sol.trajHigh;
+    if (!traj) { showCopyChatStatus("⚠️ กระบอกนี้ยังไม่มีผลลัพธ์", true); return; }
+
+    const weapon = getWeaponShortName();
+    const ammo = getAmmoShortName();
+    const gridPart = buildGunnerGridPart();
+    const line = buildGunnerLine(sol, weapon, ammo);
+    const msg = `GUN ${idx + 1} | ${line}${gridPart}`;
+
+    copyTextToClipboard(msg)
+        .then(() => showCopyChatStatus(`✅ Copy ค่าปืน GUN ${idx + 1} แล้ว!`))
+        .catch(() => showCopyChatStatus("❌ Copy ไม่สำเร็จ ลองอีกครั้ง", true));
+}
+
+// แสดง/ซ่อนแถวปุ่ม Chat Gunner แยกต่อกระบอก — โผล่เฉพาะตอนเปิดระบบหลายกระบอกและมีมากกว่า 1 กระบอก
+// สลับกับปุ่ม Chat Gunner หลัก (ปุ่มเดียว) เพราะเกมพิมพ์ข้อความยาวหรือขึ้นบรรทัดใหม่ในแชทไม่ได้
+function renderCopyGunnerMultiRow() {
+    const row = document.getElementById('copyGunnerMultiRow');
+    const mainBtn = document.getElementById('copyGunnerBtn');
+    if (!row || !mainBtn) return;
+    const show = multiGunEnabled && gunCount > 1;
+    row.style.display = show ? 'grid' : 'none';
+    mainBtn.style.display = show ? 'none' : '';
+    if (!show) { row.innerHTML = ''; return; }
+    let html = '';
+    for (let i = 0; i < gunCount; i++) {
+        html += `<button type="button" onclick="copyToChatGunnerFor(${i})" title="Copy ค่าปืน GUN ${i + 1}">🎯 Gun ${i + 1}</button>`;
+    }
+    row.innerHTML = html;
 }
 
 function resetData() {

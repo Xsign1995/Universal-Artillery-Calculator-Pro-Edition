@@ -259,6 +259,16 @@
         .map-context-btn.gun:hover { background: rgba(79,195,247,0.7); }
         .map-context-btn.cancel { background: #1c2733; color: var(--ink); font-weight: 500; }
         .map-context-btn.cancel:hover { background: #2a3a4a; }
+        .map-context-btn.marker { background: rgba(250,204,21,0.5); color: white; }
+        .map-context-btn.marker:hover { background: rgba(250,204,21,0.7); }
+        .map-context-btn.marker-edit { background: rgba(250,204,21,0.5); color: white; }
+        .map-context-btn.marker-edit:hover { background: rgba(250,204,21,0.7); }
+        .map-context-btn.marker-delete { background: rgba(255,71,87,0.5); color: white; }
+        .map-context-btn.marker-delete:hover { background: rgba(255,71,87,0.7); }
+        .map-marker-name-row { display: flex; gap: 4px; padding: 2px; }
+        .map-marker-name-row input { margin: 0; padding: 7px 8px; font-size: 13px; width: 140px; background: #1c2733; border: 1px solid var(--line-bright); color: var(--ink); border-radius: 2px; }
+        .map-marker-name-row button { margin: 0; padding: 7px 10px; font-size: 13px; border-radius: 2px; background: rgba(250,204,21,0.5); color: white; font-weight: 600; border: none; cursor: pointer; }
+        .map-marker-name-row button:hover { background: rgba(250,204,21,0.7); }
 
         .map-controls { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 5px; z-index: 10; }
         .map-controls button { width: 32px; height: 32px; padding: 0; margin: 0; background: rgba(6,10,13, 0.9); color: var(--tblue); border: 1px solid var(--line-bright); border-radius: 2px; font-size: 16px; display: flex; align-items: center; justify-content: center; }
@@ -523,7 +533,7 @@
                 </div>
 
                 <div class="grid-2" style="margin-bottom: 12px;">
-                    <button onclick="calculate()">Calculate</button>
+                    <button onclick="calculateAndMarkWind()">Calculate</button>
                     <button onclick="resetData()" class="btn-reset">Reset Inputs</button>
                 </div>
 
@@ -674,6 +684,18 @@
                 <button onclick="applyMapContextMenu('gun')" class="map-context-btn gun">● Set Gun Position</button>
                 <button onclick="hideMapContextMenu()" class="map-context-btn cancel">✕ ยกเลิก</button>
             </div>
+            <div id="mapMarkerCreateMenu" class="map-context-menu" style="display:none;">
+                <div class="map-marker-name-row">
+                    <input type="text" id="mapMarkerNameInput" placeholder="ชื่อจุดมาร์ค..." maxlength="40" onkeydown="if(event.key==='Enter'){confirmCreateMapMarker();} if(event.key==='Escape'){hideMapMarkerMenus();}">
+                    <button onclick="confirmCreateMapMarker()">✓</button>
+                </div>
+                <button onclick="hideMapMarkerMenus()" class="map-context-btn cancel">✕ ยกเลิก</button>
+            </div>
+            <div id="mapMarkerEditMenu" class="map-context-menu" style="display:none;">
+                <button onclick="startEditMapMarker()" class="map-context-btn marker-edit">✏️ แก้ไขชื่อ</button>
+                <button onclick="deleteMapMarker()" class="map-context-btn marker-delete">🗑️ ลบจุดมาร์ค</button>
+                <button onclick="hideMapMarkerMenus()" class="map-context-btn cancel">✕ ยกเลิก</button>
+            </div>
         </div>
         
         <div class="graph-title" style="margin-top: 15px; color: #38bdf8; display: flex; justify-content: space-between; align-items: center;">
@@ -767,6 +789,7 @@ const DOM = (() => {
         "memoryList", "saveName", "editNameInput", "editModal", "deleteModal",
         "historyList",
         "mapBgSelect", "mapBgStatus", "copyChatStatus", "mapContextMenu",
+        "mapMarkerCreateMenu", "mapMarkerEditMenu", "mapMarkerNameInput",
     ];
     const cache = {};
     const build = () => { ids.forEach(id => { cache[id] = document.getElementById(id); }); };
@@ -1231,13 +1254,15 @@ function renderWindUpdatedTime() {
 setInterval(renderWindUpdatedTime, 1000);
 
 function initWindTimestampUI() {
-    const speedEl = document.getElementById("windSpeed");
-    const dirEl = document.getElementById("windDir");
-    if (speedEl) speedEl.addEventListener("input", markWindUpdated);
-    if (dirEl) dirEl.addEventListener("input", markWindUpdated);
     renderWindUpdatedTime();
 }
 if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", initWindTimestampUI); } else { initWindTimestampUI(); }
+
+// เรียกจากปุ่ม Calculate เท่านั้น — เริ่มนับเวลาข้อมูลลมใหม่ต่อเมื่อกดคำนวณจริง ไม่ใช่ตอนพิมพ์ค่าลม
+function calculateAndMarkWind() {
+    markWindUpdated();
+    calculate();
+}
 
 let mapMode = 'auto'; let mapCamX = 0; let mapCamY = 0; let mapZoom = 1;
 let isPanning = false; let startPanX, startPanY; let isRedrawing = false;
@@ -2381,6 +2406,32 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
     }
 
     if (foImpactPoint && foPosition) { const cxFO = toCanvasX(foPosition.x); const cyFO = toCanvasY(foPosition.y); const cxImp = toCanvasX(foImpactPoint.x); const cyImp = toCanvasY(foImpactPoint.y); ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(139, 92, 246, 0.7)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cxFO, cyFO); ctx.lineTo(cxImp, cyImp); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = "#8b5cf6"; ctx.beginPath(); ctx.arc(cxFO, cyFO, 5, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#4c1d95"; ctx.font = "bold 11px sans-serif"; ctx.fillText("FO", cxFO + 8, cyFO + 4); ctx.strokeStyle = "#8b5cf6"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(cxImp - 5, cyImp - 5); ctx.lineTo(cxImp + 5, cyImp + 5); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cxImp + 5, cyImp - 5); ctx.lineTo(cxImp - 5, cyImp + 5); ctx.stroke(); ctx.fillStyle = "#4c1d95"; ctx.font = "bold 11px sans-serif"; ctx.fillText("IMPACT", cxImp + 8, cyImp + 4); }
+
+    // จุดมาร์คที่ผู้ใช้ตั้งเอง (คลิกขวา) — ผูกกับแผนที่ปัจจุบันเท่านั้น
+    if (typeof getMarkersForCurrentMap === "function") {
+        const userMarkers = getMarkersForCurrentMap();
+        ctx.textBaseline = "alphabetic";
+        userMarkers.forEach((m) => {
+            const mx = toCanvasX(m.x), my = toCanvasY(m.y);
+            ctx.fillStyle = "#facc15";
+            ctx.strokeStyle = "#78350f";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(mx, my - 10);
+            ctx.lineTo(mx + 7, my - 3);
+            ctx.lineTo(mx + 4, my + 8);
+            ctx.lineTo(mx - 4, my + 8);
+            ctx.lineTo(mx - 7, my - 3);
+            ctx.closePath();
+            ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.arc(mx, my - 3, 2, 0, Math.PI * 2); ctx.fillStyle = "#78350f"; ctx.fill();
+            ctx.font = "bold 11px sans-serif"; ctx.textAlign = "left";
+            ctx.fillStyle = "#0a0f14";
+            ctx.fillText(m.name, mx + 10, my - 3);
+            ctx.fillStyle = "#facc15";
+            ctx.fillText(m.name, mx + 9, my - 4);
+        });
+    }
     if (windSpeed > 0) {
         const cx = w - 58, cy = 58, R = 34;
         let windColor = windSpeed >= 7 ? "#ff3b3b" : (windSpeed >= 3 ? "#ffb02e" : "#4caf50");
@@ -2972,17 +3023,20 @@ mapCanvas.addEventListener('dblclick', (e) => {
     showMapContextMenu(e.offsetX, e.offsetY);
 });
 
-function showMapContextMenu(offsetX, offsetY) {
-    const menu = DOM["mapContextMenu"];
-    if (!menu) return;
-    // จำกัดตำแหน่งไม่ให้ popup ล้นขอบ wrapper (กันเมนูโผล่นอกจอตอนดับเบิลคลิกใกล้ขอบแผนที่)
+function positionMapPopup(menu, offsetX, offsetY, menuW, menuH) {
+    // จำกัดตำแหน่งไม่ให้ popup ล้นขอบ wrapper (กันเมนูโผล่นอกจอตอนคลิกใกล้ขอบแผนที่)
     const wrapperW = mapCanvas.clientWidth, wrapperH = mapCanvas.clientHeight;
-    const menuW = 200, menuH = 120; // ประมาณขนาด popup
     const left = Math.min(offsetX, wrapperW - menuW - 5);
     const top = Math.min(offsetY, wrapperH - menuH - 5);
     menu.style.left = Math.max(5, left) + "px";
     menu.style.top = Math.max(5, top) + "px";
     menu.style.display = "flex";
+}
+
+function showMapContextMenu(offsetX, offsetY) {
+    const menu = DOM["mapContextMenu"];
+    if (!menu) return;
+    positionMapPopup(menu, offsetX, offsetY, 200, 120); // ประมาณขนาด popup
 }
 
 function hideMapContextMenu() {
@@ -3011,11 +3065,158 @@ function applyMapContextMenu(role) {
 // คลิกที่อื่นนอกเมนู (บนแผนที่หรือนอกแผนที่) ให้ปิดเมนูอัตโนมัติ
 document.addEventListener('click', (e) => {
     const menu = DOM["mapContextMenu"];
-    if (!menu || menu.style.display === "none") return;
-    if (!menu.contains(e.target) && e.target !== mapCanvas) { hideMapContextMenu(); }
+    if (menu && menu.style.display !== "none" && !menu.contains(e.target) && e.target !== mapCanvas) { hideMapContextMenu(); }
+    const cMenu = DOM["mapMarkerCreateMenu"];
+    if (cMenu && cMenu.style.display !== "none" && !cMenu.contains(e.target) && e.target !== mapCanvas) { hideMapMarkerMenus(); }
+    const eMenu = DOM["mapMarkerEditMenu"];
+    if (eMenu && eMenu.style.display !== "none" && !eMenu.contains(e.target) && e.target !== mapCanvas) { hideMapMarkerMenus(); }
 });
 // ป้องกันการคลิกครั้งแรกของ dblclick (ที่ทำให้เกิด 'click' event ก่อน dblclick) ปิดเมนูตัวเองทันทีที่เพิ่งเปิด
 mapCanvas.addEventListener('click', (e) => e.stopPropagation());
+
+// ═══════════════════════════════════════════════════════════════════
+// MAP MARKERS — คลิกขวา เพื่อตั้ง/แก้ไข/ลบ จุดมาร์คบนแผนที่ (ผูกติดกับแผนที่ที่เลือกอยู่)
+// ═══════════════════════════════════════════════════════════════════
+let mapMarkers = {}; // { [mapName]: [{x, y, name}, ...] }
+try { const md = localStorage.getItem('m777_map_markers'); mapMarkers = md ? JSON.parse(md) : {}; } catch (e) { mapMarkers = {}; }
+
+let pendingMarkerWorldCoord = null; // พิกัดที่กำลังจะสร้างมาร์คใหม่
+let pendingMarkerEditIndex = -1;    // index ของมาร์คที่กำลังจะแก้ไข/ลบ (ในแผนที่ปัจจุบัน)
+
+function currentMapKey() {
+    return DOM["mapBgSelect"] ? (DOM["mapBgSelect"].value || "") : "";
+}
+
+function getMarkersForCurrentMap() {
+    const key = currentMapKey();
+    if (!mapMarkers[key]) mapMarkers[key] = [];
+    return mapMarkers[key];
+}
+
+function saveMapMarkers() {
+    try { localStorage.setItem('m777_map_markers', JSON.stringify(mapMarkers)); } catch (e) { console.error("Error saving map markers", e); }
+}
+
+// หามาร์คที่อยู่ใกล้ตำแหน่งคลิก (ในระยะพิกเซลบนจอ) — คืน index ในแผนที่ปัจจุบัน หรือ -1 ถ้าไม่เจอ
+function findMarkerNearScreenPoint(offsetX, offsetY) {
+    const logicalSize = 700;
+    const scaleX = logicalSize / mapCanvas.clientWidth;
+    const scaleY = logicalSize / mapCanvas.clientHeight;
+    const canvasX = offsetX * scaleX;
+    const canvasY = offsetY * scaleY;
+    const markers = getMarkersForCurrentMap();
+    const hitRadiusPx = 14;
+    for (let i = 0; i < markers.length; i++) {
+        const m = markers[i];
+        const mx = logicalSize / 2 + (m.x - mapCamX) * mapZoom;
+        const my = logicalSize / 2 - (m.y - mapCamY) * mapZoom;
+        const dx = canvasX - mx, dy = canvasY - my;
+        if (Math.sqrt(dx * dx + dy * dy) <= hitRadiusPx) return i;
+    }
+    return -1;
+}
+
+let lastContextMenuTime = 0;
+let lastContextMenuPos = { x: -9999, y: -9999 };
+const DOUBLE_RIGHTCLICK_MS = 450;
+const DOUBLE_RIGHTCLICK_PX = 12;
+
+mapCanvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault(); // กันเมนูคลิกขวาของเบราว์เซอร์เสมอ ไม่ว่าจะครั้งเดียวหรือสองครั้ง
+
+    const now = Date.now();
+    const dx = e.offsetX - lastContextMenuPos.x, dy = e.offsetY - lastContextMenuPos.y;
+    const isDoubleRightClick = (now - lastContextMenuTime) <= DOUBLE_RIGHTCLICK_MS && Math.sqrt(dx * dx + dy * dy) <= DOUBLE_RIGHTCLICK_PX;
+
+    if (!isDoubleRightClick) {
+        // คลิกขวาครั้งแรก — แค่บันทึกไว้รอดูว่าจะมีครั้งที่สองตามมาหรือไม่ ยังไม่เปิดเมนู
+        lastContextMenuTime = now;
+        lastContextMenuPos = { x: e.offsetX, y: e.offsetY };
+        return;
+    }
+    // คลิกขวาครั้งที่สอง (ในเวลา/ระยะที่กำหนด) — เปิดเมนูจุดมาร์ค แล้วรีเซ็ตตัวจับเวลา
+    lastContextMenuTime = 0;
+    lastContextMenuPos = { x: -9999, y: -9999 };
+
+    hideMapContextMenu();
+    hideMapMarkerMenus(); // ปิดเมนูมาร์คเก่า (ถ้ามีค้าง) ก่อนตั้งพิกัดใหม่ กันไม่ให้ค่าที่กำลังจะตั้งโดนล้างทับทีหลัง
+    const hitIdx = findMarkerNearScreenPoint(e.offsetX, e.offsetY);
+    if (hitIdx > -1) {
+        pendingMarkerEditIndex = hitIdx;
+        showMapMarkerEditMenu(e.offsetX, e.offsetY);
+    } else {
+        pendingMarkerWorldCoord = screenToWorldCoord(e.offsetX, e.offsetY);
+        showMapMarkerCreateMenu(e.offsetX, e.offsetY);
+    }
+});
+
+function showMapMarkerCreateMenu(offsetX, offsetY) {
+    const menu = DOM["mapMarkerCreateMenu"];
+    if (!menu) return;
+    positionMapPopup(menu, offsetX, offsetY, 220, 90);
+    const input = DOM["mapMarkerNameInput"];
+    if (input) { input.value = ""; setTimeout(() => input.focus(), 0); }
+}
+
+function showMapMarkerEditMenu(offsetX, offsetY) {
+    const menu = DOM["mapMarkerEditMenu"];
+    if (!menu) return;
+    positionMapPopup(menu, offsetX, offsetY, 200, 120);
+}
+
+function hideMapMarkerMenus() {
+    const cMenu = DOM["mapMarkerCreateMenu"];
+    const eMenu = DOM["mapMarkerEditMenu"];
+    if (cMenu) cMenu.style.display = "none";
+    if (eMenu) eMenu.style.display = "none";
+    pendingMarkerWorldCoord = null;
+    pendingMarkerEditIndex = -1;
+}
+
+// สแนปพิกัดให้อยู่กึ่งกลางช่องกริดหลัก 10 เมตร (ตรงกับตำแหน่งที่ระบบตั้ง Target/Gun จากแผนที่จริงๆ ใช้)
+// อิงตาม formatMetersToArma(...,4) [floor(m/10)] + parseArmaGrid ย้อนกลับ [*10 + 5]
+function snapTo10mGrid(meters) {
+    const isNeg = meters < 0;
+    const cell = Math.floor(Math.abs(meters) / 10);
+    const centered = cell * 10 + 5;
+    return isNeg ? -centered : centered;
+}
+
+function confirmCreateMapMarker() {
+    if (!pendingMarkerWorldCoord) { hideMapMarkerMenus(); return; }
+    const input = DOM["mapMarkerNameInput"];
+    const name = input ? input.value.trim() : "";
+    if (!name) { if (input) input.focus(); return; }
+    const x = snapTo10mGrid(pendingMarkerWorldCoord.x);
+    const y = snapTo10mGrid(pendingMarkerWorldCoord.y);
+    getMarkersForCurrentMap().push({ x, y, name });
+    saveMapMarkers();
+    hideMapMarkerMenus();
+    redrawMapOnly();
+}
+
+function startEditMapMarker() {
+    const markers = getMarkersForCurrentMap();
+    const marker = markers[pendingMarkerEditIndex];
+    if (!marker) { hideMapMarkerMenus(); return; }
+    const newName = prompt("แก้ไขชื่อจุดมาร์ค:", marker.name);
+    if (newName !== null && newName.trim() !== "") {
+        marker.name = newName.trim();
+        saveMapMarkers();
+        redrawMapOnly();
+    }
+    hideMapMarkerMenus();
+}
+
+function deleteMapMarker() {
+    const markers = getMarkersForCurrentMap();
+    if (pendingMarkerEditIndex > -1 && markers[pendingMarkerEditIndex]) {
+        markers.splice(pendingMarkerEditIndex, 1);
+        saveMapMarkers();
+        redrawMapOnly();
+    }
+    hideMapMarkerMenus();
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // COPY TO CHAT — สร้างข้อความ FIRE MISSION สำหรับแจ้งทีม/พลยิง จากผลคำนวณล่าสุด

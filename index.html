@@ -84,8 +84,11 @@
         }
 
         .container { display: grid; grid-template-columns: minmax(750px, 1.6fr) minmax(600px, 1fr) 300px; gap: 18px; max-width: 1800px; width: 100%; position: relative; z-index: 1; }
+        .container > * { min-width: 0; }
         @media (max-width: 1250px) { .container { grid-template-columns: 1fr; } .map-panel { grid-column: span 1; } }
         @media (max-width: 480px) { .main-calc-layout { grid-template-columns: 1fr !important; } body { padding: 12px 8px 40px; } }
+        .main-calc-layout > * { min-width: 0; }
+        .map-wrapper { max-width: 100%; }
 
         /* ── Panel / Card — HUD bracket frame ───────────────────────── */
         .card {
@@ -2993,6 +2996,74 @@ function touchEndHandler(e) {
 }
 mapCanvas.addEventListener('touchend', touchEndHandler);
 mapCanvas.addEventListener('touchcancel', touchEndHandler);
+
+// ═══════════════════════════════════════════════════════════════════
+// TOUCH LONG-PRESS — ทดแทน double-click (ตั้ง Target/Gun) และ right-click (จุดมาร์ค)
+// บนมือถือ/iPad ไม่มี dblclick/contextmenu ที่ใช้งานได้จริง จึงใช้ "แตะค้าง" แทน:
+//   - แตะค้างบนจุดมาร์คที่มีอยู่ → เปิดเมนูแก้ไข/ลบจุดมาร์ค
+//   - แตะค้างบนพื้นที่ว่าง ขณะ "โหมดปักหมุด" (ปุ่ม 📍) เปิดอยู่ → เปิดเมนูสร้างจุดมาร์คใหม่
+//   - แตะค้างบนพื้นที่ว่าง ขณะโหมดปักหมุดปิดอยู่ (ค่าเริ่มต้น) → เปิดเมนู Set Target/Gun Position (แทน dblclick)
+// ยกเลิกถ้ามีการขยับนิ้วเกิน threshold หรือมีนิ้วที่สอง (ป้องกันชนกับ pan/pinch)
+// ═══════════════════════════════════════════════════════════════════
+// TODO: ยังไม่มีวิธีสร้างจุดมาร์คใหม่บนมือถือ/ทัช (เดิมคิดจะใช้ปุ่มโหมดปักหมุด แต่เอาออกไปก่อน รอคิดวิธีใหม่)
+// ตอนนี้แตะค้างบนพื้นที่ว่างจะเปิดเมนู Set Target/Gun เสมอ ส่วนแตะค้างบนจุดมาร์คที่มีอยู่แล้วยังแก้ไข/ลบได้ตามปกติ
+const LONG_PRESS_MS = 500;
+const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
+let longPressTimer = null;
+let longPressStartPos = null;
+let longPressFired = false;
+
+function clearLongPressTimer() {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+    longPressStartPos = null;
+}
+
+function startLongPressWatch(offsetX, offsetY) {
+    clearLongPressTimer();
+    longPressFired = false;
+    longPressStartPos = { x: offsetX, y: offsetY };
+    longPressTimer = setTimeout(() => {
+        longPressTimer = null;
+        longPressFired = true;
+        isPanning = false; // กันไม่ให้ตีความเป็นการลาก pan ต่อ หลังจากเปิดเมนูแล้ว
+        hideMapContextMenu();
+        hideMapMarkerMenus();
+        const hitIdx = findMarkerNearScreenPoint(offsetX, offsetY);
+        if (hitIdx > -1) {
+            pendingMarkerEditIndex = hitIdx;
+            showMapMarkerEditMenu(offsetX, offsetY);
+        } else {
+            pendingMapWorldCoord = screenToWorldCoord(offsetX, offsetY);
+            showMapContextMenu(offsetX, offsetY);
+        }
+        if (navigator.vibrate) navigator.vibrate(15); // สั่นเบาๆ บอกว่าเมนูเปิดแล้ว (ถ้าเครื่องรองรับ)
+    }, LONG_PRESS_MS);
+}
+
+mapCanvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+        const p = getCanvasOffset(e.touches[0]);
+        startLongPressWatch(p.x, p.y);
+    } else {
+        clearLongPressTimer();
+    }
+}, { passive: false });
+
+mapCanvas.addEventListener('touchmove', (e) => {
+    if (longPressStartPos && e.touches.length === 1) {
+        const p = getCanvasOffset(e.touches[0]);
+        const dx = p.x - longPressStartPos.x, dy = p.y - longPressStartPos.y;
+        if (Math.sqrt(dx * dx + dy * dy) > LONG_PRESS_MOVE_TOLERANCE_PX) clearLongPressTimer();
+    } else if (e.touches.length !== 1) {
+        clearLongPressTimer();
+    }
+}, { passive: false });
+
+function longPressTouchEndHandler() {
+    clearLongPressTimer();
+}
+mapCanvas.addEventListener('touchend', longPressTouchEndHandler);
+mapCanvas.addEventListener('touchcancel', longPressTouchEndHandler);
 
 function zoomMap(factor) { if (mapMode === 'auto') mapMode = 'free'; mapZoom *= factor; redrawMapOnly(); MapBackground.notifyViewChanged(); }
 function resetMap() { mapMode = 'auto'; redrawMapOnly(); MapBackground.notifyViewChanged(); }

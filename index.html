@@ -84,11 +84,8 @@
         }
 
         .container { display: grid; grid-template-columns: minmax(750px, 1.6fr) minmax(600px, 1fr) 300px; gap: 18px; max-width: 1800px; width: 100%; position: relative; z-index: 1; }
-        .container > * { min-width: 0; }
         @media (max-width: 1250px) { .container { grid-template-columns: 1fr; } .map-panel { grid-column: span 1; } }
         @media (max-width: 480px) { .main-calc-layout { grid-template-columns: 1fr !important; } body { padding: 12px 8px 40px; } }
-        .main-calc-layout > * { min-width: 0; }
-        .map-wrapper { max-width: 100%; }
 
         /* ── Panel / Card — HUD bracket frame ───────────────────────── */
         .card {
@@ -1545,10 +1542,22 @@ const MapBackground = (() => {
 
 function onMapBgChange() {
     const val = DOM["mapBgSelect"].value;
+    try { localStorage.setItem('m777_selected_map', val); } catch (e) { /* ไม่เป็นไร แค่จำไม่ได้รอบหน้า */ }
     MapBackground.setMap(val);
 }
 
-window.addEventListener('load', function() { changeWeapon(); setTimeout(function() { autoLoadFromLocalStorage(); }, 200); });
+// คืนค่าแผนที่ที่เลือกไว้ล่าสุดตอนเปิดหน้าใหม่ (กันปัญหา dropdown รีเซ็ตกลับ "ไม่แสดงแผนที่" แล้วดูเหมือนจุดมาร์คหาย ทั้งที่จริงยังอยู่ใน localStorage ผูกกับชื่อแผนที่เดิม)
+function restoreSelectedMap() {
+    try {
+        const saved = localStorage.getItem('m777_selected_map');
+        if (saved && DOM["mapBgSelect"]) {
+            const opt = Array.from(DOM["mapBgSelect"].options).find(o => o.value === saved);
+            if (opt) { DOM["mapBgSelect"].value = saved; onMapBgChange(); }
+        }
+    } catch (e) { /* ไม่เป็นไร แค่ไม่คืนค่าให้ */ }
+}
+
+window.addEventListener('load', function() { changeWeapon(); setTimeout(function() { autoLoadFromLocalStorage(); restoreSelectedMap(); }, 200); });
 function autoLoadFromLocalStorage() {
     try {
         const localData = localStorage.getItem('m777_memory');
@@ -2311,11 +2320,34 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
 
         const drawLayer = (layer) => {
             const scaleImgToWorld = layer.width / layer.image.width; // เมตรต่อ 1 พิกเซลภาพระดับนี้
-            const srcX = viewMinX / scaleImgToWorld;
-            const srcYTop = (layer.height - viewMaxY) / scaleImgToWorld;
-            const srcW = (viewMaxX - viewMinX) / scaleImgToWorld;
-            const srcH = (viewMaxY - viewMinY) / scaleImgToWorld;
-            try { ctx.drawImage(layer.image, srcX, srcYTop, srcW, srcH, 0, 0, w, h); } catch (e) { /* view นอกภาพ ข้ามได้ */ }
+            const imgW = layer.image.width, imgH = layer.image.height;
+            const rawSrcX = viewMinX / scaleImgToWorld;
+            const rawSrcYTop = (layer.height - viewMaxY) / scaleImgToWorld;
+            const rawSrcW = (viewMaxX - viewMinX) / scaleImgToWorld;
+            const rawSrcH = (viewMaxY - viewMinY) / scaleImgToWorld;
+
+            // จำกัด source rect ให้อยู่ในขอบเขตภาพจริงเสมอ (สำคัญมากตอนซูมใกล้ขอบแผนที่)
+            // ถ้าปล่อยให้ srcX/srcYTop ติดลบหรือ srcX+srcW เกินขอบภาพ บาง browser (โดยเฉพาะ mobile Safari)
+            // จะบีบ/ยืดส่วนภาพที่มีจริงให้เต็ม destination rect (0,0,w,h) แทนที่จะ error หรือ clip ให้ — ทำให้ภาพยืดเบี้ยว
+            // จึงคำนวณสัดส่วนที่โดนตัดจากทั้งสองด้าน (ซ้าย+ขวา, บน+ล่าง) เทียบกับขนาดต้นฉบับ (rawSrcW/rawSrcH) ทีเดียว
+            // แล้วค่อยลด destination rect ลงตามสัดส่วนนั้น เพื่อให้สเกล 1:1 คงเดิม ไม่ยืด ไม่ว่าจะโดนตัดกี่ด้านพร้อมกัน
+            const cutLeft = Math.max(0, -rawSrcX);
+            const cutTop = Math.max(0, -rawSrcYTop);
+            const cutRight = Math.max(0, (rawSrcX + rawSrcW) - imgW);
+            const cutBottom = Math.max(0, (rawSrcYTop + rawSrcH) - imgH);
+
+            const srcX = rawSrcX + cutLeft;
+            const srcYTop = rawSrcYTop + cutTop;
+            const srcW = rawSrcW - cutLeft - cutRight;
+            const srcH = rawSrcH - cutTop - cutBottom;
+
+            const dstX = (cutLeft / rawSrcW) * w;
+            const dstY = (cutTop / rawSrcH) * h;
+            const dstW = w - ((cutLeft + cutRight) / rawSrcW) * w;
+            const dstH = h - ((cutTop + cutBottom) / rawSrcH) * h;
+
+            if (srcW <= 0 || srcH <= 0 || dstW <= 0 || dstH <= 0) return; // มุมมองอยู่นอกภาพทั้งหมด ข้ามวาด
+            try { ctx.drawImage(layer.image, srcX, srcYTop, srcW, srcH, dstX, dstY, dstW, dstH); } catch (e) { /* เผื่อกรณีอื่นๆ ข้ามได้ */ }
         };
 
         drawLayer(bgMap.base); // ภาพหยาบเต็มแมป วาดก่อนเป็นพื้นเสมอ
@@ -2410,28 +2442,25 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
 
     if (foImpactPoint && foPosition) { const cxFO = toCanvasX(foPosition.x); const cyFO = toCanvasY(foPosition.y); const cxImp = toCanvasX(foImpactPoint.x); const cyImp = toCanvasY(foImpactPoint.y); ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(139, 92, 246, 0.7)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cxFO, cyFO); ctx.lineTo(cxImp, cyImp); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = "#8b5cf6"; ctx.beginPath(); ctx.arc(cxFO, cyFO, 5, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#4c1d95"; ctx.font = "bold 11px sans-serif"; ctx.fillText("FO", cxFO + 8, cyFO + 4); ctx.strokeStyle = "#8b5cf6"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(cxImp - 5, cyImp - 5); ctx.lineTo(cxImp + 5, cyImp + 5); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cxImp + 5, cyImp - 5); ctx.lineTo(cxImp - 5, cyImp + 5); ctx.stroke(); ctx.fillStyle = "#4c1d95"; ctx.font = "bold 11px sans-serif"; ctx.fillText("IMPACT", cxImp + 8, cyImp + 4); }
 
-    // จุดมาร์คที่ผู้ใช้ตั้งเอง (คลิกขวา) — ผูกกับแผนที่ปัจจุบันเท่านั้น
+    // จุดมาร์คที่ผู้ใช้ตั้งเอง (คลิกขวา) — ผูกกับแผนที่ปัจจุบันเท่านั้น — รูปสามเหลี่ยมหัวชี้ลงสีดำ ปลายแหลมชี้ตำแหน่งจริง
     if (typeof getMarkersForCurrentMap === "function") {
         const userMarkers = getMarkersForCurrentMap();
         ctx.textBaseline = "alphabetic";
         userMarkers.forEach((m) => {
             const mx = toCanvasX(m.x), my = toCanvasY(m.y);
-            ctx.fillStyle = "#facc15";
-            ctx.strokeStyle = "#78350f";
-            ctx.lineWidth = 1.5;
+            ctx.fillStyle = "#000000";
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 1.2;
             ctx.beginPath();
-            ctx.moveTo(mx, my - 10);
-            ctx.lineTo(mx + 7, my - 3);
-            ctx.lineTo(mx + 4, my + 8);
-            ctx.lineTo(mx - 4, my + 8);
-            ctx.lineTo(mx - 7, my - 3);
+            ctx.moveTo(mx, my + 9);      // ปลายแหลมชี้ลง = ตำแหน่งจริงของจุดมาร์ค
+            ctx.lineTo(mx - 7, my - 6);
+            ctx.lineTo(mx + 7, my - 6);
             ctx.closePath();
             ctx.fill(); ctx.stroke();
-            ctx.beginPath(); ctx.arc(mx, my - 3, 2, 0, Math.PI * 2); ctx.fillStyle = "#78350f"; ctx.fill();
             ctx.font = "bold 11px sans-serif"; ctx.textAlign = "left";
             ctx.fillStyle = "#0a0f14";
             ctx.fillText(m.name, mx + 10, my - 3);
-            ctx.fillStyle = "#facc15";
+            ctx.fillStyle = "#ffffff";
             ctx.fillText(m.name, mx + 9, my - 4);
         });
     }
@@ -2996,74 +3025,6 @@ function touchEndHandler(e) {
 }
 mapCanvas.addEventListener('touchend', touchEndHandler);
 mapCanvas.addEventListener('touchcancel', touchEndHandler);
-
-// ═══════════════════════════════════════════════════════════════════
-// TOUCH LONG-PRESS — ทดแทน double-click (ตั้ง Target/Gun) และ right-click (จุดมาร์ค)
-// บนมือถือ/iPad ไม่มี dblclick/contextmenu ที่ใช้งานได้จริง จึงใช้ "แตะค้าง" แทน:
-//   - แตะค้างบนจุดมาร์คที่มีอยู่ → เปิดเมนูแก้ไข/ลบจุดมาร์ค
-//   - แตะค้างบนพื้นที่ว่าง ขณะ "โหมดปักหมุด" (ปุ่ม 📍) เปิดอยู่ → เปิดเมนูสร้างจุดมาร์คใหม่
-//   - แตะค้างบนพื้นที่ว่าง ขณะโหมดปักหมุดปิดอยู่ (ค่าเริ่มต้น) → เปิดเมนู Set Target/Gun Position (แทน dblclick)
-// ยกเลิกถ้ามีการขยับนิ้วเกิน threshold หรือมีนิ้วที่สอง (ป้องกันชนกับ pan/pinch)
-// ═══════════════════════════════════════════════════════════════════
-// TODO: ยังไม่มีวิธีสร้างจุดมาร์คใหม่บนมือถือ/ทัช (เดิมคิดจะใช้ปุ่มโหมดปักหมุด แต่เอาออกไปก่อน รอคิดวิธีใหม่)
-// ตอนนี้แตะค้างบนพื้นที่ว่างจะเปิดเมนู Set Target/Gun เสมอ ส่วนแตะค้างบนจุดมาร์คที่มีอยู่แล้วยังแก้ไข/ลบได้ตามปกติ
-const LONG_PRESS_MS = 500;
-const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
-let longPressTimer = null;
-let longPressStartPos = null;
-let longPressFired = false;
-
-function clearLongPressTimer() {
-    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-    longPressStartPos = null;
-}
-
-function startLongPressWatch(offsetX, offsetY) {
-    clearLongPressTimer();
-    longPressFired = false;
-    longPressStartPos = { x: offsetX, y: offsetY };
-    longPressTimer = setTimeout(() => {
-        longPressTimer = null;
-        longPressFired = true;
-        isPanning = false; // กันไม่ให้ตีความเป็นการลาก pan ต่อ หลังจากเปิดเมนูแล้ว
-        hideMapContextMenu();
-        hideMapMarkerMenus();
-        const hitIdx = findMarkerNearScreenPoint(offsetX, offsetY);
-        if (hitIdx > -1) {
-            pendingMarkerEditIndex = hitIdx;
-            showMapMarkerEditMenu(offsetX, offsetY);
-        } else {
-            pendingMapWorldCoord = screenToWorldCoord(offsetX, offsetY);
-            showMapContextMenu(offsetX, offsetY);
-        }
-        if (navigator.vibrate) navigator.vibrate(15); // สั่นเบาๆ บอกว่าเมนูเปิดแล้ว (ถ้าเครื่องรองรับ)
-    }, LONG_PRESS_MS);
-}
-
-mapCanvas.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 1) {
-        const p = getCanvasOffset(e.touches[0]);
-        startLongPressWatch(p.x, p.y);
-    } else {
-        clearLongPressTimer();
-    }
-}, { passive: false });
-
-mapCanvas.addEventListener('touchmove', (e) => {
-    if (longPressStartPos && e.touches.length === 1) {
-        const p = getCanvasOffset(e.touches[0]);
-        const dx = p.x - longPressStartPos.x, dy = p.y - longPressStartPos.y;
-        if (Math.sqrt(dx * dx + dy * dy) > LONG_PRESS_MOVE_TOLERANCE_PX) clearLongPressTimer();
-    } else if (e.touches.length !== 1) {
-        clearLongPressTimer();
-    }
-}, { passive: false });
-
-function longPressTouchEndHandler() {
-    clearLongPressTimer();
-}
-mapCanvas.addEventListener('touchend', longPressTouchEndHandler);
-mapCanvas.addEventListener('touchcancel', longPressTouchEndHandler);
 
 function zoomMap(factor) { if (mapMode === 'auto') mapMode = 'free'; mapZoom *= factor; redrawMapOnly(); MapBackground.notifyViewChanged(); }
 function resetMap() { mapMode = 'auto'; redrawMapOnly(); MapBackground.notifyViewChanged(); }

@@ -369,6 +369,19 @@
         .gun-pos-extra .grid-3 { margin-bottom: 8px; }
         .gun-pos-extra .grid-3:last-child { margin-bottom: 0; }
 
+        /* Counter-Battery panel */
+        .cb-header { cursor:pointer; user-select:none; }
+        .cb-body { display:none; margin-top: 12px; }
+        .cb-body.expanded { display:block; }
+        .cb-coord-row { display:grid; grid-template-columns: 18px 1fr 1fr 24px; gap:6px; align-items:center; margin-bottom:6px; }
+        .cb-coord-row .cb-idx { font-family: var(--font-mono); font-size: 11px; color: var(--ink-dim); text-align:center; }
+        .cb-coord-row input { margin:0; }
+        .cb-clear-btn { width:24px; height:24px; padding:0; margin:0; font-size:12px; border-radius:4px; background:#1a0e0e; border:1px solid #5c2626; color:#ff6b6b; cursor:pointer; line-height:1; }
+        .cb-clear-btn:hover { background:#2a1414; }
+        .cb-actions { display:flex; gap:8px; margin-top:10px; }
+        .cb-actions button { margin:0; }
+        .cb-info { font-size: 11px; color: var(--ink-dim); margin-top: 8px; line-height:1.5; font-family: var(--font-mono); }
+
         /* Firing pattern selector */
         .fire-pattern-row { display:flex; align-items:center; gap:6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
         .fire-pattern-row select { margin:0; padding: 4px; font-size: 11px; flex: 1; }
@@ -710,8 +723,11 @@
 
     <div class="right-col" style="display: flex; flex-direction: column; gap: 20px;">
         <div class="card">
-            <h2 style="color:#eab308; font-size: 16px;">🔭 FO SPOTTER</h2>
-            <div class="section section-transparent">
+            <div class="cb-header" onclick="toggleFOSpotter()">
+                <h2 style="color:#eab308;">🔭 FO SPOTTER</h2>
+            </div>
+            <div id="foBody" class="cb-body">
+                <div class="section section-transparent">
                 <div class="grid-2">
                     <div><label>FO X (East)</label><input type="text" inputmode="decimal" id="foX" value="0000" onchange="formatCoord(this)"></div>
                     <div><label>FO Y (North)</label><input type="text" inputmode="decimal" id="foY" value="0000" onchange="formatCoord(this)"></div>
@@ -735,6 +751,23 @@
                 
                 <div id="foResult" class="fo-result-box" style="display: none;"></div>
                 <div id="foCorrectionResult" class="fo-correction-box" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="cb-header" onclick="toggleCounterBattery()">
+                <h2 style="color:#f97316;">📡 COUNTER-BATTERY</h2>
+            </div>
+            <div id="cbBody" class="cb-body">
+                <div id="cbCoordRows"></div>
+                <div class="cb-actions">
+                    <button onclick="clearCounterBatteryAll()" style="background:#1a0e0e; border:1px solid #5c2626; color:#ff6b6b;">🗑️ ล้างทั้งหมด</button>
+                </div>
+                <div class="cb-info">
+                    🟡 จุดตรวจจับเรดาร์ (ความแม่นยำ 50-100m)<br>
+                    🟠 จุดกึ่งกลางพื้นที่แรเงา (ตำแหน่งประเมินฐานปืนศัตรู)
+                </div>
             </div>
         </div>
 
@@ -791,6 +824,7 @@ const DOM = (() => {
         "historyList",
         "mapBgSelect", "mapBgStatus", "copyChatStatus", "mapContextMenu",
         "mapMarkerCreateMenu", "mapMarkerEditMenu", "mapMarkerNameInput",
+        "cbBody", "cbCoordRows", "foBody",
     ];
     const cache = {};
     const build = () => { ids.forEach(id => { cache[id] = document.getElementById(id); }); };
@@ -1658,6 +1692,210 @@ function changeAmmo() {
 }
 
 function resetFOState() { foPosition = null; foImpactPoint = null; DOM["foResult"].style.display = "none"; DOM["foCorrectionResult"].style.display = "none"; disableApplyCorrectionBtn(); }
+
+// ═══════════════════════════════════════════════════════════════════
+// COUNTER-BATTERY — รับพิกัดตรวจจับเรดาร์สูงสุด 6 จุด, หาขอบเขตพื้นที่ (convex hull)
+// ที่เป็นไปได้ของฐานปืนศัตรู (รัศมีความคลาดเคลื่อนเรดาร์ 50-100m ต่อจุด),
+// แรเงาพื้นที่เมื่อมี >3 จุด และ mark จุดกึ่งกลางด้วยจุดสีส้ม
+// ═══════════════════════════════════════════════════════════════════
+const CB_MAX_POINTS = 6;
+const CB_RADIUS_M = 75; // รัศมีเฉลี่ยของความคลาดเคลื่อนเรดาร์ (50-100m) ใช้ทำ buffer รอบแต่ละจุดตรวจจับ
+let cbPoints = [null, null, null, null, null, null]; // { x, y } หรือ null ถ้ายังไม่ได้ใส่
+
+function buildCounterBatteryUI() {
+    const container = DOM["cbCoordRows"];
+    if (!container) return;
+    let html = "";
+    for (let i = 0; i < CB_MAX_POINTS; i++) {
+        html += `<div class="cb-coord-row">
+            <span class="cb-idx">${i + 1}</span>
+            <input type="text" inputmode="decimal" id="cbX${i}" placeholder="X (East)" onchange="onCbCoordChange(${i})">
+            <input type="text" inputmode="decimal" id="cbY${i}" placeholder="Y (North)" onchange="onCbCoordChange(${i})">
+            <button type="button" class="cb-clear-btn" onclick="clearCbPoint(${i})" title="ลบจุดนี้">✕</button>
+        </div>`;
+    }
+    container.innerHTML = html;
+}
+
+function toggleCounterBattery() {
+    const body = DOM["cbBody"];
+    body.classList.toggle("expanded");
+}
+function toggleFOSpotter() {
+    const body = DOM["foBody"];
+    body.classList.toggle("expanded");
+}
+
+function onCbCoordChange(i) {
+    const xEl = document.getElementById(`cbX${i}`); const yEl = document.getElementById(`cbY${i}`);
+    if (!xEl || !yEl) return;
+    // จัดรูปแบบให้ตรงกับ FO X/Y (เติม 0 ข้างหน้าถ้าพิมพ์สั้นเกิน) แล้วค่อยแปลงเป็นเมตรจริงด้วย parseArmaGrid-style
+    formatCoord(xEl); formatCoord(yEl);
+    const xStr = xEl.value.trim(); const yStr = yEl.value.trim();
+    if (xStr === "" && yStr === "") { cbPoints[i] = null; }
+    else { cbPoints[i] = { x: parseArmaGridValue(xStr), y: parseArmaGridValue(yStr) }; }
+    redrawMapOnly();
+}
+
+function clearCbPoint(i) {
+    cbPoints[i] = null;
+    const xEl = document.getElementById(`cbX${i}`); const yEl = document.getElementById(`cbY${i}`);
+    if (xEl) xEl.value = ""; if (yEl) yEl.value = "";
+    redrawMapOnly();
+}
+
+function clearCounterBatteryAll() {
+    cbPoints = [null, null, null, null, null, null];
+    for (let i = 0; i < CB_MAX_POINTS; i++) {
+        const xEl = document.getElementById(`cbX${i}`); const yEl = document.getElementById(`cbY${i}`);
+        if (xEl) xEl.value = ""; if (yEl) yEl.value = "";
+    }
+    redrawMapOnly();
+}
+
+// เหมือน parseArmaGrid() แต่รับ string ตรงๆ แทนการอ่านจาก DOM id (ใช้กับช่อง Counter-Battery ที่สร้างแบบ dynamic)
+function parseArmaGridValue(valStr) {
+    valStr = (valStr || "").trim();
+    if (valStr === "") return 0;
+    let isNeg = valStr.startsWith('-');
+    let str = isNeg ? valStr.substring(1) : valStr;
+    let multiplier = 1; let offset = 0;
+    let intStr = str.split('.')[0];
+    if (str.includes('.')) {
+        if (intStr.length === 3) multiplier = 100;
+        else if (intStr.length === 4) multiplier = 10;
+        else { multiplier = 1; offset = 0; }
+    } else {
+        if (intStr.length === 3) { multiplier = 100; offset = 50; }
+        else if (intStr.length === 4) { multiplier = 10; offset = 5; }
+        else if (intStr.length === 5) { multiplier = 1; offset = 0; }
+        else if (intStr.length < 3) { multiplier = 100; offset = 50; }
+        else { multiplier = 1; offset = 0; }
+    }
+    return ((parseFloat(str) || 0) * multiplier + offset) * (isNeg ? -1 : 1);
+}
+
+function getActiveCbPoints() { return cbPoints.filter(p => p !== null); }
+
+// Convex hull (monotone chain) — ใช้หาขอบเขตรอบนอกสุดของจุดตรวจจับ เพื่อโยงเส้นเฉพาะจุดขอบ ไม่ใช่จุดที่ถูกล้อมอยู่ข้างใน
+function convexHull(points) {
+    if (points.length < 3) return points.slice();
+    const pts = points.slice().sort((a, b) => (a.x - b.x) || (a.y - b.y));
+    const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+    const lower = [];
+    for (const p of pts) {
+        while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+        lower.push(p);
+    }
+    const upper = [];
+    for (let i = pts.length - 1; i >= 0; i--) {
+        const p = pts[i];
+        while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+        upper.push(p);
+    }
+    lower.pop(); upper.pop();
+    return lower.concat(upper);
+}
+
+// จุดกึ่งกลาง: centroid ของ hull polygon (ถ้ามี >=3 จุดขอบ) หรือ centroid เฉลี่ยธรรมดา (ถ้ามีแค่ 1-2 จุด)
+function getCbCentroid(points, hull) {
+    if (hull.length >= 3) {
+        let area = 0, cx = 0, cy = 0;
+        for (let i = 0; i < hull.length; i++) {
+            const p0 = hull[i]; const p1 = hull[(i + 1) % hull.length];
+            const cr = p0.x * p1.y - p1.x * p0.y;
+            area += cr; cx += (p0.x + p1.x) * cr; cy += (p0.y + p1.y) * cr;
+        }
+        area *= 0.5;
+        if (Math.abs(area) > 1e-6) return { x: cx / (6 * area), y: cy / (6 * area) };
+    }
+    const n = points.length;
+    return { x: points.reduce((s, p) => s + p.x, 0) / n, y: points.reduce((s, p) => s + p.y, 0) / n };
+}
+
+// วาด Counter-Battery layer บนแผนที่: จุดเรดาร์สีเหลือง + เส้นขอบ hull + แรเงา (ถ้า >3 จุด) + จุดกึ่งกลางสีส้ม
+function drawCounterBatteryLayer(ctx, toCanvasX, toCanvasY, mapZoom) {
+    const points = getActiveCbPoints();
+    if (points.length === 0) return;
+
+    const hull = convexHull(points);
+    const showShading = points.length > 3;
+    const radiusPx = Math.max(CB_RADIUS_M * mapZoom, 3);
+
+    // แรเงาพื้นที่ครอบคลุม (hull ขยายออกด้วยรัศมีความคลาดเคลื่อนเรดาร์) เมื่อมีจุดเกิน 3 จุด
+    if (showShading && hull.length >= 2) {
+        ctx.save();
+        ctx.beginPath();
+        if (hull.length >= 3) {
+            hull.forEach((p, i) => {
+                const cx = toCanvasX(p.x), cy = toCanvasY(p.y);
+                if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+            });
+            ctx.closePath();
+        } else {
+            const cx0 = toCanvasX(hull[0].x), cy0 = toCanvasY(hull[0].y);
+            ctx.arc(cx0, cy0, radiusPx, 0, Math.PI * 2);
+        }
+        ctx.fillStyle = "rgba(234, 179, 8, 0.22)";
+        ctx.fill();
+        // ขยายขอบแรเงาออกด้วยรัศมีเรดาร์รอบจุด hull แต่ละจุด (วงกลมทับซ้อนรอบขอบ) เพื่อสื่อถึง buffer ความคลาดเคลื่อน
+        hull.forEach(p => {
+            const cx = toCanvasX(p.x), cy = toCanvasY(p.y);
+            ctx.beginPath(); ctx.arc(cx, cy, radiusPx, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(234, 179, 8, 0.15)"; ctx.fill();
+        });
+        ctx.restore();
+    }
+
+    // เส้นโยงเฉพาะจุดขอบนอกสุด (hull) ที่เรียงตัวเป็นทรงเรขาคณิต — จุดที่อยู่ในแรเงาไม่ต้องโยงเส้น
+    if (hull.length >= 2) {
+        ctx.save();
+        ctx.setLineDash([5, 4]);
+        ctx.strokeStyle = "rgba(234, 179, 8, 0.85)";
+        ctx.lineWidth = 1.75;
+        ctx.beginPath();
+        hull.forEach((p, i) => {
+            const cx = toCanvasX(p.x), cy = toCanvasY(p.y);
+            if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+        });
+        if (hull.length >= 3) ctx.closePath();
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+    }
+
+    // จุดตรวจจับเรดาร์แต่ละจุด (สีเหลือง) พร้อมเลขลำดับ 1-6 ตามช่องที่กรอก
+    cbPoints.forEach((p, i) => {
+        if (!p) return;
+        const cx = toCanvasX(p.x), cy = toCanvasY(p.y);
+        ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+        ctx.fillStyle = "#eab308"; ctx.fill();
+        ctx.strokeStyle = "#78350f"; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.fillStyle = "#1a1206";
+        ctx.font = "bold 9px sans-serif";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(String(i + 1), cx, cy + 0.5);
+        ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    });
+
+    // จุดกึ่งกลางพื้นที่ (สีส้ม) — แสดงเมื่อมีอย่างน้อย 2 จุดขึ้นไป
+    if (points.length >= 2) {
+        const centroid = getCbCentroid(points, hull);
+        const ccx = toCanvasX(centroid.x), ccy = toCanvasY(centroid.y);
+        ctx.save();
+        ctx.beginPath(); ctx.arc(ccx, ccy, 6, 0, Math.PI * 2);
+        ctx.fillStyle = "#f97316"; ctx.fill();
+        ctx.strokeStyle = "#7c2d12"; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(ccx - 9, ccy); ctx.lineTo(ccx + 9, ccy);
+        ctx.moveTo(ccx, ccy - 9); ctx.lineTo(ccx, ccy + 9);
+        ctx.strokeStyle = "#f97316"; ctx.lineWidth = 1; ctx.stroke();
+        ctx.font = "bold 10px sans-serif"; ctx.fillStyle = "#f97316";
+        ctx.fillText("EST. BATTERY", ccx + 10, ccy - 8);
+        ctx.restore();
+    }
+}
+
+buildCounterBatteryUI();
 function clearOffset() { if (aimOffsetX !== 0 || aimOffsetY !== 0) { offsetHistory.push({x: aimOffsetX, y: aimOffsetY}); } aimOffsetX = 0; aimOffsetY = 0; calculate(); }
 function undoOffset() { if (offsetHistory.length > 0) { const last = offsetHistory.pop(); aimOffsetX = last.x; aimOffsetY = last.y; calculate(); } }
 function updateOffsetDisplay() {
@@ -2459,6 +2697,8 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
     }
 
     if (foImpactPoint && foPosition) { const cxFO = toCanvasX(foPosition.x); const cyFO = toCanvasY(foPosition.y); const cxImp = toCanvasX(foImpactPoint.x); const cyImp = toCanvasY(foImpactPoint.y); ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(139, 92, 246, 0.7)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cxFO, cyFO); ctx.lineTo(cxImp, cyImp); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = "#8b5cf6"; ctx.beginPath(); ctx.arc(cxFO, cyFO, 5, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#4c1d95"; ctx.font = "bold 11px sans-serif"; ctx.fillText("FO", cxFO + 8, cyFO + 4); ctx.strokeStyle = "#8b5cf6"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(cxImp - 5, cyImp - 5); ctx.lineTo(cxImp + 5, cyImp + 5); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cxImp + 5, cyImp - 5); ctx.lineTo(cxImp - 5, cyImp + 5); ctx.stroke(); ctx.fillStyle = "#4c1d95"; ctx.font = "bold 11px sans-serif"; ctx.fillText("IMPACT", cxImp + 8, cyImp + 4); }
+
+    drawCounterBatteryLayer(ctx, toCanvasX, toCanvasY, mapZoom);
 
     // จุดมาร์คที่ผู้ใช้ตั้งเอง (คลิกขวา) — ผูกกับแผนที่ปัจจุบันเท่านั้น — รูปสามเหลี่ยมหัวชี้ลงสีดำ ปลายแหลมชี้ตำแหน่งจริง
     if (typeof getMarkersForCurrentMap === "function") {

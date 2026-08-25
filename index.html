@@ -227,7 +227,7 @@
         .memory-item.dragging { opacity: 0.5; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px dashed var(--tblue); }
         .memory-item.drag-over { border-top: 2px dashed var(--amber); transform: translateY(2px); }
 
-        #memoryList { max-height: 450px; min-height: 150px; overflow-y: auto; padding-right: 8px; padding-bottom: 10px; }
+        #memoryList { min-height: 0; overflow-y: auto; padding-right: 8px; padding-bottom: 10px; }
         #memoryList::-webkit-scrollbar { width: 5px; }
         #memoryList::-webkit-scrollbar-track { background: transparent; }
         #memoryList::-webkit-scrollbar-thumb { background: var(--tblue-dim); border-radius: 4px; }
@@ -721,7 +721,7 @@
         <div id="trajectory3D"></div>
     </div>
 
-    <div class="right-col" style="display: flex; flex-direction: column; gap: 20px;">
+    <div class="right-col" style="display: flex; flex-direction: column; gap: 20px; min-height: 0; height: 100%;">
         <div class="card">
             <div class="cb-header" onclick="toggleFOSpotter()">
                 <h2 style="color:#eab308;">🔭 FO SPOTTER</h2>
@@ -783,7 +783,7 @@
                 </button>
             </div>
             <div style="border-bottom: 1px solid #334155; margin: 15px 0;"></div>
-            <div id="memoryList" style="flex-grow: 1;"></div>
+            <div id="memoryList" style="flex: 1 1 0; min-height: 0;"></div>
         </div>
     </div>
 

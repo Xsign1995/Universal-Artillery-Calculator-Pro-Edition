@@ -227,7 +227,7 @@
         .memory-item.dragging { opacity: 0.5; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px dashed var(--tblue); }
         .memory-item.drag-over { border-top: 2px dashed var(--amber); transform: translateY(2px); }
 
-        #memoryList { max-height: 450px; overflow-y: auto; padding-right: 8px; padding-bottom: 10px; }
+        #memoryList { max-height: 450px; min-height: 150px; overflow-y: auto; padding-right: 8px; padding-bottom: 10px; }
         #memoryList::-webkit-scrollbar { width: 5px; }
         #memoryList::-webkit-scrollbar-track { background: transparent; }
         #memoryList::-webkit-scrollbar-thumb { background: var(--tblue-dim); border-radius: 4px; }
@@ -771,7 +771,7 @@
             </div>
         </div>
 
-        <div class="card memory-panel" style="flex-grow: 1;">
+        <div class="card memory-panel" style="flex-grow: 1; display: flex; flex-direction: column; min-height: 0;">
             <h2 style="color: #38bdf8; font-size: 16px;">💾 Target Memory</h2>
             <div class="section section-transparent">
                 <div class="grid-1">
@@ -783,7 +783,7 @@
                 </button>
             </div>
             <div style="border-bottom: 1px solid #334155; margin: 15px 0;"></div>
-            <div id="memoryList"></div>
+            <div id="memoryList" style="flex-grow: 1;"></div>
         </div>
     </div>
 

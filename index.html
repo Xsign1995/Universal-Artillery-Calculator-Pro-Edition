@@ -433,6 +433,7 @@
                         <select id="weaponSelect" title="Select weapon" onchange="changeWeapon()">
                             <option value="m777" selected>M777 Howitzer (155mm) - US (PandaMods)</option>
                             <option value="m777a1">M777A1 Howitzer (155mm) - US (CIE Artillery)</option>
+                            <option value="2a36">2A36 Giatsint-B (152mm) - Soviet (CIE Artillery)</option>
                             <option value="m252">M252 Mortar (81mm) - US</option>
                             <option value="2b14">2B14 Podnos (82mm) - Soviet</option>
                         </select>
@@ -1611,31 +1612,48 @@ function changeProfile() {
     changeAmmo();
 }
 
+function getChargeDisplayName(cId, isMortar, uppercase) {
+    if (currentAmmo && currentAmmo.chargeNames && currentAmmo.chargeNames[cId]) {
+        return uppercase ? currentAmmo.chargeNames[cId].toUpperCase() : currentAmmo.chargeNames[cId];
+    }
+    if (isMortar) {
+        if (cId === 'c0') return "Ring 0 (Основной)";
+        if (cId === 'c1') return "Ring 1 (Первое)";
+        if (cId === 'c2') return "Ring 2 (Второе)";
+        if (cId === 'c3') return "Ring 3 (Третье)";
+        if (cId === 'c4') return "Ring 4 (Четвертое)";
+        return cId.replace('c', uppercase ? 'RING ' : 'Ring ');
+    }
+    return cId.replace('c', uppercase ? 'CHARGE ' : 'Charge ');
+}
+
 function changeAmmo() {
     currentAmmoId = DOM["ammoSelect"].value; currentAmmo = currentAmmoList[currentAmmoId];
     const isMortar = currentWeapon.type === "mortar";
     const cLow = DOM["chargeVelLow"]; const cHigh = DOM["chargeVelHigh"];
     const prevLow = cLow.value; const prevHigh = cHigh.value;
-    let chargeOptions = `<option value="auto">⚡ Auto Select (อัตโนมัติ)</option>`;
-    
-    let tableSource = currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
-    let ringKeys = Object.keys(tableSource);
-    if (isMortar) { ringKeys.sort((a, b) => b.localeCompare(a)); } else { ringKeys.sort((a, b) => a.localeCompare(b)); }
+    const autoOption = `<option value="auto">⚡ Auto Select (อัตโนมัติ)</option>`;
 
-    for (const cId of ringKeys) {
-        let displayName = "";
-        if (isMortar) {
-             if (cId === 'c0') displayName = "Ring 0 (Основной)";
-             else if (cId === 'c1') displayName = "Ring 1 (Первое)";
-             else if (cId === 'c2') displayName = "Ring 2 (Второе)";
-             else if (cId === 'c3') displayName = "Ring 3 (Третье)";
-             else if (cId === 'c4') displayName = "Ring 4 (Четвертое)";
-             else displayName = cId.replace('c', 'Ring ');
-        } else { displayName = cId.replace('c', 'Charge '); }
-        chargeOptions += `<option value="${cId}">${displayName}</option>`;
+    // 🔥 แก้บั๊ก: เดิมสร้าง dropdown ของ Low และ High จาก tableSource เดียวกัน (highAngle เป็นหลัก)
+    // ถ้ากระสุนไหนมีแต่ lowAngle (ไม่มี highAngle เลย เช่น 2A36 Khrebet) จะทำให้ dropdown Charge ของ Low Angle ว่างไปด้วย เหลือแค่ Auto Select
+    // ตอนนี้สร้างแยกกัน: cHigh มาจาก highAngle table, cLow มาจาก lowAngle table (ถ้ามี) โดยตรง
+    let tableSourceForHigh = currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
+    let tableSourceForLow = currentAmmo.table.lowAngle ? currentAmmo.table.lowAngle : currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
+
+    function buildOptions(tableSource) {
+        let ringKeys = Object.keys(tableSource);
+        if (isMortar) { ringKeys.sort((a, b) => b.localeCompare(a)); } else { ringKeys.sort((a, b) => a.localeCompare(b)); }
+        let options = autoOption;
+        for (const cId of ringKeys) {
+            let displayName = getChargeDisplayName(cId, isMortar);
+            options += `<option value="${cId}">${displayName}</option>`;
+        }
+        return options;
     }
-    cLow.innerHTML = chargeOptions; cHigh.innerHTML = chargeOptions;
-    if (tableSource[prevLow]) cLow.value = prevLow; if (tableSource[prevHigh]) cHigh.value = prevHigh;
+
+    cHigh.innerHTML = buildOptions(tableSourceForHigh);
+    cLow.innerHTML = buildOptions(tableSourceForLow);
+    if (tableSourceForLow[prevLow]) cLow.value = prevLow; if (tableSourceForHigh[prevHigh]) cHigh.value = prevHigh;
     calculate();
 }
 
@@ -1765,7 +1783,7 @@ function calculateFOCorrection() {
         }
 
         if (!isNaN(finalElevHigh) && !isNaN(finalAziHigh)) {
-            let chargeDisplayHigh = isMortar ? chargeCodeHigh.replace('c', 'Ring ') : chargeCodeHigh.replace('c', 'Charge ');
+            let chargeDisplayHigh = getChargeDisplayName(chargeCodeHigh, isMortar);
             correctionText += `<div style='margin-top:4px; background:rgba(234, 179, 8, 0.15); border-left: 3px solid #eab308; padding: 6px; border-radius:4px;'>`;
             correctionText += `<div style='font-size:12px; color:#eab308; font-weight:bold; margin-bottom: 4px;'>💡 ค่าปืนที่ต้องยิงแก้ (${chargeDisplayHigh}):</div>`;
             correctionText += `<div style='font-size:13px; display:flex; justify-content:space-between; margin-bottom: 2px;'><span>Elevation (มุมเงย):</span> <b style="color:#fff;">${finalElevHigh.toFixed(0)}</b></div>`;
@@ -1773,7 +1791,7 @@ function calculateFOCorrection() {
             enableApplyCorrectionBtn();
         } else { 
             let userSelectedHighFO = DOM["chargeVelHigh"].value;
-            let chargeLabelFO = userSelectedHighFO === 'auto' ? "AUTO CHARGE" : (isMortar ? chargeCodeHigh.replace('c', 'Ring ') : chargeCodeHigh.replace('c', 'Charge '));
+            let chargeLabelFO = userSelectedHighFO === 'auto' ? "AUTO CHARGE" : getChargeDisplayName(chargeCodeHigh, isMortar);
             correctionText += `<div style='color:#ef4444; font-size: 12px; margin-top: 4px;'>⚠️ จุดยิงแก้อยู่นอกระยะของ ${chargeLabelFO} แนะนำให้ปรับแก้แบบ Manual</div>`; 
             disableApplyCorrectionBtn(); 
         }
@@ -2002,7 +2020,7 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
             else { windTextHigh = "ลมพัดเบามากจนไม่มีผลกระทบ"; }
         }
         
-        let chargeDisplayHigh = isMortar ? chargeCodeHigh.replace('c', 'RING ') : chargeCodeHigh.replace('c', 'CHARGE ');
+        let chargeDisplayHigh = getChargeDisplayName(chargeCodeHigh, isMortar, true);
         
         let tofStatHigh = `<div class="stat" style="border-left-color: #a855f7; margin-bottom: ${airburstH > 0 && fuzeTimeHigh !== null ? '5px' : '0'};"><span>Time of Flight:</span> <b>~${tofHighToPass.toFixed(1)} วินาที</b></div>`;
         let fuzeStatHigh = "";
@@ -2021,7 +2039,7 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
         }
     } else {
         let userSelectedHigh = DOM["chargeVelHigh"].value;
-        let chargeDisplayHigh = userSelectedHigh === 'auto' ? "AUTO CHARGE" : (isMortar ? chargeCodeHigh.replace('c', 'RING ') : chargeCodeHigh.replace('c', 'CHARGE '));
+        let chargeDisplayHigh = userSelectedHigh === 'auto' ? "AUTO CHARGE" : getChargeDisplayName(chargeCodeHigh, isMortar, true);
         if (isMortar) {
             htmlHigh += `<div class="highlight-box high-angle" style="margin-top: 0; border-color: #ef4444;"><div class="stat stat-error">⚠️ ${chargeDisplayHigh}: OUT OF TABLE RANGE</div></div>`;
         } else {
@@ -2128,7 +2146,7 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
             }
 
             let clearanceMsg = bestLowCalc.maxHLow < minClearance ? `<div style="color:#ef4444; font-size:11px; text-align:right; margin-top:4px;">⚠️ ชนสิ่งกีดขวาง! (ความสูงสูงสุด ${bestLowCalc.maxHLow.toFixed(1)}m)</div>` : `<div style="color:#22c55e; font-size:11px; text-align:right; margin-top:4px;">✅ เส้นทางปลอดภัย (ความสูงสูงสุด ${bestLowCalc.maxHLow.toFixed(1)}m)</div>`;
-            let chargeDisplayLow = bestLowCalc.cId.replace('c', 'CHARGE ');
+            let chargeDisplayLow = getChargeDisplayName(bestLowCalc.cId, false, true);
             
             let tofStatLow = `<div class="stat" style="border-left-color: #3b82f6; margin-bottom: ${airburstH > 0 && fuzeTimeLow !== null ? '5px' : '0'};"><span>Time of Flight:</span> <b>~${tofLowToPass.toFixed(1)} วินาที</b></div>`;
             let fuzeStatLow = "";
@@ -2143,7 +2161,7 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
             htmlLow += `<div class="highlight-box low-angle-box" style="margin-top: 0;"><div class="load-instruction-box low-angle"><span class="load-label">⚙️ LOAD AMMO:</span><span class="load-value">${chargeDisplayLow}</span></div><div class="stat stat-low" style="flex-direction: column; align-items: stretch;"><div style="display: flex; justify-content: space-between; align-items: center;"><span>Elevation (ตั้งมุมเงย):</span> <b style="font-size: 16px; ${isElevLowError ? 'color:#ef4444;' : ''}">${isNaN(finalElevLowMil) ? "ERROR" : finalElevLowMil.toFixed(0) + " MILs"}</b></div>${elevWarningLow}</div><div class="stat stat-low"><span>Aim Azimuth (ตั้งทิศทาง):</span> <b style="font-size: 16px;">${finalAziLowToPass.toFixed(0)}</b></div><div style="text-align: right; font-size: 11px; color: ${windColorLow}; margin-bottom: 6px;">${windTextLow}</div>${tofStatLow}${fuzeStatLow}${clearanceMsg}${offsetNotice}</div>`;
         } else {
             let userSelectedLow = DOM["chargeVelLow"].value;
-            let displayCharge = userSelectedLow === 'auto' ? "AUTO CHARGE" : userSelectedLow.replace('c', 'CHARGE ');
+            let displayCharge = userSelectedLow === 'auto' ? "AUTO CHARGE" : getChargeDisplayName(userSelectedLow, false, true);
             htmlLow += `<div style="color: #38bdf8; font-size: 13px; font-weight: bold; margin-bottom: 8px; margin-top: 12px;">↘️ LOW ANGLE TARGET</div><div class="stat stat-error">⚠️ ${displayCharge}: OUT OF TABLE RANGE</div>`;
         }
     }

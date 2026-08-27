@@ -670,6 +670,7 @@
                 <option value="Grotov">Grotov</option>
                 <option value="Kolguyev">Kolguyev</option>
                 <option value="Marnivka">Marnivka</option>
+                <option value="Myrnohrad">Myrnohrad</option>
                 <option value="Orlivka">Orlivka</option>
                 <option value="Predniprovsk">Predniprovsk</option>
                 <option value="Rostov">Rostov</option>
@@ -765,8 +766,8 @@
                     <button onclick="clearCounterBatteryAll()" style="background:#1a0e0e; border:1px solid #5c2626; color:#ff6b6b;">🗑️ ล้างทั้งหมด</button>
                 </div>
                 <div class="cb-info">
-                    🟡 จุดตรวจจับเรดาร์ (ความแม่นยำ 50-100m)<br>
-                    🟠 จุดกึ่งกลางพื้นที่แรเงา (ตำแหน่งประเมินฐานปืนศัตรู)
+                    🟡 จุดตรวจจับเรดาร์ (วงกลม = รัศมีคลาดเคลื่อน 50-100m)<br>
+                    🟠 จุดที่วงกลมซ้อนทับกันมากที่สุด (ตำแหน่งประเมินฐานปืนศัตรู)
                 </div>
             </div>
         </div>
@@ -1314,7 +1315,7 @@ const MapBackground = (() => {
     const ALLOWED_MAPS = new Set([
         "Anizay", "Arland", "Bakhmut", "Bakhmut Skini", "Belleau Wood", "Chernarus",
         "Chervonopilia", "DonAir", "Donetsk", "Everon", "Fallujah", "Faschivka",
-        "Gogland", "Grotov", "Kolguyev", "Marnivka", "Orlivka", "Predniprovsk",
+        "Gogland", "Grotov", "Kolguyev", "Marnivka", "Myrnohrad", "Orlivka", "Predniprovsk",
         "Rostov", "Ruha", "Serhiivka_CIE", "Serhiivka_WCS", "Takistan", "Udachne",
         "West Zagoria", "Yunakivka", "Zargabad", "Zarichne",
     ]);
@@ -1798,54 +1799,61 @@ function convexHull(points) {
 }
 
 // จุดกึ่งกลาง: centroid ของ hull polygon (ถ้ามี >=3 จุดขอบ) หรือ centroid เฉลี่ยธรรมดา (ถ้ามีแค่ 1-2 จุด)
-function getCbCentroid(points, hull) {
-    if (hull.length >= 3) {
-        let area = 0, cx = 0, cy = 0;
-        for (let i = 0; i < hull.length; i++) {
-            const p0 = hull[i]; const p1 = hull[(i + 1) % hull.length];
-            const cr = p0.x * p1.y - p1.x * p0.y;
-            area += cr; cx += (p0.x + p1.x) * cr; cy += (p0.y + p1.y) * cr;
+// หาจุดที่วงกลมความคลาดเคลื่อนของเรดาร์ (รัศมี CB_RADIUS_M รอบแต่ละจุดตรวจจับ) ซ้อนทับกันมากที่สุด
+// ใช้วิธี grid-search สแกนพื้นที่รอบๆ กลุ่มจุดทั้งหมด นับว่าแต่ละตำแหน่งอยู่ในวงกลมกี่วง แล้วเลือกจุดที่นับได้สูงสุด
+// (ถ้าเสมอกันหลายจุด ใช้ค่าเฉลี่ยตำแหน่งของจุดที่นับสูงสุดทั้งหมด เพื่อให้ได้จุดกึ่งกลางของโซนซ้อนทับสูงสุด)
+function getCbBestOverlapPoint(points) {
+    if (points.length === 1) return { x: points[0].x, y: points[0].y };
+    const minX = Math.min(...points.map(p => p.x)) - CB_RADIUS_M;
+    const maxX = Math.max(...points.map(p => p.x)) + CB_RADIUS_M;
+    const minY = Math.min(...points.map(p => p.y)) - CB_RADIUS_M;
+    const maxY = Math.max(...points.map(p => p.y)) + CB_RADIUS_M;
+    const steps = 60; // ความละเอียดของ grid สแกน
+    const stepX = (maxX - minX) / steps || 1;
+    const stepY = (maxY - minY) / steps || 1;
+
+    let bestCount = 0;
+    let bestSumX = 0, bestSumY = 0, bestN = 0;
+    for (let iy = 0; iy <= steps; iy++) {
+        const gy = minY + iy * stepY;
+        for (let ix = 0; ix <= steps; ix++) {
+            const gx = minX + ix * stepX;
+            let count = 0;
+            for (const p of points) {
+                const dx = gx - p.x, dy = gy - p.y;
+                if (dx * dx + dy * dy <= CB_RADIUS_M * CB_RADIUS_M) count++;
+            }
+            if (count > bestCount) {
+                bestCount = count; bestSumX = gx; bestSumY = gy; bestN = 1;
+            } else if (count === bestCount && count > 0) {
+                bestSumX += gx; bestSumY += gy; bestN++;
+            }
         }
-        area *= 0.5;
-        if (Math.abs(area) > 1e-6) return { x: cx / (6 * area), y: cy / (6 * area) };
     }
-    const n = points.length;
-    return { x: points.reduce((s, p) => s + p.x, 0) / n, y: points.reduce((s, p) => s + p.y, 0) / n };
+    if (bestN === 0) {
+        // ไม่มีวงกลมซ้อนทับกันเลย (จุดกระจายกันไกลเกินไป) — fallback เป็น centroid ธรรมดา
+        return { x: points.reduce((s, p) => s + p.x, 0) / points.length, y: points.reduce((s, p) => s + p.y, 0) / points.length };
+    }
+    return { x: bestSumX / bestN, y: bestSumY / bestN };
 }
 
-// วาด Counter-Battery layer บนแผนที่: จุดเรดาร์สีเหลือง + เส้นขอบ hull + แรเงา (ถ้า >3 จุด) + จุดกึ่งกลางสีส้ม
+// วาด Counter-Battery layer บนแผนที่: วงกลมความคลาดเคลื่อนรอบแต่ละจุดสีเหลือง + เส้นขอบ hull + จุดกึ่งกลางซ้อนทับสูงสุด (สีส้ม)
 function drawCounterBatteryLayer(ctx, toCanvasX, toCanvasY, mapZoom) {
     const points = getActiveCbPoints();
     if (points.length === 0) return;
 
     const hull = convexHull(points);
-    const showShading = points.length > 3;
     const radiusPx = Math.max(CB_RADIUS_M * mapZoom, 3);
 
-    // แรเงาพื้นที่ครอบคลุม (hull ขยายออกด้วยรัศมีความคลาดเคลื่อนเรดาร์) เมื่อมีจุดเกิน 3 จุด
-    if (showShading && hull.length >= 2) {
-        ctx.save();
-        ctx.beginPath();
-        if (hull.length >= 3) {
-            hull.forEach((p, i) => {
-                const cx = toCanvasX(p.x), cy = toCanvasY(p.y);
-                if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
-            });
-            ctx.closePath();
-        } else {
-            const cx0 = toCanvasX(hull[0].x), cy0 = toCanvasY(hull[0].y);
-            ctx.arc(cx0, cy0, radiusPx, 0, Math.PI * 2);
-        }
-        ctx.fillStyle = "rgba(234, 179, 8, 0.22)";
-        ctx.fill();
-        // ขยายขอบแรเงาออกด้วยรัศมีเรดาร์รอบจุด hull แต่ละจุด (วงกลมทับซ้อนรอบขอบ) เพื่อสื่อถึง buffer ความคลาดเคลื่อน
-        hull.forEach(p => {
-            const cx = toCanvasX(p.x), cy = toCanvasY(p.y);
-            ctx.beginPath(); ctx.arc(cx, cy, radiusPx, 0, Math.PI * 2);
-            ctx.fillStyle = "rgba(234, 179, 8, 0.15)"; ctx.fill();
-        });
-        ctx.restore();
-    }
+    // วงกลมความคลาดเคลื่อนของเรดาร์ (รัศมี CB_RADIUS_M) รอบทุกจุดที่กรอก — แสดงเสมอไม่ว่าจะมีกี่จุด
+    ctx.save();
+    points.forEach(p => {
+        const cx = toCanvasX(p.x), cy = toCanvasY(p.y);
+        ctx.beginPath(); ctx.arc(cx, cy, radiusPx, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(234, 179, 8, 0.18)"; ctx.fill();
+        ctx.strokeStyle = "rgba(234, 179, 8, 0.5)"; ctx.lineWidth = 1; ctx.stroke();
+    });
+    ctx.restore();
 
     // เส้นโยงเฉพาะจุดขอบนอกสุด (hull) ที่เรียงตัวเป็นทรงเรขาคณิต — จุดที่อยู่ในแรเงาไม่ต้องโยงเส้น
     if (hull.length >= 2) {
@@ -1878,19 +1886,15 @@ function drawCounterBatteryLayer(ctx, toCanvasX, toCanvasY, mapZoom) {
         ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
     });
 
-    // จุดกึ่งกลางพื้นที่ (สีส้ม) — แสดงเมื่อมีอย่างน้อย 2 จุดขึ้นไป
+    // จุดที่วงกลมซ้อนทับกันมากที่สุด (สีส้ม) — ตำแหน่งที่เป็นไปได้สูงสุดว่าฐานปืนอยู่ตรงนี้จริง
     if (points.length >= 2) {
-        const centroid = getCbCentroid(points, hull);
-        const ccx = toCanvasX(centroid.x), ccy = toCanvasY(centroid.y);
+        const best = getCbBestOverlapPoint(points);
+        const ccx = toCanvasX(best.x), ccy = toCanvasY(best.y);
         ctx.save();
-        ctx.beginPath(); ctx.arc(ccx, ccy, 6, 0, Math.PI * 2);
+        ctx.beginPath(); ctx.arc(ccx, ccy, 5, 0, Math.PI * 2);
         ctx.fillStyle = "#f97316"; ctx.fill();
-        ctx.strokeStyle = "#7c2d12"; ctx.lineWidth = 1.5; ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(ccx - 9, ccy); ctx.lineTo(ccx + 9, ccy);
-        ctx.moveTo(ccx, ccy - 9); ctx.lineTo(ccx, ccy + 9);
-        ctx.strokeStyle = "#f97316"; ctx.lineWidth = 1; ctx.stroke();
-        ctx.font = "bold 10px sans-serif"; ctx.fillStyle = "#f97316";
-        ctx.fillText("EST. BATTERY", ccx + 10, ccy - 8);
+        ctx.font = "bold 10px sans-serif"; ctx.fillStyle = "#000000";
+        ctx.fillText("EST. BATTERY", ccx + 8, ccy - 6);
         ctx.restore();
     }
 }

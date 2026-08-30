@@ -2376,12 +2376,12 @@ const vasilekSmokeData = {
 
 const weaponLibrary = {
     m777: {
-        name: "M777 Howitzer", type: "howitzer", milSystem: 6400, windDriftCoeff: 0.3725, windRangeCoeff: 0.40,
+        name: "M777 Howitzer", type: "howitzer", milSystem: 6400, windDriftCoeff: 0.2091, windRangeCoeff: 0.3897,
         limits: { minElev: 16, maxElev: 1291 },
         ammo: { he: { name: "155mm M107 HE Shell", table: m107HE_pandamods } }
     },
     m777a1: {
-        name: "M777A1 Howitzer", type: "howitzer", milSystem: 6400, windDriftCoeff: 0.3725, windRangeCoeff: 0.40,
+        name: "M777A1 Howitzer", type: "howitzer", milSystem: 6400, windDriftCoeff: 0.3096, windRangeCoeff: 0.4817,
         limits: { minElev: 16, maxElev: 1291 },
         ammo: {
             he: { name: "155mm M107 HE Shell", table: m107HE_cie },
@@ -2389,7 +2389,7 @@ const weaponLibrary = {
         }
     },
     "2a36": {
-        name: "2A36 Giatsint-B Howitzer", type: "howitzer", milSystem: 6400, windDriftCoeff: 0.3725, windRangeCoeff: 0.40,
+        name: "2A36 Giatsint-B Howitzer", type: "howitzer", milSystem: 6400, windDriftCoeff: 0.2067, windRangeCoeff: 0.4173,
         limits: { minElev: 16, maxElev: 1291 },
         ammo: {
             he_khrebet: { name: "152mm Shell 30F59 \"Khrebet\"", table: shell30F59_Khrebet_cie, chargeNames: shell30F59_Khrebet_chargeNames },
@@ -2400,8 +2400,8 @@ const weaponLibrary = {
         name: "M252 Mortar (81mm)", 
         type: "mortar", 
         milSystem: 6400, 
-        windDriftCoeff: 0.190, 
-        windRangeCoeff: 0.80,  
+        windDriftCoeff: 0.2931, 
+        windRangeCoeff: 0.3718,  
         profiles: {
             "original": {
                 name: "Original (Vanilla)", limits: { minElev: 800, maxElev: 1515 }, 
@@ -2422,7 +2422,7 @@ const weaponLibrary = {
         }
     },
     "2b14": {
-        name: "2B14 Podnos (82mm)", type: "mortar", milSystem: 6000, windDriftCoeff: 0.324, windRangeCoeff: 1.35,  
+        name: "2B14 Podnos (82mm)", type: "mortar", milSystem: 6000, windDriftCoeff: 0.2910, windRangeCoeff: 0.3465,  
         profiles: {
             "original": {
                 name: "Original (Vanilla)", limits: { minElev: 748, maxElev: 1415 }, 
@@ -2443,7 +2443,7 @@ const weaponLibrary = {
         }
     },
     "2b9": {
-        name: "2B9 Vasilek Automatic Mortar (82mm)", type: "howitzer", milSystem: 6000, windDriftCoeff: 0.324, windRangeCoeff: 1.35,
+        name: "2B9 Vasilek Automatic Mortar (82mm)", type: "howitzer", milSystem: 6000, windDriftCoeff: 0.1924, windRangeCoeff: 0.3894,
         limits: { minElev: 0, maxElev: 1150 },
         ammo: {
             he: { name: "82mm O-832DU HE Shell", table: vasilekHEData },

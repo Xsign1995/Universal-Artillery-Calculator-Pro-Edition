@@ -3119,11 +3119,26 @@ function update3DScene() {
 
     const buildCurve3D = (trajInfo) => {
         if (!trajInfo) return null;
-        const windRad = windDir * (Math.PI / 180);
-        let aimRad = trajInfo.azi * (Math.PI / (milSystem / 2));
-        let det = Math.sin(aimRad - windRad); let S, W;
-        if (Math.abs(det) < 0.0001 || windSpeed === 0) { S = dist; W = 0; } 
-        else { S = (dx * Math.cos(windRad) - dy * Math.sin(windRad)) / det; W = (dy * Math.sin(aimRad) - dx * Math.cos(aimRad)) / det; }
+        const halfMil = milSystem / 2;
+        let aimRad = trajInfo.azi * (Math.PI / halfMil); // ทิศทางปากกระบอกจริง (รวมมุมเผื่อลมแล้ว)
+
+        // มุมเผื่อลม (deflection) = ทิศเล็ง - ทิศตรงไปเป้าหมาย (ยังไม่เผื่อลม)
+        const aimBearingDeg = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
+        const aimBearingMil = aimBearingDeg * (milSystem / 360);
+        let deflMil = trajInfo.azi - aimBearingMil;
+        // ปรับให้อยู่ในช่วง -halfMil..+halfMil (กันกรณี wrap รอบ milSystem)
+        if (deflMil > halfMil) deflMil -= milSystem; else if (deflMil < -halfMil) deflMil += milSystem;
+        const deflRad = deflMil * (Math.PI / halfMil);
+        // ระยะเบี่ยงรวม (เมตร) ที่ปลายวิถี ณ ระยะเล็ง — สอดคล้องกับมุมเผื่อลมที่คำนวณจากตาราง crossWind จริง
+        const totalDriftMeters = (windSpeed > 0) ? dist * Math.tan(deflRad) : 0;
+        // ทิศทางตั้งฉากกับแนวเล็ง (ด้านขวาของแนวยิง) ใช้ลากกระสุนออกจากแนวเล็งแล้วดึงกลับเข้าเป้าตามสัดส่วนระยะ
+        const perpX = Math.cos(aimRad), perpY = -Math.sin(aimRad);
+        // แปลงระยะตามแนวเล็ง (bx) เป็นพิกัดโลก X/Y โดยรวมผลเบี่ยงจากลมที่สะสมตามสัดส่วนระยะ
+        const windDeflectXY = (bx) => {
+            const frac = dist > 0 ? (bx / dist) : 0;
+            const drift = frac * totalDriftMeters; // ลมสะสมตามระยะที่กระสุนเดินทางไปแล้ว (เพิ่มขึ้นเรื่อยๆ ไม่ใช่เส้นตรง)
+            return { x: bx * Math.sin(aimRad) - drift * perpX, y: bx * Math.cos(aimRad) - drift * perpY };
+        };
 
         const points = []; let maxH = -Infinity; let maxHIndex = 0;
         
@@ -3132,9 +3147,7 @@ function update3DScene() {
         for(let i=0; i<simPts.length; i++) {
             let bx = simPts[i].x;
             let by = simPts[i].y;
-            let currentS = (bx / dist) * S; let currentW = (bx / dist) * W;
-            let endX = currentS * Math.sin(aimRad) + currentW * Math.sin(windRad);
-            let endY = currentS * Math.cos(aimRad) + currentW * Math.cos(windRad);
+            const { x: endX, y: endY } = windDeflectXY(bx);
             
             if (by > maxH) { maxH = by; maxHIndex = i; }
             points.push(new THREE.Vector3(endX, by, -endY)); 
@@ -3166,9 +3179,7 @@ function update3DScene() {
             const targetRangeFrac = (dist - 100) / dist; // สัดส่วนระยะจากปืนถึงจุด 100m ก่อนเป้า
             const idx100 = Math.min(simPts.length - 1, Math.round(targetRangeFrac * (simPts.length - 1)));
             const bx100 = simPts[idx100].x;
-            const currentS100 = (bx100 / dist) * S; const currentW100 = (bx100 / dist) * W;
-            const x100 = currentS100 * Math.sin(aimRad) + currentW100 * Math.sin(windRad);
-            const y100 = currentS100 * Math.cos(aimRad) + currentW100 * Math.cos(windRad);
+            const { x: x100, y: y100 } = windDeflectXY(bx100);
             const z100 = dz + trajInfo.alt100m;
             const alt100Point = new THREE.Vector3(x100, z100, -y100);
 
@@ -3187,9 +3198,7 @@ function update3DScene() {
             const fuzeFrac = trajInfo.fuzeX / dist;
             const idxFuze = Math.min(simPts.length - 1, Math.round(fuzeFrac * (simPts.length - 1)));
             const bxFuze = simPts[idxFuze].x;
-            const currentSFuze = (bxFuze / dist) * S; const currentWFuze = (bxFuze / dist) * W;
-            const xFuze = currentSFuze * Math.sin(aimRad) + currentWFuze * Math.sin(windRad);
-            const yFuze = currentSFuze * Math.cos(aimRad) + currentWFuze * Math.cos(windRad);
+            const { x: xFuze, y: yFuze } = windDeflectXY(bxFuze);
             const fuzePoint = new THREE.Vector3(xFuze, trajInfo.fuzeY, -yFuze);
 
             const matX = new THREE.LineBasicMaterial({ color: 0xef4444, linewidth: 3 });

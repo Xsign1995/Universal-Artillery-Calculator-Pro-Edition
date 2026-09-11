@@ -1257,6 +1257,22 @@ let historyToDeleteIndex = -1;
 let historyLog = [];
 try { const h = localStorage.getItem('m777_history'); historyLog = h ? JSON.parse(h) : []; } catch (e) { historyLog = []; }
 
+// เปิดโปรแกรมใหม่ → ดึงพิกัดปืน/เป้าหมายล่าสุดจาก Fire History มาใส่อัตโนมัติ
+// (เผื่อบังเอิญปิดหน้าเว็บไปแล้วเปิดใหม่ จะได้ยิงต่อจากจุดเดิมได้เลย ไม่ต้องพิมพ์พิกัดใหม่)
+function restoreLastFireCoords() {
+    const last = historyLog[0];
+    if (!last) return;
+    try {
+        if (last.gunX != null && DOM["gunX"]) DOM["gunX"].value = last.gunX;
+        if (last.gunY != null && DOM["gunY"]) DOM["gunY"].value = last.gunY;
+        if (last.gunZ != null && DOM["gunZ"]) DOM["gunZ"].value = last.gunZ;
+        if (last.targetX != null && DOM["targetX"]) DOM["targetX"].value = last.targetX;
+        if (last.targetY != null && DOM["targetY"]) DOM["targetY"].value = last.targetY;
+        if (last.targetZ != null && DOM["targetZ"]) DOM["targetZ"].value = last.targetZ;
+    } catch (e) { console.error("Error restoring last fire coords", e); }
+}
+if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", restoreLastFireCoords); } else { restoreLastFireCoords(); }
+
 // ตัวนับลำดับ #N ของ Fire History แบบรันต่อเนื่องไม่รีเซ็ตตอนลบอันเก่าทิ้ง (รีเซ็ตเฉพาะตอนกด DELETE ALL)
 let historySeq = 0;
 try {

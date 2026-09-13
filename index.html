@@ -1612,12 +1612,12 @@ function restoreSelectedMap() {
 
 window.addEventListener('load', function() { changeWeapon(); setTimeout(function() { autoLoadFromLocalStorage(); restoreSelectedMap(); }, 200); });
 function autoLoadFromLocalStorage() {
+    // 🔥 เอาการ auto-load เป้าหมายล่าสุดจาก Memory ออก — เดิมมันจะทับพิกัดที่ restoreLastFireCoords()
+    // เพิ่งดึงมาจาก Fire History ตอนเปิดเว็บ ทำให้ดูเหมือนฟีเจอร์จำพิกัดล่าสุดใช้ไม่ได้
+    // ฟังก์ชันนี้ตอนนี้มีหน้าที่แค่ "แสดงรายการ" Memory + Fire History ให้ขึ้นตอนเปิดเว็บเท่านั้น ไม่ยุ่งกับพิกัดที่กรอกอยู่
     try {
         const localData = localStorage.getItem('m777_memory');
-        if (localData) {
-            savedTargets = JSON.parse(localData); renderMemoryList();
-            if (savedTargets.length > 0) { loadMemory(savedTargets.length - 1); }
-        }
+        if (localData) { savedTargets = JSON.parse(localData); renderMemoryList(); }
     } catch (e) {}
     renderHistoryList();
 }
@@ -3718,11 +3718,15 @@ window.handleDrop = function(e) {
 }
 window.handleDragEnd = function(e) { e.currentTarget.classList.remove('dragging'); document.querySelectorAll('.memory-item').forEach(item => item.classList.remove('drag-over')); dragStartIndex = null; }
 
+// กัน XSS: escape ตัวอักษรพิเศษก่อนแทรกลง innerHTML (เผื่อผู้ใช้ตั้งชื่อเป้าหมายเป็นแท็ก HTML/สคริปต์)
+function escapeHtml(str) {
+    return String(str == null ? '' : str).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
 function renderMemoryList() {
     const list = DOM["memoryList"]; list.innerHTML = '';
     savedTargets.forEach((mem, index) => {
         // 🔥 คืนค่า ondrag กลับมา เพื่อให้สามารถลากสลับตำแหน่งได้ตามเดิม (อัพเดทให้เรียกผ่าน window. เพื่อกันบั๊ก Not Defined)
-        list.innerHTML += `<div class="memory-item" draggable="true" data-index="${index}" ondragstart="window.handleDragStart(event)" ondragover="window.handleDragOver(event)" ondragleave="window.handleDragLeave(event)" ondrop="window.handleDrop(event)" ondragend="window.handleDragEnd(event)"><div style="display: flex; flex-direction: column; gap: 4px; pointer-events: none;"><span style="font-weight:bold; color:#38bdf8;"><span style="color:#64748b; margin-right:4px;">⣿</span>${mem.name}</span><span style="color:#94a3b8; font-size: 11px; padding-left: 18px;">X:${mem.tx} Y:${mem.ty} Z:${mem.tz}</span></div><div style="display: flex; gap: 5px;"><button class="btn-load" onclick="loadMemory(${index})">Load</button><button class="btn-edit" onclick="editMemoryName(${index})" title="แก้ไขชื่อเป้าหมาย">✏️</button><button class="btn-delete" onclick="openDeleteModal(${index})">X</button></div></div>`;
+        list.innerHTML += `<div class="memory-item" draggable="true" data-index="${index}" ondragstart="window.handleDragStart(event)" ondragover="window.handleDragOver(event)" ondragleave="window.handleDragLeave(event)" ondrop="window.handleDrop(event)" ondragend="window.handleDragEnd(event)"><div style="display: flex; flex-direction: column; gap: 4px; pointer-events: none;"><span style="font-weight:bold; color:#38bdf8;"><span style="color:#64748b; margin-right:4px;">⣿</span>${escapeHtml(mem.name)}</span><span style="color:#94a3b8; font-size: 11px; padding-left: 18px;">X:${escapeHtml(mem.tx)} Y:${escapeHtml(mem.ty)} Z:${escapeHtml(mem.tz)}</span></div><div style="display: flex; gap: 5px;"><button class="btn-load" onclick="loadMemory(${index})">Load</button><button class="btn-edit" onclick="editMemoryName(${index})" title="แก้ไขชื่อเป้าหมาย">✏️</button><button class="btn-delete" onclick="openDeleteModal(${index})">X</button></div></div>`;
     });
 }
 function saveMemory() {

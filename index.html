@@ -657,7 +657,9 @@
                 <option value="">— ไม่แสดงแผนที่ —</option>
                 <option value="Anizay">Anizay</option>
                 <option value="Arland">Arland</option>
+                <option value="Avdiivka">Avdiivka</option>
                 <option value="Bakhmut">Bakhmut</option>
+                <option value="Bakhmut City">Bakhmut City</option>
                 <option value="Bakhmut Skini">Bakhmut Skini</option>
                 <option value="Belleau Wood">Belleau Wood</option>
                 <option value="Chernarus">Chernarus</option>
@@ -670,7 +672,9 @@
                 <option value="Gogland">Gogland</option>
                 <option value="Grotov">Grotov</option>
                 <option value="Kolguyev">Kolguyev</option>
+                <option value="Kunar">Kunar</option>
                 <option value="Marnivka">Marnivka</option>
+                <option value="Merak">Merak</option>
                 <option value="Myrnohrad">Myrnohrad</option>
                 <option value="Orlivka">Orlivka</option>
                 <option value="Predniprovsk">Predniprovsk</option>
@@ -682,6 +686,7 @@
                 <option value="Udachne">Udachne</option>
                 <option value="West Zagoria">West Zagoria</option>
                 <option value="Yunakivka">Yunakivka</option>
+                <option value="Yunakivka-Sudzha">Yunakivka-Sudzha</option>
                 <option value="Zargabad">Zargabad</option>
                 <option value="Zarichne">Zarichne</option>
             </select>
@@ -1330,11 +1335,11 @@ const MapBackground = (() => {
     const GROUP_SIZE = 256;
     // โซนที่ยอมให้เลือกได้เท่านั้น (ตรงกับ <option> ใน dropdown) กันเลือกแมปที่ไม่มีจริง
     const ALLOWED_MAPS = new Set([
-        "Anizay", "Arland", "Bakhmut", "Bakhmut Skini", "Belleau Wood", "Chernarus",
+        "Anizay", "Arland", "Avdiivka", "Bakhmut", "Bakhmut City", "Bakhmut Skini", "Belleau Wood", "Chernarus",
         "Chervonopilia", "DonAir", "Donetsk", "Everon", "Fallujah", "Faschivka",
-        "Gogland", "Grotov", "Kolguyev", "Marnivka", "Myrnohrad", "Orlivka", "Predniprovsk",
+        "Gogland", "Grotov", "Kolguyev", "Kunar", "Marnivka", "Merak", "Myrnohrad", "Orlivka", "Predniprovsk",
         "Rostov", "Ruha", "Serhiivka_CIE", "Serhiivka_WCS", "Takistan", "Udachne",
-        "West Zagoria", "Yunakivka", "Zargabad", "Zarichne",
+        "West Zagoria", "Yunakivka", "Yunakivka-Sudzha", "Zargabad", "Zarichne",
     ]);
 
     // zoom level แรกที่โหลดตอนเลือกแมป (ภาพกว้าง ๆ โหลดไว ใช้เป็นภาพตั้งต้น/fallback)

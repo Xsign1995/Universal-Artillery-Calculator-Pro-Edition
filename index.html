@@ -879,6 +879,7 @@ function parseArmaGrid(elId) {
     if (str.includes('.')) {
         if (intStr.length === 3) multiplier = 100;
         else if (intStr.length === 4) multiplier = 10;
+        else if (intStr.length < 3) multiplier = 100; // เช่น "45.5" = 045.5 (สอดคล้องกับกรณีไม่มีจุด "45" = 045)
         else { multiplier = 1; offset = 0; }
     } else {
         if (intStr.length === 3) { multiplier = 100; offset = 50; }     
@@ -1210,6 +1211,7 @@ function parseArmaGridFromEl(el) {
     if (str.includes('.')) {
         if (intStr.length === 3) multiplier = 100;
         else if (intStr.length === 4) multiplier = 10;
+        else if (intStr.length < 3) multiplier = 100; // เช่น "45.5" = 045.5 (สอดคล้องกับกรณีไม่มีจุด "45" = 045)
         else { multiplier = 1; offset = 0; }
     } else {
         if (intStr.length === 3) { multiplier = 100; offset = 50; }
@@ -1789,6 +1791,7 @@ function parseArmaGridValue(valStr) {
     if (str.includes('.')) {
         if (intStr.length === 3) multiplier = 100;
         else if (intStr.length === 4) multiplier = 10;
+        else if (intStr.length < 3) multiplier = 100; // เช่น "45.5" = 045.5 (สอดคล้องกับกรณีไม่มีจุด "45" = 045)
         else { multiplier = 1; offset = 0; }
     } else {
         if (intStr.length === 3) { multiplier = 100; offset = 50; }
@@ -1987,82 +1990,48 @@ function calculateFOCorrection() {
         let dirX = diffX_m > 0 ? "ขวา (East)" : "ซ้าย (West)"; let dirY = diffY_m > 0 ? "เลยเป้า (North)" : "ตกสั้น (South)";
         correctionText += `<span style='font-size:12px; color:#cbd5e1;'>กระสุนพลาดเป้าหมายไปทาง:</span><div style='background:#1e293b; padding:6px; border-radius:4px; font-size:13px;'>↔️ <b style='color:#ef4444;'>${Math.abs(diffX_m).toFixed(0)}m</b> ${dirX}<br>↕️ <b style='color:#ef4444;'>${Math.abs(diffY_m).toFixed(0)}m</b> ${dirY}</div>`;
 
-        let gunX = parseArmaGrid("gunX"); let gunY = parseArmaGrid("gunY"); let gunZ = parseFloat(DOM["gunZ"].value) || 0; let tZ = parseFloat(DOM["targetZ"].value) || 0;
-        const windSpeed = parseFloat(DOM["windSpeed"].value) || 0; const windDirDeg = parseFloat(DOM["windDir"].value) || 0;
-        const airburstH = parseFloat(DOM["airburstHeight"].value) || 0;
-        
-        const isMortar = currentWeapon.type === "mortar"; const milSystem = currentWeapon.milSystem || 6400; const halfMil = milSystem / 2;
-        const driftCoeff = currentWeapon.windDriftCoeff || 0.3725; const rangeCoeff = currentWeapon.windRangeCoeff || 0.40;
-        const missX_m = foImpactPoint.x - tX; const missY_m = foImpactPoint.y - tY;
-        const testOffsetX = aimOffsetX - missX_m; const testOffsetY = aimOffsetY - missY_m;
-        const effTargetX = tX + testOffsetX; const effTargetY = tY + testOffsetY;
-        const dx = effTargetX - gunX; const dy = effTargetY - gunY; const dz = tZ - gunZ;
-        const aimGridDistance = Math.sqrt(dx*dx + dy*dy);
-
-        let aimBearingDeg = Math.atan2(dx, dy) * 180 / Math.PI; aimBearingDeg = (aimBearingDeg + 360) % 360;
-        const aimBearingMil = aimBearingDeg * (milSystem / 360);
-
-        let effectiveDz = dz + airburstH; // ใช้เฉพาะหา fuze crossing เท่านั้น ห้ามใช้กับ Elevation/Charge selection
-
-        const minClearanceFO = parseFloat(DOM["minClearance"].value) || 0;
-        let chargeCodeHigh = DOM["chargeVelHigh"].value;
-        if (chargeCodeHigh === 'auto') chargeCodeHigh = findBestCharge(aimGridDistance, dz, windSpeed, windDirDeg, aimBearingDeg, minClearanceFO);
-        let tableSourceHigh = currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
-        if (!tableSourceHigh[chargeCodeHigh]) chargeCodeHigh = Object.keys(tableSourceHigh)[0];
-        const tableHigh = tableSourceHigh[chargeCodeHigh];
-
-        let aimDistH = aimGridDistance; let aimBearingDegH = aimBearingDeg; let deflHighMil = 0;
-        let finalInterpDataHigh = null; let finalElevHigh = NaN; let finalAziHigh = NaN;
-
-        if (aimGridDistance > 0) {
-            for(let iter=0; iter<4; iter++) {
-                let cw = windSpeed * Math.sin((windDirDeg - aimBearingDegH) * (Math.PI / 180)); let hw = windSpeed * Math.cos((windDirDeg - aimBearingDegH) * (Math.PI / 180));
-                let baseInterp = getInterpolatedData(aimDistH, tableHigh); if(!baseInterp) break;
-                let rangeAdj = baseInterp.hasWindData ? (hw / 10) * baseInterp.longWind : hw * baseInterp.tof * rangeCoeff;
-                let virtualDist = aimDistH + rangeAdj;
-                finalInterpDataHigh = getInterpolatedData(virtualDist, tableHigh);
-                if (finalInterpDataHigh.hasWindData) {
-                    deflHighMil = (cw / 10) * finalInterpDataHigh.crossWind;
-                    let deflDeg = deflHighMil * (360 / milSystem);
-                    aimBearingDegH = aimBearingDeg + deflDeg; aimDistH = aimGridDistance / Math.cos(deflDeg * Math.PI / 180);
-                } else {
-                    let driftMeters = cw * finalInterpDataHigh.tof * driftCoeff;
-                    let deflRad = Math.atan(driftMeters / aimGridDistance);
-                    deflHighMil = deflRad * (halfMil / Math.PI);
-                    aimBearingDegH = aimBearingDeg + (deflRad * 180 / Math.PI); aimDistH = aimGridDistance / Math.cos(deflRad);
-                }
-            }
-            // ✅ ดักจับ Out of Bounds หากระยะยิงแก้ไกลเกินกว่าตารางดินส่งปัจจุบันจะรองรับได้
-            if (finalInterpDataHigh && finalInterpDataHigh.clamped) { finalInterpDataHigh = null; }
-
-            if (finalInterpDataHigh) {
-                const angleOfSiteMilHigh = Math.atan(dz / aimDistH) * (halfMil / Math.PI); 
-                // ✅ ใช้สูตรเดียวกับ calculate() หลัก — ดูคอมเมนต์อธิบายเต็มที่นั่น
-                if (finalInterpDataHigh.hasDeltaData) {
-                    let elevCorrection = (dz / 100) * finalInterpDataHigh.dElevPer100m;
-                    finalElevHigh = finalInterpDataHigh.elev - elevCorrection;
-                } else {
-                    finalElevHigh = finalInterpDataHigh.elev - angleOfSiteMilHigh;
-                }
-                finalAziHigh = (aimBearingMil + deflHighMil + milSystem) % milSystem;
-            }
+        // ✅ คำนวณค่ายิงแก้ด้วย computeSolutionForGun() ตัวเดียวกับปุ่ม Calculate หลัก (ไม่ใช้สูตรชุดซ้ำอีกต่อไป)
+        // แก้บั๊กเดิม: (1) ไม่รวม rangeOffset  (2) คิดเฉพาะ High Angle — ปืนที่มีแต่ Low Angle (2A36, ควัน 2B9)
+        // ปุ่ม "ยืนยันชดเชย" ไม่เคยกดได้  (3) ใช้ปืนกระบอก 1 เสมอแม้เลือกดูกระบอกอื่น / โหมดหน้ากระดาน
+        // ผลลัพธ์จะตรงกับค่าที่ได้หลังกด "ยืนยันชดเชย" ทุกประการ (applyFOCorrection เลื่อน aimOffset เท่ากันนี้)
+        const tZ = parseFloat(DOM["targetZ"].value) || 0;
+        const guns = collectGunPositions();
+        const aimPoints = computeSheafTargets(tX, tY, guns.length);
+        const gi = (selectedGunIndex >= 0 && selectedGunIndex < guns.length) ? selectedGunIndex : 0;
+        const savedOffX = aimOffsetX, savedOffY = aimOffsetY;
+        let sol = null;
+        try {
+            aimOffsetX = savedOffX - diffX_m; aimOffsetY = savedOffY - diffY_m;
+            sol = computeSolutionForGun(guns[gi].x, guns[gi].y, guns[gi].z, aimPoints[gi].x, aimPoints[gi].y, tZ);
+        } finally {
+            aimOffsetX = savedOffX; aimOffsetY = savedOffY;
         }
 
-        if (!isNaN(finalElevHigh) && !isNaN(finalAziHigh)) {
-            let chargeDisplayHigh = getChargeDisplayName(chargeCodeHigh, isMortar);
-            correctionText += `<div style='margin-top:4px; background:rgba(234, 179, 8, 0.15); border-left: 3px solid #eab308; padding: 6px; border-radius:4px;'>`;
-            correctionText += `<div style='font-size:12px; color:#eab308; font-weight:bold; margin-bottom: 4px;'>💡 ค่าปืนที่ต้องยิงแก้ (${chargeDisplayHigh}):</div>`;
-            correctionText += `<div style='font-size:13px; display:flex; justify-content:space-between; margin-bottom: 2px;'><span>Elevation (มุมเงย):</span> <b style="color:#fff;">${finalElevHigh.toFixed(0)}</b></div>`;
-            correctionText += `<div style='font-size:13px; display:flex; justify-content:space-between;'><span>Aim Azimuth (หันหน้า):</span> <b style="color:#fff;">${finalAziHigh.toFixed(0)}</b></div></div>`;
+        const isMortar = currentWeapon.type === "mortar";
+        const gunLabel = guns.length > 1 ? ` — GUN ${gi + 1}` : "";
+        const rows = [];
+        const addRow = (traj, label, color) => {
+            if (!traj || isNaN(traj.elev)) return;
+            const ok = isTrajFireable(traj);
+            rows.push(`<div style='margin-top:4px; background:rgba(234, 179, 8, 0.15); border-left: 3px solid ${color}; padding: 6px; border-radius:4px;'>`
+                + `<div style='font-size:12px; color:${color}; font-weight:bold; margin-bottom: 4px;'>💡 ค่าปืนที่ต้องยิงแก้ ${label} (${getChargeDisplayName(traj.chargeCode, isMortar)})${gunLabel}:</div>`
+                + `<div style='font-size:13px; display:flex; justify-content:space-between; margin-bottom: 2px;'><span>Elevation (มุมเงย):</span> <b style="color:${ok ? '#fff' : '#ef4444'};">${traj.elev.toFixed(0)}</b></div>`
+                + `<div style='font-size:13px; display:flex; justify-content:space-between;'><span>Aim Azimuth (หันหน้า):</span> <b style="color:#fff;">${traj.azi.toFixed(0)}</b></div>`
+                + (ok ? "" : `<div style='color:#ef4444; font-size:11px; margin-top:2px;'>⚠️ เกินขีดจำกัดมุมปืน / ไม่ผ่านความสูงสิ่งกีดขวาง</div>`)
+                + `</div>`);
+        };
+        if (sol && !sol.empty) {
+            if (!isMortar) addRow(sol.trajLow, "LOW", "#38bdf8");
+            addRow(sol.trajHigh, isMortar ? "" : "HIGH", "#eab308");
+        }
+
+        if (rows.length > 0) {
+            correctionText += rows.join("");
+            correctionText += `<div style="font-size: 11px; color: #94a3b8; margin-top: 6px; text-align:center;">(✅ หรือกด <b>"ยืนยันชดเชย"</b> เพื่อตั้งค่าลงปืนทันที)</div>`;
             enableApplyCorrectionBtn();
-        } else { 
-            let userSelectedHighFO = DOM["chargeVelHigh"].value;
-            let chargeLabelFO = userSelectedHighFO === 'auto' ? "AUTO CHARGE" : getChargeDisplayName(chargeCodeHigh, isMortar);
-            correctionText += `<div style='color:#ef4444; font-size: 12px; margin-top: 4px;'>⚠️ จุดยิงแก้อยู่นอกระยะของ ${chargeLabelFO} แนะนำให้ปรับแก้แบบ Manual</div>`; 
-            disableApplyCorrectionBtn(); 
-        }
-        if(!isNaN(finalElevHigh)) {
-           correctionText += `<div style="font-size: 11px; color: #94a3b8; margin-top: 6px; text-align:center;">(✅ หรือกด <b>"ยืนยันชดเชย"</b> เพื่อตั้งค่าลงปืนทันที)</div>`;
+        } else {
+            correctionText += `<div style='color:#ef4444; font-size: 12px; margin-top: 4px;'>⚠️ จุดยิงแก้อยู่นอกระยะของตารางยิงที่เลือก แนะนำให้ปรับแก้แบบ Manual</div>`;
+            disableApplyCorrectionBtn();
         }
     }
     correctionText += "</div>";
@@ -2445,10 +2414,12 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
         // มอร์ตาร์มีแค่ High Angle เท่านั้น จึงบังคับใช้ simDataHigh เสมอ; อาวุธอื่นให้ตาม fuzeAngleMode ที่ผู้ใช้เลือก (fallback ไปอีกฝั่งถ้าฝั่งที่เลือกไม่มีข้อมูล)
         let activeSim = isMortar ? simDataHigh : (fuzeAngleMode === 'high' ? (simDataHigh || simDataLow) : (simDataLow || simDataHigh));
         if (activeSim && activeSim.burstX !== null) {
+            // ใช้ effDx/effDy (ยาว = aimGridDistance ซึ่งรวม rangeOffset แล้ว) ไม่ใช่ effTarget-gun (ยาว = baseGridDistance)
+            // เดิมเมื่อ rangeOffset ≠ 0 จุด Air Fuze บนแผนที่จะเลื่อนผิดตำแหน่งตามสัดส่วน base/aim
             let ratio = activeSim.burstX / aimGridDistance;
             airburstDataPack = {
-                x: gunX + (effTargetX - gunX) * ratio,
-                y: gunY + (effTargetY - gunY) * ratio
+                x: gunX + effDx * ratio,
+                y: gunY + effDy * ratio
             };
         }
     }
@@ -3552,7 +3523,23 @@ function getActiveTraj() {
     // ถ้ามีทั้ง Low และ High Angle ใช้ Low Angle เป็นค่าหลัก (มาตรฐานที่ใช้บ่อยกว่าสำหรับปืนใหญ่)
     // ถ้าไม่มี Low Angle (เช่น ปูนครกที่มีแต่ High Angle) ใช้ High Angle แทน
     if (!currentCalcData) return null;
-    return currentCalcData.low || currentCalcData.high || null;
+    return pickFiringTraj(currentCalcData.low, currentCalcData.high);
+}
+
+// เลือกวิถีที่จะส่งเข้าแชท: Low ก่อน "เฉพาะเมื่อใช้ยิงได้จริง" (มุมเงยอยู่ในขีดจำกัด + ผ่านความสูงสิ่งกีดขวาง)
+// เดิมเลือก Low เสมอแม้จะขึ้นเตือนสีแดง (มุมเกิน Max / ชนสิ่งกีดขวาง) ทำให้ส่งค่าที่ยิงไม่ได้เข้าแชท ทั้งที่ High ใช้ได้
+function isTrajFireable(traj) {
+    if (!traj || isNaN(traj.elev)) return false;
+    const lim = currentLimits || { minElev: -Infinity, maxElev: Infinity };
+    if (traj.elev < lim.minElev || traj.elev > lim.maxElev) return false;
+    const minClearance = parseFloat(DOM["minClearance"].value) || 0;
+    if (traj.peakAlt !== undefined && traj.peakAlt < minClearance) return false;
+    return true;
+}
+function pickFiringTraj(low, high) {
+    if (isTrajFireable(low)) return low;
+    if (isTrajFireable(high)) return high;
+    return low || high || null;
 }
 
 function getWeaponShortName() {
@@ -3624,7 +3611,7 @@ function copyToChatTeam() {
 
 // สร้างข้อความบรรทัดเดียวสำหรับพลยิง จากข้อมูลผลลัพธ์ของปืน 1 กระบอก (ใช้ร่วมกันทั้งโหมดกระบอกเดียวและหลายกระบอก)
 function buildGunnerLine(sol, weapon, ammo) {
-    const traj = sol.trajLow || sol.trajHigh;
+    const traj = pickFiringTraj(sol.trajLow, sol.trajHigh);
     if (!traj) return null;
     const isMortar = traj.isMortar;
     const chargeLabel = isMortar ? "Ring" : "Charge";
@@ -3643,13 +3630,16 @@ function buildGunnerLine(sol, weapon, ammo) {
     return `${weaponPart} | ${chargeLabel} ${chargeNum} | AZI ${azi} | ELEV ${elev} | ToF ${tof}s${fuzePart}`;
 }
 
-function buildGunnerGridPart() {
+// sol (ถ้าระบุ) = ผลลัพธ์ของกระบอกนั้นๆ — โหมดหน้ากระดานแต่ละกระบอกมีจุดเล็งต่างกัน
+// เดิมใช้ currentCalcData (กระบอกที่เลือกดูอยู่) เสมอ ทำให้ปุ่ม Gun 2/3/... ส่ง Grid ของกระบอกที่เลือกดูแทน
+function buildGunnerGridPart(sol) {
     const hasOffset = (Math.abs(aimOffsetX) >= 0.01 || Math.abs(aimOffsetY) >= 0.01);
-    if (!hasOffset || !currentCalcData) return "";
+    const src = sol || currentCalcData;
+    if (!hasOffset || !src) return "";
     const prefLenX = (DOM["targetX"].value || "0000").replace('-', '').split('.')[0].length;
     const prefLenY = (DOM["targetY"].value || "0000").replace('-', '').split('.')[0].length;
-    const tgtXStr = formatMetersToArma(currentCalcData.targetX + aimOffsetX, prefLenX);
-    const tgtYStr = formatMetersToArma(currentCalcData.targetY + aimOffsetY, prefLenY);
+    const tgtXStr = formatMetersToArma(src.targetX + aimOffsetX, prefLenX);
+    const tgtYStr = formatMetersToArma(src.targetY + aimOffsetY, prefLenY);
     return ` | Grid: ${tgtXStr} ${tgtYStr}`;
 }
 
@@ -3674,12 +3664,12 @@ function copyToChatGunner() {
 function copyToChatGunnerFor(idx) {
     if (!allGunSolutions || !allGunSolutions[idx]) { showCopyChatStatus("⚠️ กรุณาคำนวณก่อน (ใส่พิกัดเป้าหมาย)", true); return; }
     const sol = allGunSolutions[idx];
-    const traj = sol.trajLow || sol.trajHigh;
+    const traj = pickFiringTraj(sol.trajLow, sol.trajHigh);
     if (!traj) { showCopyChatStatus("⚠️ กระบอกนี้ยังไม่มีผลลัพธ์", true); return; }
 
     const weapon = getWeaponShortName();
     const ammo = getAmmoShortName();
-    const gridPart = buildGunnerGridPart();
+    const gridPart = buildGunnerGridPart(sol);
     const line = buildGunnerLine(sol, weapon, ammo);
     const msg = `GUN ${idx + 1} | ${line}${gridPart}`;
 
@@ -3783,6 +3773,8 @@ function logHistory(calcSummary) {
         minClearance: minClearanceRaw, airburstHeight: airburstRaw, rangeOffset: rangeOffsetRaw,
         chargeVelHigh: DOM["chargeVelHigh"] ? DOM["chargeVelHigh"].value : null,
         chargeVelLow: DOM["chargeVelLow"] ? DOM["chargeVelLow"].value : null,
+        // ระยะชดเชยจากปุ่มปรับเป้า / FO — เดิมไม่ได้บันทึก ทำให้ยิงแก้แล้วไม่ถูกบันทึกลงประวัติ และโหลดกลับมาได้ค่าผิด
+        aimOffsetX: aimOffsetX, aimOffsetY: aimOffsetY,
         dist: Math.round(calcSummary.aimGridDistance || 0),
         dz: Math.round(calcSummary.dz || 0),
         elevHigh: calcSummary.trajHigh ? Math.round(calcSummary.trajHigh.elev) : null,
@@ -3800,7 +3792,10 @@ function logHistory(calcSummary) {
         last.targetX === entry.targetX && last.targetY === entry.targetY && last.targetZ === entry.targetZ &&
         last.windSpeed === entry.windSpeed && last.windDir === entry.windDir &&
         last.airburstHeight === entry.airburstHeight && last.rangeOffset === entry.rangeOffset &&
-        last.weaponId === entry.weaponId && last.ammoId === entry.ammoId) {
+        last.weaponId === entry.weaponId && last.ammoId === entry.ammoId &&
+        last.chargeVelHigh === entry.chargeVelHigh && last.chargeVelLow === entry.chargeVelLow &&
+        (last.aimOffsetX || 0) === entry.aimOffsetX && (last.aimOffsetY || 0) === entry.aimOffsetY &&
+        last.elevHigh === entry.elevHigh && last.elevLow === entry.elevLow) {
         return; // ไม่มีอะไรเปลี่ยนจากครั้งก่อน ไม่ต้องบันทึกซ้ำ
     }
 
@@ -3866,7 +3861,10 @@ function loadHistory(index) {
     if (h.chargeVelHigh && DOM["chargeVelHigh"].querySelector(`option[value="${h.chargeVelHigh}"]`)) DOM["chargeVelHigh"].value = h.chargeVelHigh;
     if (h.chargeVelLow && DOM["chargeVelLow"].querySelector(`option[value="${h.chargeVelLow}"]`)) DOM["chargeVelLow"].value = h.chargeVelLow;
 
-    clearOffset(); resetFOState(); calculate();
+    // คืนค่าระยะชดเชยที่ใช้ตอนยิงจริง (รายการเก่าที่ไม่มีข้อมูลนี้ = 0) แทนการล้างทิ้ง
+    if (aimOffsetX !== 0 || aimOffsetY !== 0) offsetHistory.push({ x: aimOffsetX, y: aimOffsetY });
+    aimOffsetX = Number(h.aimOffsetX) || 0; aimOffsetY = Number(h.aimOffsetY) || 0;
+    resetFOState(); calculate();
 }
 
 function deleteHistory(index) {

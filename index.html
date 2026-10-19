@@ -817,9 +817,7 @@
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════════════════════
-// DOM CACHE — Refactored Layer for Performance
-// ═══════════════════════════════════════════════════════════════════
+// ── DOM CACHE ──
 const DOM = (() => {
     const ids = [
         "weaponSelect", "profileSection", "profileSelect", "ammoSelect",
@@ -846,12 +844,9 @@ const DOM = (() => {
     });
 })();
 
-// ---------- JS FUNCTIONS ----------
 function getGridScale() { return 1; }
 
-// รองรับจอความละเอียดสูง (retina / 1440p+ scaling): เพิ่มความละเอียดจริงของ canvas
-// ตาม devicePixelRatio แต่คงพิกัดในโค้ดวาดภาพให้เป็นพิกัด "ลอจิคัล" เดิม (700x700 เป็นต้น)
-// เพื่อไม่กระทบสัดส่วน/ตำแหน่ง/ขนาดตัวอักษรที่ออกแบบไว้ ป้องกันตัวอักษรเบลอ
+// HiDPI: ขยาย backing store ตาม devicePixelRatio แต่วาดด้วยพิกัดลอจิคัลเดิม
 function setupHiDPICanvas(canvas, logicalW, logicalH, maxDpr = Infinity) {
     const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
     const targetW = Math.round(logicalW * dpr);
@@ -866,8 +861,7 @@ function setupHiDPICanvas(canvas, logicalW, logicalH, maxDpr = Infinity) {
 }
 
 
-// แปลงพิกัดกริด Arma (3/4/5 หลัก หรือมีทศนิยม) เป็นเมตร — ตัวหลักตัวเดียวของทั้งโปรแกรม
-// 3 หลัก = ช่อง 100m (+50 กลางช่อง), 4 หลัก = ช่อง 10m (+5), 5 หลัก = 1m, มีทศนิยม = ไม่บวกกลางช่อง
+// กริด Arma → เมตร: 3 หลัก = ช่อง 100m (+50), 4 หลัก = 10m (+5), 5 หลัก = 1m, มีทศนิยม = ไม่บวกกลางช่อง
 function parseArmaGridValue(valStr) {
     valStr = (valStr || "").trim();
     if (valStr === "") return 0;
@@ -879,7 +873,7 @@ function parseArmaGridValue(valStr) {
     if (str.includes('.')) {
         if (intStr.length === 3) multiplier = 100;
         else if (intStr.length === 4) multiplier = 10;
-        else if (intStr.length < 3) multiplier = 100; // เช่น "45.5" = 045.5 (สอดคล้องกับกรณีไม่มีจุด "45" = 045)
+        else if (intStr.length < 3) multiplier = 100;
         else { multiplier = 1; offset = 0; }
     } else {
         if (intStr.length === 3) { multiplier = 100; offset = 50; }
@@ -890,9 +884,7 @@ function parseArmaGridValue(valStr) {
     }
     return ((parseFloat(str) || 0) * multiplier + offset) * (isNeg ? -1 : 1);
 }
-// อ่านจากช่อง input ด้วย id (เช่น "gunX")
 function parseArmaGrid(elId) { const el = DOM[elId]; return el ? parseArmaGridValue(el.value) : 0; }
-// อ่านจากตัว element โดยตรง (ช่องพิกัดปืน 2-5 ที่สร้างขึ้นทีหลัง)
 function parseArmaGridFromEl(el) { return el ? parseArmaGridValue(el.value) : 0; }
 
 function formatMetersToArma(meters, prefLength = 4) {
@@ -913,9 +905,7 @@ function formatCoord(el) {
 }
 function formatDisplayCoord(val_in_meters) { return formatMetersToArma(val_in_meters, 4); }
 
-// ═══════════════════════════════════════════════════════════════════
-// ARTILLERY PHYSICS & INTERPOLATION LAYER
-// ═══════════════════════════════════════════════════════════════════
+// ── ARTILLERY PHYSICS ──
 const ArtilleryPhysics = (() => {
     function getInterpolatedData(dist, table) {
         if (!table || table.length === 0) return null;
@@ -931,7 +921,7 @@ const ArtilleryPhysics = (() => {
         const hasWindData = (idxCW !== -1 && idxLW !== -1);
         const hasPeakAlt = (idxPeakAlt !== -1);
         const hasAngle = (idxAngle !== -1);
-        const hasDeltaData = (idxDElev !== -1 && idxDTof !== -1); // 🔥 D ELEV / D ToF PER 100m DR — ค่าจากตารางยิงจริง (ยังไม่เคยถูกใช้งาน)
+        const hasDeltaData = (idxDElev !== -1 && idxDTof !== -1);
         
         const packResult = (elev, tof, peakAlt, angle, cw, lw, dElev, dTof) => ({
             elev, tof, 
@@ -992,16 +982,11 @@ const ArtilleryPhysics = (() => {
         return 100 * Math.tan(impactAngleRad);
     }
 
-    // ═══ DRAG TRAJECTORY MODEL (point-mass + quadratic air drag: a = -g·ŷ - k·|v|·v) ═══
-    // ไม่ต้องมีข้อมูลแรงต้านเพิ่ม: หา v0 (ความเร็วปากลำกล้อง) และ k (ค่าแรงต้าน) ย้อนกลับจากตารางยิง
-    // โดยบังคับ 2 เงื่อนไข: ยิงด้วยมุมเงยจริง (รวม dz) แล้วต้องตกที่ (ระยะ, dz) พอดี และใช้เวลา = ToF พอดี
-    // ใช้วาดรูปทรงวิถีเท่านั้น — ไม่กระทบ Elevation/Azimuth/ToF/Charge/Fuze Timer ที่ใช้ยิงจริง
+    // ── แบบจำลองแรงต้านอากาศ a = -g·ŷ - k·|v|·v — หา v0/k จาก ระยะ + มุมเงย + ToF ในตาราง ──
     const DRAG_STEPS = 200;
-    const dragWarmStart = new Map();   // chargeKey → {v0, k} ของนัดล่าสุด (v0/k แทบคงที่ต่อ charge → Newton ลู่เข้าเร็ว)
-    const dragResultCache = new Map(); // shotKey → ผลลัพธ์ที่คำนวณแล้ว (2D/3D/แผนที่เรียกซ้ำได้ไม่ต้องคำนวณใหม่)
+    const dragWarmStart = new Map();
+    const dragResultCache = new Map();
 
-    // RK4 จนกระสุนเคลื่อนที่ถึงระยะ dist ในแนวราบ (vx > 0 เสมอเมื่อมีแรงต้าน จึงผ่าน dist ได้ครั้งเดียว)
-    // คืนความสูง Y และเวลา T ณ ระยะเป้า — ใช้ได้ทั้งกรณีโดนเป้าขาลง (ปกติ) และขาขึ้น (Low Angle ระยะใกล้ เป้าสูงกว่าปืน)
     function dragIntegrate(v0, k, th, dist, Tref, keep) {
         const g = 9.81, dt = Tref / DRAG_STEPS;
         let x = 0, y = 0, vx = v0 * Math.cos(th), vy = v0 * Math.sin(th), t = 0;
@@ -1025,10 +1010,9 @@ const ArtilleryPhysics = (() => {
             x = nx; y = ny; t += dt;
             if (keep) pts.push({ x, y, t });
         }
-        return null; // ยังไปไม่ถึงระยะเป้าภายใน 4 เท่าของ ToF (ช้าเกิน)
+        return null;
     }
 
-    // แก้หา (v0, k) — Newton 2 ตัวแปร (warm start จากนัดก่อนของ charge เดียวกัน) แล้ว fallback เป็น bisection
     function dragFit(th, dist, dz, T, chargeKey) {
         const g = 9.81, TOL_X = 0.3, TOL_T = 0.003;
         const resid = (v0, k) => { const r = dragIntegrate(v0, k, th, dist, T, false); return r ? [r.Y - dz, r.T - T] : null; };
@@ -1052,15 +1036,14 @@ const ArtilleryPhysics = (() => {
                 for (let h = 0; h < 6; h++) { nr = resid(v0 + sv, Math.exp(lk + sl)); if (nr) break; sv /= 2; sl /= 2; }
                 if (!nr) break;
                 v0 += sv; lk += sl; r = nr;
-                if (lk < -18) break; // k → 0: ToF ในตารางสั้นเกินกว่าจะมีแรงต้าน — ไม่ต้องวนต่อ
+                if (lk < -18) break;
             }
             if (r && Math.abs(r[0]) < TOL_X && Math.abs(r[1]) < TOL_T) return { v0, k: Math.exp(lk) };
         }
-        // Fallback: bisection (ช้ากว่าแต่ทนทาน) — k ไล่จากน้อยไปมากจนได้ ToF ตามตาราง
         const v0For = (k) => { let lo = 1, hi = Math.max(3000, vVac * 6); for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; const r = dragIntegrate(m, k, th, dist, T, false); if (!r || r.Y < dz) lo = m; else hi = m; } return (lo + hi) / 2; };
         const tAt = (k) => { const r = dragIntegrate(v0For(k), k, th, dist, T, false); return r ? r.T : Infinity; };
         let kLo = 0, kHi = null;
-        if (tAt(0) >= T) return null; // แม้ไม่มีแรงต้านก็ยังช้ากว่า ToF ในตาราง → ไม่มีคำตอบ k ≥ 0 (ให้ผู้เรียกใช้ fallback)
+        if (tAt(0) >= T) return null;
         for (let k = 1e-6; kHi === null && k < 5e-2; k *= 1.6) { if (tAt(k) >= T) kHi = k; else kLo = k; }
         if (kHi === null) return null;
         for (let i = 0; i < 30 && kHi > 0; i++) { const k = (kLo + kHi) / 2; if (tAt(k) < T) kLo = k; else kHi = k; }
@@ -1068,7 +1051,6 @@ const ArtilleryPhysics = (() => {
         return (r && Math.abs(r[0]) < 2 && Math.abs(r[1]) < 0.05) ? { v0, k } : null;
     }
 
-    // คืนเส้นวิถี 101 จุด (เวลาเท่ากัน) + จุดดิบละเอียด — null ถ้าแก้สมการไม่ได้หรือค่าผิดปกติ (ผู้เรียกใช้เส้นแบบเดิมแทน)
     function simulateDragTrajectory(elevRad, dist, dz, T, chargeKey) {
         if (!(dist > 0) || !(T > 0) || !isFinite(dz) || !(elevRad > -Math.PI / 4) || elevRad >= Math.PI / 2) return null;
         const key = elevRad.toFixed(7) + "|" + dist.toFixed(2) + "|" + dz.toFixed(2) + "|" + T.toFixed(4);
@@ -1076,9 +1058,7 @@ const ArtilleryPhysics = (() => {
         let out = null, approx = false;
         let fit = dragFit(elevRad, dist, dz, T, chargeKey);
         if (!fit) {
-            // มุมเงย+ToF ชุดนี้ไม่มีคำตอบทางฟิสิกส์พร้อมกันทั้งคู่ (เช่น Low Angle ระยะใกล้ ยิงลงต่ำ: ToF จากตารางสั้นกว่าสุญญากาศ)
-            // → ใช้ค่าแรงต้านของ charge นี้จากนัดก่อน (หรือ 0) แล้วหา v0 ให้เส้นผ่านเป้าพอดีอย่างเดียว เพื่อรูปทรงที่สมเหตุสมผล
-            const k = (chargeKey && dragWarmStart.has(chargeKey)) ? dragWarmStart.get(chargeKey).k : 0; // ไม่มีข้อมูล charge นี้ → ใช้แบบไม่มีแรงต้าน (ระยะใกล้ผลต่างน้อยมาก)
+            const k = (chargeKey && dragWarmStart.has(chargeKey)) ? dragWarmStart.get(chargeKey).k : 0;
             let lo = 1, hi = 5000;
             for (let i = 0; i < 45; i++) { const m = (lo + hi) / 2; const r = dragIntegrate(m, k, elevRad, dist, T, false); if (!r || r.Y < dz) lo = m; else hi = m; }
             const r = dragIntegrate(lo, k, elevRad, dist, T, false);
@@ -1095,9 +1075,9 @@ const ArtilleryPhysics = (() => {
                     const p = raw[j - 1], q = raw[j], f = q.t > p.t ? (tt - p.t) / (q.t - p.t) : 0;
                     pts.push({ x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f, t_norm: i / 100 });
                 }
-                pts[100] = { x: dist, y: dz, t_norm: 1 }; // ปลายเส้นตรงเป้าพอดี (คลาดจากการแก้สมการ < 0.3m)
+                pts[100] = { x: dist, y: dz, t_norm: 1 };
                 out = { pts, raw, v0: fit.v0, k: fit.k, approx };
-                // เก็บเป็นค่าเริ่มต้นของ charge นี้เฉพาะนัดที่ ToF ยาวพอ (ToF สั้นในตารางปัดทศนิยม 0.1s ทำให้ค่า k ไม่นิ่ง)
+                // เก็บ warm start เฉพาะ ToF ≥ 5s (ToF สั้นในตารางปัดทศนิยม → k ไม่นิ่ง)
                 if (chargeKey && !approx && T >= 5) dragWarmStart.set(chargeKey, { v0: fit.v0, k: fit.k });
             }
         }
@@ -1106,13 +1086,9 @@ const ArtilleryPhysics = (() => {
         return out;
     }
 
-    // ═══ LOW ANGLE: ชดเชยมุมเงยเมื่อเป้าสูง/ต่ำกว่าปืน ด้วยแบบจำลองแรงต้านอากาศ ═══
-    // ทำไมไม่ใช้ D ELEV PER 100M DR จากตาราง: ค่าในตาราง Low Angle ของ M777/M777A1 เป็นชุดเดียวกับ High Angle (น้อยเกินไป 3-5 เท่า)
-    //   ยิงทดสอบ 20 ต.ค. 2026 (M777 Charge 3, 11.1km, เป้าสูง +251m): dElev 564 → สั้น ~300m, แบบจำลอง 589 → โดนเป้า
-    // ทำไมไม่ใช้ atan(dz/ระยะ) อย่างเดียว: ใกล้ระยะไกลสุดของ charge วิถีโค้งมาก ต้องยกมุมเพิ่มมากกว่ามุมที่มองเห็นเป้า (สูตรนี้ได้ 567 ในเคสเดียวกัน)
-    // วิธีคิด: หา v0/k ของ charge จากตารางหลายแถวรอบระยะเป้า → มุมที่ต้องเพิ่ม = θ(ถึงเป้าที่ dz) − θ(ถึงเป้าที่พื้นราบ)
-    //   ณ ระยะหลังชดเชยลม แล้วบวกกับมุมจากตาราง (dz = 0 → ได้ค่าเดิมจากตารางทุกประการ)
-    const rowFitCache = new WeakMap(); // table → [ {v0,k} | null ] ต่อแถว (คำนวณครั้งเดียวต่อแถว)
+    // Low Angle: ชดเชยความสูงเป้า = θ(dz) − θ(0) จากแบบจำลองแรงต้าน ณ ระยะหลังชดเชยลม
+    // ไม่ใช้ D ELEV ของตาราง Low Angle (M777/M777A1 เป็นค่าชุดเดียวกับ High Angle)
+    const rowFitCache = new WeakMap();
     function rowDragFit(table, idx, milSystem) {
         let arr = rowFitCache.get(table); if (!arr) { arr = []; rowFitCache.set(table, arr); }
         if (arr[idx] !== undefined) return arr[idx];
@@ -1124,7 +1100,6 @@ const ArtilleryPhysics = (() => {
     function lowAngleHeightCorrectionMil(table, virtualDist, levelElevMil, levelTof, dz, milSystem) {
         if (!dz) return 0;
         if (!table || table.length < 2 || !(virtualDist > 0) || !(levelTof > 0)) return null;
-        // แถวรอบระยะเป้า ±600m (ToF ≥ 5s เพื่อเลี่ยงค่าที่ปัดทศนิยมแล้วไม่นิ่ง) — ไม่พอให้ใช้ 3 แถวที่ใกล้สุด
         let idxs = table.map((r, i) => i).filter(i => Math.abs(table[i][0] - virtualDist) <= 600 && table[i][2] >= 5);
         if (idxs.length < 2) idxs = table.map((r, i) => i).sort((a, b) => Math.abs(table[a][0] - virtualDist) - Math.abs(table[b][0] - virtualDist)).slice(0, 3);
         const fits = idxs.map(i => rowDragFit(table, i, milSystem)).filter(Boolean);
@@ -1132,7 +1107,6 @@ const ArtilleryPhysics = (() => {
         const v0 = fits.reduce((s, f) => s + f.v0, 0) / fits.length, k = fits.reduce((s, f) => s + f.k, 0) / fits.length;
         const MIL = Math.PI / (milSystem / 2);
         const yAt = (thMil) => { const r = dragIntegrate(v0, k, thMil * MIL, virtualDist, levelTof * 1.5, false); return r ? r.Y : -Infinity; };
-        // มุมต่ำสุด (Low Angle) ที่ทำให้ความสูง ณ ระยะเป้า = h — ไล่ทีละ 10 mil แล้ว bisection
         const solve = (h) => {
             let a = levelElevMil, ya = yAt(a), step = ya < h ? 10 : -10, b = a;
             for (let i = 0; i < 160; i++) { b = a + step; const yb = yAt(b); if ((ya - h) * (yb - h) <= 0) break; a = b; ya = yb; if (b * MIL > 1.4 || b * MIL < -0.7) return null; }
@@ -1144,15 +1118,13 @@ const ArtilleryPhysics = (() => {
         const th0 = solve(0), thH = solve(dz);
         if (th0 === null || thH === null) return null;
         const delta = thH - th0;
-        // กันค่าผิดปกติ: ทิศต้องตรงกับ dz และไม่มากเกินเหตุเทียบกับมุมที่มองเห็นเป้า
+        // กันค่าผิดปกติ → ใช้สูตรสำรอง
         const sight = Math.atan(dz / virtualDist) / MIL;
         if (!isFinite(delta) || Math.sign(delta) !== Math.sign(dz) || Math.abs(delta) > Math.abs(sight) * 5 + 30) return null;
         return delta;
     }
 
-    // ═══ เส้นวิถีที่ใช้แสดงผล (2D / 3D / จุด Air Fuze บนแผนที่) ═══
-    // รูปทรงเส้น = แบบจำลองแรงต้านอากาศด้านบน; Air Fuze Timer = สูตรเดิม (approxTrajectoryPoints) ซึ่งทดสอบในเกมแล้ว
-    // ถ้าแบบจำลองแก้สมการไม่ได้ (ข้อมูลตารางผิดปกติ/กรณีสุดขั้ว) จะใช้เส้นแบบเดิมทั้งหมดแทน กราฟไม่พัง
+    // เส้นวิถีแสดงผล (2D/3D/แผนที่) จากแบบจำลองแรงต้าน; Air Fuze Timer ใช้ approxTrajectoryPoints
     const getDragSimulatedPoints = (traj, dist, dz, airburstH = 0, currentWeaponObj) => {
         const base = approxTrajectoryPoints(traj, dist, dz, airburstH, currentWeaponObj);
         if (!base) return base;
@@ -1170,12 +1142,12 @@ const ArtilleryPhysics = (() => {
                  apexAlt: Math.max(...sim.pts.map(p => p.y)), model: sim.approx ? "drag-approx" : "drag", v0: sim.v0, k: sim.k };
     };
 
-    // สูตรประมาณแบบเดิม (พาราโบลาแนวตั้ง + บีบแนวนอนแบบ exponential) — ใช้หา Air Fuze Timer และเป็นเส้นสำรอง
+    // สูตรประมาณเดิม — ใช้หา Air Fuze Timer และเป็นเส้นสำรอง
     const approxTrajectoryPoints = (traj, dist, dz, airburstH = 0, currentWeaponObj) => {
         if (!traj || dist <= 0) return null;
         let pts = [];
         let g = 9.81;
-        let T = traj.tof; // ToF จริงที่คำนวณจาก dz — ใช้ยิงจริงและใช้เป็นกรอบเวลาสำหรับหา fuze crossing
+        let T = traj.tof;
         
         const milSystem = currentWeaponObj.milSystem || 6400;
         let elevRad = traj.elev * (Math.PI / (milSystem / 2)); 
@@ -1191,7 +1163,6 @@ const ArtilleryPhysics = (() => {
 
         let v_y0 = (dz + 0.5 * g * T * T) / T;
 
-        // สร้างเส้นโค้งดิบ (raw parabola) ก่อน แล้วค่อยหาความสูงสุดจริงที่มันไปถึงด้วยการสแกน
         let rawPts = [];
         for (let i = 0; i <= 100; i++) {
             let t = i / 100;
@@ -1199,9 +1170,6 @@ const ArtilleryPhysics = (() => {
             let flatY = (v_y0 * (t * T)) - (0.5 * g * (t * T) * (t * T));
             rawPts.push({ x: currentX, y: flatY, t_norm: t });
         }
-        // ไม่บังคับให้เส้นโค้งผ่านจุด peakAlt จริงจากตารางอีกต่อไป (การยืด/บีบแบบ weight เชิงเส้น
-        // ทำให้เกิดรอยหักที่ apex และรูปทรงบิดเบี้ยวเมื่อ dz มาก) — ใช้ raw parabola ตรงๆ เป็นเส้นวาด
-        // เพื่อความสมูทต่อเนื่องเสมอ ส่วนค่า peakAlt จริงจากตารางยังใช้แสดงเป็นตัวเลขอ้างอิงแยกต่างหากได้
         pts = rawPts.map(p => ({ x: p.x, y: p.y, t_norm: p.t_norm }));
 
         let exactFuzeTime = null;
@@ -1209,7 +1177,6 @@ const ArtilleryPhysics = (() => {
         const burstAlt = dz + airburstH;
 
         if (airburstH > 0) {
-            // หาจุดตัดแรกที่ผ่าน apex แล้ว (ขาลง) โดยไม่ fix เวลาไว้ตายตัวที่ 0.5
             let apexIdx = 0;
             for (let i = 1; i < pts.length; i++) { if (pts[i].y > pts[apexIdx].y) apexIdx = i; }
 
@@ -1226,10 +1193,7 @@ const ArtilleryPhysics = (() => {
         return { pts, fuzeTime: exactFuzeTime, burstX: exactBurstX, burstAlt: burstAlt, apexAlt: Math.max(...pts.map(p => p.y)) };
     };
 
-    // ชดเชยลม (วนซ้ำ 4 รอบ): ลมทวน/ตาม → ปรับระยะเสมือน, ลมขวาง → เผื่อทิศ (deflection)
-    // ใช้ค่าจากตาราง (Long/Cross Wind 10m/s) ถ้ามี ไม่งั้นใช้สัมประสิทธิ์ของอาวุธ (driftCoeff/rangeCoeff)
-    // ตัวเดียวที่ใช้ร่วมกันทั้ง High Angle, Low Angle และ Auto Charge (findBestCharge)
-    // คืนค่า { interp, deflMil, aimDist, aimBearingDeg, virtualDist } — interp = null ถ้าตารางว่าง
+    // ชดเชยลม: ลมทวน/ตาม → ระยะเสมือน (LONG), ลมขวาง → deflection (CROSS) — ใช้ร่วม High/Low/Auto Charge
     function solveWind(table, aimGridDistance, baseBearingDeg, windSpeed, windDirDeg, milSystem, driftCoeff, rangeCoeff) {
         const halfMil = milSystem / 2;
         let aimDist = aimGridDistance; let aimBearingDeg = baseBearingDeg; let deflMil = 0; let interp = null; let lastVirtualDist = aimGridDistance;
@@ -1251,7 +1215,6 @@ const ArtilleryPhysics = (() => {
         return { interp, deflMil, aimDist, aimBearingDeg, virtualDist: lastVirtualDist };
     }
 
-    // ความสูงของเส้นวิถีเหนือเป้า ณ ระยะ x (ใช้หา Alt @100m จากเส้นจริง แทนสูตรเส้นตรง 100·tan(มุมตก) ที่ให้ค่าสูงเกินจริง)
     function trajHeightAboveTargetAt(pts, x, dz) {
         if (!pts || pts.length < 2) return null;
         for (let i = 1; i < pts.length; i++) if (pts[i].x >= x) { const a = pts[i - 1], b = pts[i]; const f = b.x > a.x ? (x - a.x) / (b.x - a.x) : 0; return a.y + (b.y - a.y) * f - dz; }
@@ -1261,7 +1224,6 @@ const ArtilleryPhysics = (() => {
     return { getInterpolatedData, calculateAltAtLast100m, getDragSimulatedPoints, approxTrajectoryPoints, simulateDragTrajectory, trajHeightAboveTargetAt, solveWind, lowAngleHeightCorrectionMil };
 })();
 
-// Legacy Wrapper for older functions
 const getInterpolatedData = ArtilleryPhysics.getInterpolatedData;
 const calculateAltAtLast100m = ArtilleryPhysics.calculateAltAtLast100m;
 const solveWind = ArtilleryPhysics.solveWind;
@@ -1269,13 +1231,11 @@ const getDragSimulatedPoints = (traj, dist, dz, airburstH = 0) => ArtilleryPhysi
 
 let airburstDataPack = null;
 let allGunSolutions = [];
-// LO/HI toggle: เลือกว่าจะแสดงจุด Air Fuze Point บน Tactical Top-Down Map จากวิถี Low หรือ High Angle
-// (ไม่กระทบ Trajectory Profile ซึ่งยังคงแสดงทั้ง 2 เส้นเหมือนเดิม)
-// อาวุธที่มีแต่ตารางยิง High Angle เท่านั้น (เช่น มอร์ตาร์) จะถูกล็อคปุ่มไว้ที่ HI เสมอ เลื่อนลง LO ไม่ได้
+// LO/HI: เลือกวิถีที่ใช้แสดงจุด Air Fuze บนแผนที่ (อาวุธ High Angle only ล็อคที่ HI)
 let fuzeAngleMode = 'low';
 function toggleFuzeAngleMode() {
     const el = document.getElementById('fuzeAngleSwitch');
-    if (el && el.classList.contains('locked')) return; // ล็อคอยู่ (อาวุธ High Angle only) ห้ามสลับ
+    if (el && el.classList.contains('locked')) return;
     fuzeAngleMode = (fuzeAngleMode === 'low') ? 'high' : 'low';
     syncFuzeAngleSwitchUI();
     calculate();
@@ -1286,7 +1246,6 @@ function syncFuzeAngleSwitchUI() {
     el.classList.toggle('mode-low', fuzeAngleMode === 'low');
     el.classList.toggle('mode-high', fuzeAngleMode === 'high');
 }
-// เรียกทุกครั้งที่เปลี่ยนอาวุธ/โปรไฟล์ — ถ้าอาวุธเป็น High Angle only ให้ล็อคปุ่มไว้ที่ HI
 function applyFuzeAngleLock(isHighAngleOnly) {
     const el = document.getElementById('fuzeAngleSwitch');
     if (!el) return;
@@ -1301,7 +1260,7 @@ function applyFuzeAngleLock(isHighAngleOnly) {
     syncFuzeAngleSwitchUI();
 }
 
-// Global State
+// ── STATE ──
 let currentWeaponId = 'm777'; let currentWeapon = weaponLibrary[currentWeaponId];
 let currentLimits = currentWeapon.limits; let currentAmmoList = currentWeapon.ammo;
 let currentAmmoId = 'he'; let currentAmmo = currentAmmoList[currentAmmoId];
@@ -1309,14 +1268,12 @@ let memoryToDeleteIndex = -1; let memoryToEditIndex = -1;
 let foPosition = null; let foImpactPoint = null;
 let aimOffsetX = 0; let aimOffsetY = 0; let offsetHistory = [];
 
-// ═══════════════════════════════════════════════════════════════════
-// MULTI-GUN SUPPORT
-// ═══════════════════════════════════════════════════════════════════
+// ── MULTI-GUN ──
 let multiGunEnabled = false;
 let gunCount = 1;
 const MAX_GUNS = 5;
 let gunPosExpanded = false;
-let selectedGunIndex = 0; // index into current solutions array (0-based) — which gun's result to display
+let selectedGunIndex = 0;
 let extraGunValues = { 2: {x:"0000", y:"0000", z:"00"}, 3: {x:"0000", y:"0000", z:"00"}, 4: {x:"0000", y:"0000", z:"00"}, 5: {x:"0000", y:"0000", z:"00"} };
 
 function toggleMultiGun() {
@@ -1361,7 +1318,6 @@ function changeGunCount(delta) {
     calculate();
 }
 
-// วาด dropdown เลือกกระบอกที่จะแสดงผล — โผล่เฉพาะตอนเปิดระบบหลายกระบอกและมีมากกว่า 1 กระบอก
 function renderGunSelect() {
     const row = document.getElementById('gunSelectRow');
     const sel = document.getElementById('gunSelect');
@@ -1407,7 +1363,7 @@ function renderGunPosExtra() {
 }
 
 function formatExtraGunCoord(el, gunIdx) {
-    formatCoord(el); // handles padding + triggers calculate()
+    formatCoord(el);
     saveExtraGunCoord(gunIdx);
 }
 function saveExtraGunCoord(gunIdx) {
@@ -1416,7 +1372,6 @@ function saveExtraGunCoord(gunIdx) {
     extraGunValues[gunIdx] = { x: xEl.value || "0000", y: yEl.value || "0000", z: zEl.value || "00" };
 }
 
-// รวบรวมพิกัดปืนทุกกระบอกที่กำลังใช้งานอยู่ (กระบอกที่ 1 เสมอ + กระบอก 2-N ถ้าเปิดระบบหลายกระบอก)
 function collectGunPositions() {
     const guns = [{ idx: 1, x: parseArmaGrid("gunX"), y: parseArmaGrid("gunY"), z: parseFloat(DOM["gunZ"].value) || 0 }];
     if (multiGunEnabled && gunCount > 1) {
@@ -1434,8 +1389,6 @@ function onFirePatternChange() {
     calculate();
 }
 
-// คำนวณจุดเล็งของแต่ละกระบอกตามโหมดยิง (จุดเดียวกัน หรือ หน้ากระดาน)
-// คืนค่า array ของ {x, y} ความยาวเท่ากับจำนวนกระบอก โดย offset สมมาตรรอบเป้าหมายเดิม
 function computeSheafTargets(targetX, targetY, gunN) {
     const pattern = multiGunEnabled && gunCount > 1 ? (document.getElementById('firePattern') ? document.getElementById('firePattern').value : 'same') : 'same';
     if (pattern !== 'sheaf') {
@@ -1445,7 +1398,7 @@ function computeSheafTargets(targetX, targetY, gunN) {
     const spacing = parseFloat(document.getElementById('sheafSpacing') ? document.getElementById('sheafSpacing').value : 0) || 0;
     const results = [];
     for (let i = 0; i < gunN; i++) {
-        // จัดกึ่งกลางรอบเป้าหมาย: offset ของกระบอกที่ i (0-indexed) = (i - (N-1)/2) * spacing
+        // offset กระบอกที่ i = (i - (N-1)/2) * spacing
         const offset = (i - (gunN - 1) / 2) * spacing;
         if (axis === 'x') results.push({ x: targetX + offset, y: targetY });
         else results.push({ x: targetX, y: targetY + offset });
@@ -1459,8 +1412,6 @@ let historyToDeleteIndex = -1;
 let historyLog = [];
 try { const h = localStorage.getItem('m777_history'); historyLog = h ? JSON.parse(h) : []; } catch (e) { historyLog = []; }
 
-// เปิดโปรแกรมใหม่ → ดึงพิกัดปืน/เป้าหมายล่าสุดจาก Fire History มาใส่อัตโนมัติ
-// (เผื่อบังเอิญปิดหน้าเว็บไปแล้วเปิดใหม่ จะได้ยิงต่อจากจุดเดิมได้เลย ไม่ต้องพิมพ์พิกัดใหม่)
 function restoreLastFireCoords() {
     const last = historyLog[0];
     if (!last) return;
@@ -1475,17 +1426,15 @@ function restoreLastFireCoords() {
 }
 if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", restoreLastFireCoords); } else { restoreLastFireCoords(); }
 
-// ตัวนับลำดับ #N ของ Fire History แบบรันต่อเนื่องไม่รีเซ็ตตอนลบอันเก่าทิ้ง (รีเซ็ตเฉพาะตอนกด DELETE ALL)
+// ลำดับ #N ของ Fire History รันต่อเนื่อง รีเซ็ตเฉพาะ DELETE ALL
 let historySeq = 0;
 try {
     const s = localStorage.getItem('m777_history_seq');
     historySeq = s ? parseInt(s, 10) : (historyLog[0] && historyLog[0].seq ? historyLog[0].seq : historyLog.length);
 } catch (e) { historySeq = historyLog.length; }
 
-// ═══════════════════════════════════════════════════════════════════
-// WIND DATA TIMESTAMP — แสดงเวลาที่กรอกค่าลมล่าสุด (เขียว < 10 นาที, แดง >= 10 นาที)
-// ═══════════════════════════════════════════════════════════════════
-const WIND_STALE_MS = 10 * 60 * 1000; // 10 นาที
+// ── WIND TIMESTAMP (เขียว < 10 นาที / แดง ≥ 10 นาที) ──
+const WIND_STALE_MS = 10 * 60 * 1000;
 let windUpdatedAt = null;
 
 function markWindUpdated() {
@@ -1513,7 +1462,7 @@ function initWindTimestampUI() {
 }
 if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", initWindTimestampUI); } else { initWindTimestampUI(); }
 
-// เรียกจากปุ่ม Calculate เท่านั้น — เริ่มนับเวลาข้อมูลลมใหม่ต่อเมื่อกดคำนวณจริง ไม่ใช่ตอนพิมพ์ค่าลม
+// เรียกจากปุ่ม Calculate เท่านั้น — เวลาลมเริ่มนับใหม่ตอนกดคำนวณ ไม่ใช่ตอนพิมพ์
 function calculateAndMarkWind() {
     markWindUpdated();
     calculate();
@@ -1523,14 +1472,12 @@ let mapMode = 'auto'; let mapCamX = 0; let mapCamY = 0; let mapZoom = 1;
 let isPanning = false; let startPanX, startPanY; let isRedrawing = false;
 let is3DMode = false; let currentCalcData = null; window.trajectoryAnimId = null;
 
-// ═══════════════════════════════════════════════════════════════════
-// MAP BACKGROUND LOADER — โหลดภาพแผนที่จริงจาก armamaptiles.github.io
-// ═══════════════════════════════════════════════════════════════════
+// ── MAP BACKGROUND (armamaptiles.github.io) ──
 const MapBackground = (() => {
     const TILE_BASE = "https://armamaptiles.github.io/ArmaMapsTiles";
     const TILESIZE = 256;
     const GROUP_SIZE = 256;
-    // โซนที่ยอมให้เลือกได้เท่านั้น (ตรงกับ <option> ใน dropdown) กันเลือกแมปที่ไม่มีจริง
+    // ต้องตรงกับ <option> ใน #mapBgSelect
     const ALLOWED_MAPS = new Set([
         "Anizay", "Arland", "Avdiivka", "Bakhmut", "Bakhmut City", "Bakhmut Skini", "Belleau Wood", "Chernarus",
         "Chervonopilia", "DonAir", "Donetsk", "Everon", "Fallujah", "Faschivka",
@@ -1539,15 +1486,13 @@ const MapBackground = (() => {
         "West Zagoria", "Yunakivka", "Yunakivka-Sudzha", "Zargabad", "Zarichne",
     ]);
 
-    // zoom level แรกที่โหลดตอนเลือกแมป (ภาพกว้าง ๆ โหลดไว ใช้เป็นภาพตั้งต้น/fallback)
     const BASE_TARGET_DIM = 1400;
-    // ซูมเข้า canvas มากแค่ไหน (เทียบเป็น px ภาพต่อ 1 เมตรโลกเกม) ถึงจะไปขอภาพระดับถัดไป
     const REFINE_DEBOUNCE_MS = 300;
 
-    let mapMeta = {};      // mapName -> { width, height, levels, maxZoom }
-    let tileCache = {};    // mapName -> { [zoomLevel]: { image, width, height, status: 'loading'|'ready' } }
+    let mapMeta = {};
+    let tileCache = {};
     let currentMapName = "";
-    let loadToken = 0;     // ป้องกัน race condition เวลาสลับแมปเร็ว ๆ
+    let loadToken = 0;     // กัน race condition ตอนสลับแมปเร็ว ๆ
     let refineTimer = null;
 
     function computeLevels(width, height) {
@@ -1601,7 +1546,6 @@ const MapBackground = (() => {
         });
     }
 
-    // โหลด tile เฉพาะช่วง col/row ที่กำหนด (รองรับการโหลดเฉพาะพื้นที่ที่มองเห็น ไม่ต้องโหลดทั้งแมปตอนซูมลึก)
     async function loadZoomLevel(mapName, z, statusCb, colRange = null, rowRange = null) {
         const meta = mapMeta[mapName];
         const lvl = meta.levels[z];
@@ -1625,7 +1569,7 @@ const MapBackground = (() => {
                 tasks.push(
                     loadImage(url)
                         .then(img => { ctx.drawImage(img, col * TILESIZE, row * TILESIZE); })
-                        .catch(() => { /* บาง tile อาจไม่มีข้อมูล (ขอบแผนที่) ข้ามได้ */ })
+                        .catch(() => {})
                         .finally(() => { done++; if (statusCb) statusCb(done, total); })
                 );
             }
@@ -1689,23 +1633,19 @@ const MapBackground = (() => {
         return pickBaseZoomLevel(meta.levels, meta.maxZoom);
     }
 
-    // เลือก zoom level ที่ "ควรจะใช้" ตามระดับการซูมปัจจุบันของ canvas (mapZoom = px บน canvas ต่อ 1 เมตรโลกเกม)
     function desiredZoomLevel(meta) {
-        // อัตราส่วน px ภาพต่อเมตรโลกเกม ที่ zoom level z คือ (levels[z].width / meta.width)
-        // อยากได้ level ที่ใกล้เคียง mapZoom (px canvas ต่อเมตร) ที่สุด แต่ไม่เกิน maxZoom
         let best = 0;
         for (let z = 0; z <= meta.maxZoom; z++) {
             const pxPerMeter = meta.levels[z].width / meta.width;
-            if (pxPerMeter <= mapZoom * 1.15) best = z; // ยอมให้ over-provision เล็กน้อยเพื่อความคมชัด
+            if (pxPerMeter <= mapZoom * 1.15) best = z;
         }
         return best;
     }
 
-    // คำนวณว่าพื้นที่ที่มองเห็นบน canvas ตอนนี้ ครอบคลุม col/row ไหนบ้างของ zoom level ที่ต้องการ
     function visibleTileRange(meta, z) {
         const lvl = meta.levels[z];
-        const scaleImgToWorld = meta.width / lvl.width; // เมตรต่อ 1 พิกเซลภาพระดับนี้
-        const w = 700, h = 700; // logical canvas size (ตรงกับ drawGraph, ไม่ใช่ backing-store ที่ scale ตาม DPR)
+        const scaleImgToWorld = meta.width / lvl.width;
+        const w = 700, h = 700; // ขนาด canvas ลอจิคัล (ไม่ใช่ backing store ที่ขยายตาม DPR)
         const viewMinX = mapCamX - w / (2 * mapZoom);
         const viewMaxX = mapCamX + w / (2 * mapZoom);
         const viewMinY = mapCamY - h / (2 * mapZoom);
@@ -1716,7 +1656,7 @@ const MapBackground = (() => {
         const pxMinYtop = (meta.height - viewMaxY) / scaleImgToWorld;
         const pxMaxYtop = (meta.height - viewMinY) / scaleImgToWorld;
 
-        const colPad = 1, rowPad = 1; // โหลดเผื่อขอบเล็กน้อยกันขาวตอน pan
+        const colPad = 1, rowPad = 1;
         const c0 = Math.floor(pxMinX / TILESIZE) - colPad;
         const c1 = Math.ceil(pxMaxX / TILESIZE) + colPad;
         const r0 = Math.floor(pxMinYtop / TILESIZE) - rowPad;
@@ -1724,7 +1664,6 @@ const MapBackground = (() => {
         return [c0, c1, r0, r1];
     }
 
-    // debounce: เรียกทุกครั้งที่ pan/zoom เปลี่ยน เพื่อพิจารณาว่าต้องโหลดภาพละเอียดขึ้นไหม
     function scheduleRefine() {
         clearTimeout(refineTimer);
         refineTimer = setTimeout(refineCurrentView, REFINE_DEBOUNCE_MS);
@@ -1739,8 +1678,8 @@ const MapBackground = (() => {
         const z = desiredZoomLevel(meta);
         tileCache[mapName] = tileCache[mapName] || {};
         const existing = tileCache[mapName][z];
-        if (existing && existing.status === 'ready' && existing.full) return; // มีภาพเต็มระดับนี้แล้ว ไม่ต้องทำอะไร
-        if (existing && existing.status === 'loading') return; // กำลังโหลดอยู่แล้ว
+        if (existing && existing.status === 'ready' && existing.full) return;
+        if (existing && existing.status === 'loading') return;
 
         const [c0, c1, r0, r1] = visibleTileRange(meta, z);
         const myToken = loadToken;
@@ -1760,7 +1699,6 @@ const MapBackground = (() => {
         }
     }
 
-    // เรียกทุกครั้งที่ pan/zoom เปลี่ยน (จาก event listener ของ canvas) เพื่อพิจารณาโหลดภาพละเอียดขึ้น
     function notifyViewChanged() {
         if (!currentMapName || !mapMeta[currentMapName]) return;
         scheduleRefine();
@@ -1773,7 +1711,6 @@ const MapBackground = (() => {
         el.className = "map-status" + (cls ? " " + cls : "");
     }
 
-    // คืนภาพสำหรับวาด: base = ภาพเต็มแมประดับหยาบ (มีเสมอถ้าโหลดสำเร็จ), refined = ภาพคมชัดกว่าเฉพาะพื้นที่ที่โหลดแล้ว (อาจไม่มี)
     function getCurrent() {
         if (!currentMapName) return null;
         const meta = mapMeta[currentMapName];
@@ -1797,11 +1734,10 @@ const MapBackground = (() => {
 
 function onMapBgChange() {
     const val = DOM["mapBgSelect"].value;
-    try { localStorage.setItem('m777_selected_map', val); } catch (e) { /* ไม่เป็นไร แค่จำไม่ได้รอบหน้า */ }
+    try { localStorage.setItem('m777_selected_map', val); } catch (e) {}
     MapBackground.setMap(val);
 }
 
-// คืนค่าแผนที่ที่เลือกไว้ล่าสุดตอนเปิดหน้าใหม่ (กันปัญหา dropdown รีเซ็ตกลับ "ไม่แสดงแผนที่" แล้วดูเหมือนจุดมาร์คหาย ทั้งที่จริงยังอยู่ใน localStorage ผูกกับชื่อแผนที่เดิม)
 function restoreSelectedMap() {
     try {
         const saved = localStorage.getItem('m777_selected_map');
@@ -1809,14 +1745,12 @@ function restoreSelectedMap() {
             const opt = Array.from(DOM["mapBgSelect"].options).find(o => o.value === saved);
             if (opt) { DOM["mapBgSelect"].value = saved; onMapBgChange(); }
         }
-    } catch (e) { /* ไม่เป็นไร แค่ไม่คืนค่าให้ */ }
+    } catch (e) {}
 }
 
 window.addEventListener('load', function() { changeWeapon(); setTimeout(function() { autoLoadFromLocalStorage(); restoreSelectedMap(); }, 200); });
 function autoLoadFromLocalStorage() {
-    // 🔥 เอาการ auto-load เป้าหมายล่าสุดจาก Memory ออก — เดิมมันจะทับพิกัดที่ restoreLastFireCoords()
-    // เพิ่งดึงมาจาก Fire History ตอนเปิดเว็บ ทำให้ดูเหมือนฟีเจอร์จำพิกัดล่าสุดใช้ไม่ได้
-    // ฟังก์ชันนี้ตอนนี้มีหน้าที่แค่ "แสดงรายการ" Memory + Fire History ให้ขึ้นตอนเปิดเว็บเท่านั้น ไม่ยุ่งกับพิกัดที่กรอกอยู่
+    // ไม่ auto-load เป้าจาก Memory (จะทับพิกัดล่าสุดจาก Fire History)
     try {
         const localData = localStorage.getItem('m777_memory');
         if (localData) { savedTargets = JSON.parse(localData); renderMemoryList(); }
@@ -1888,9 +1822,7 @@ function changeAmmo() {
     const prevLow = cLow.value; const prevHigh = cHigh.value;
     const autoOption = `<option value="auto">⚡ Auto Select (อัตโนมัติ)</option>`;
 
-    // 🔥 แก้บั๊ก: เดิมสร้าง dropdown ของ Low และ High จาก tableSource เดียวกัน (highAngle เป็นหลัก)
-    // ถ้ากระสุนไหนมีแต่ lowAngle (ไม่มี highAngle เลย เช่น 2A36 Khrebet) จะทำให้ dropdown Charge ของ Low Angle ว่างไปด้วย เหลือแค่ Auto Select
-    // ตอนนี้สร้างแยกกัน: cHigh มาจาก highAngle table, cLow มาจาก lowAngle table (ถ้ามี) โดยตรง
+    // สร้าง dropdown Charge ของ Low/High แยกกัน (บางกระสุนมีแต่ lowAngle เช่น 2A36)
     let tableSourceForHigh = currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
     let tableSourceForLow = currentAmmo.table.lowAngle ? currentAmmo.table.lowAngle : currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
 
@@ -1913,14 +1845,10 @@ function changeAmmo() {
 
 function resetFOState() { foPosition = null; foImpactPoint = null; DOM["foResult"].style.display = "none"; DOM["foCorrectionResult"].style.display = "none"; disableApplyCorrectionBtn(); }
 
-// ═══════════════════════════════════════════════════════════════════
-// COUNTER-BATTERY — รับพิกัดตรวจจับเรดาร์สูงสุด 6 จุด, หาขอบเขตพื้นที่ (convex hull)
-// ที่เป็นไปได้ของฐานปืนศัตรู (รัศมีความคลาดเคลื่อนเรดาร์ 50-100m ต่อจุด),
-// แรเงาพื้นที่เมื่อมี >3 จุด และ mark จุดกึ่งกลางด้วยจุดสีส้ม
-// ═══════════════════════════════════════════════════════════════════
+// ── COUNTER-BATTERY ──
 const CB_MAX_POINTS = 6;
-const CB_RADIUS_M = 75; // รัศมีเฉลี่ยของความคลาดเคลื่อนเรดาร์ (50-100m) ใช้ทำ buffer รอบแต่ละจุดตรวจจับ
-let cbPoints = [null, null, null, null, null, null]; // { x, y } หรือ null ถ้ายังไม่ได้ใส่
+const CB_RADIUS_M = 75; // รัศมีความคลาดเคลื่อนเรดาร์ (m)
+let cbPoints = [null, null, null, null, null, null];
 
 function buildCounterBatteryUI() {
     const container = DOM["cbCoordRows"];
@@ -1949,7 +1877,6 @@ function toggleFOSpotter() {
 function onCbCoordChange(i) {
     const xEl = document.getElementById(`cbX${i}`); const yEl = document.getElementById(`cbY${i}`);
     if (!xEl || !yEl) return;
-    // จัดรูปแบบให้ตรงกับ FO X/Y (เติม 0 ข้างหน้าถ้าพิมพ์สั้นเกิน) แล้วค่อยแปลงเป็นเมตรจริงด้วย parseArmaGrid-style
     formatCoord(xEl); formatCoord(yEl);
     const xStr = xEl.value.trim(); const yStr = yEl.value.trim();
     if (xStr === "" && yStr === "") { cbPoints[i] = null; }
@@ -1973,10 +1900,8 @@ function clearCounterBatteryAll() {
     redrawMapOnly();
 }
 
-// เหมือน parseArmaGrid() แต่รับ string ตรงๆ แทนการอ่านจาก DOM id (ใช้กับช่อง Counter-Battery ที่สร้างแบบ dynamic)
 function getActiveCbPoints() { return cbPoints.filter(p => p !== null); }
 
-// Convex hull (monotone chain) — ใช้หาขอบเขตรอบนอกสุดของจุดตรวจจับ เพื่อโยงเส้นเฉพาะจุดขอบ ไม่ใช่จุดที่ถูกล้อมอยู่ข้างใน
 function convexHull(points) {
     if (points.length < 3) return points.slice();
     const pts = points.slice().sort((a, b) => (a.x - b.x) || (a.y - b.y));
@@ -1996,17 +1921,13 @@ function convexHull(points) {
     return lower.concat(upper);
 }
 
-// จุดกึ่งกลาง: centroid ของ hull polygon (ถ้ามี >=3 จุดขอบ) หรือ centroid เฉลี่ยธรรมดา (ถ้ามีแค่ 1-2 จุด)
-// หาจุดที่วงกลมความคลาดเคลื่อนของเรดาร์ (รัศมี CB_RADIUS_M รอบแต่ละจุดตรวจจับ) ซ้อนทับกันมากที่สุด
-// ใช้วิธี grid-search สแกนพื้นที่รอบๆ กลุ่มจุดทั้งหมด นับว่าแต่ละตำแหน่งอยู่ในวงกลมกี่วง แล้วเลือกจุดที่นับได้สูงสุด
-// (ถ้าเสมอกันหลายจุด ใช้ค่าเฉลี่ยตำแหน่งของจุดที่นับสูงสุดทั้งหมด เพื่อให้ได้จุดกึ่งกลางของโซนซ้อนทับสูงสุด)
 function getCbBestOverlapPoint(points) {
     if (points.length === 1) return { x: points[0].x, y: points[0].y };
     const minX = Math.min(...points.map(p => p.x)) - CB_RADIUS_M;
     const maxX = Math.max(...points.map(p => p.x)) + CB_RADIUS_M;
     const minY = Math.min(...points.map(p => p.y)) - CB_RADIUS_M;
     const maxY = Math.max(...points.map(p => p.y)) + CB_RADIUS_M;
-    const steps = 60; // ความละเอียดของ grid สแกน
+    const steps = 60;
     const stepX = (maxX - minX) / steps || 1;
     const stepY = (maxY - minY) / steps || 1;
 
@@ -2029,13 +1950,11 @@ function getCbBestOverlapPoint(points) {
         }
     }
     if (bestN === 0) {
-        // ไม่มีวงกลมซ้อนทับกันเลย (จุดกระจายกันไกลเกินไป) — fallback เป็น centroid ธรรมดา
         return { x: points.reduce((s, p) => s + p.x, 0) / points.length, y: points.reduce((s, p) => s + p.y, 0) / points.length };
     }
     return { x: bestSumX / bestN, y: bestSumY / bestN };
 }
 
-// วาด Counter-Battery layer บนแผนที่: วงกลมความคลาดเคลื่อนรอบแต่ละจุดสีเหลือง + เส้นขอบ hull + จุดกึ่งกลางซ้อนทับสูงสุด (สีส้ม)
 function drawCounterBatteryLayer(ctx, toCanvasX, toCanvasY, mapZoom) {
     const points = getActiveCbPoints();
     if (points.length === 0) return;
@@ -2043,7 +1962,6 @@ function drawCounterBatteryLayer(ctx, toCanvasX, toCanvasY, mapZoom) {
     const hull = convexHull(points);
     const radiusPx = Math.max(CB_RADIUS_M * mapZoom, 3);
 
-    // วงกลมความคลาดเคลื่อนของเรดาร์ (รัศมี CB_RADIUS_M) รอบทุกจุดที่กรอก — แสดงเสมอไม่ว่าจะมีกี่จุด
     ctx.save();
     points.forEach(p => {
         const cx = toCanvasX(p.x), cy = toCanvasY(p.y);
@@ -2053,7 +1971,6 @@ function drawCounterBatteryLayer(ctx, toCanvasX, toCanvasY, mapZoom) {
     });
     ctx.restore();
 
-    // เส้นโยงเฉพาะจุดขอบนอกสุด (hull) ที่เรียงตัวเป็นทรงเรขาคณิต — จุดที่อยู่ในแรเงาไม่ต้องโยงเส้น
     if (hull.length >= 2) {
         ctx.save();
         ctx.setLineDash([5, 4]);
@@ -2070,7 +1987,6 @@ function drawCounterBatteryLayer(ctx, toCanvasX, toCanvasY, mapZoom) {
         ctx.restore();
     }
 
-    // จุดตรวจจับเรดาร์แต่ละจุด (สีเหลือง) พร้อมเลขลำดับ 1-6 ตามช่องที่กรอก
     cbPoints.forEach((p, i) => {
         if (!p) return;
         const cx = toCanvasX(p.x), cy = toCanvasY(p.y);
@@ -2084,7 +2000,6 @@ function drawCounterBatteryLayer(ctx, toCanvasX, toCanvasY, mapZoom) {
         ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
     });
 
-    // จุดที่วงกลมซ้อนทับกันมากที่สุด (สีส้ม) — ตำแหน่งที่เป็นไปได้สูงสุดว่าฐานปืนอยู่ตรงนี้จริง
     if (points.length >= 2) {
         const best = getCbBestOverlapPoint(points);
         const ccx = toCanvasX(best.x), ccy = toCanvasY(best.y);
@@ -2161,10 +2076,7 @@ function calculateFOCorrection() {
         let dirX = diffX_m > 0 ? "ขวา (East)" : "ซ้าย (West)"; let dirY = diffY_m > 0 ? "เลยเป้า (North)" : "ตกสั้น (South)";
         correctionText += `<span style='font-size:12px; color:#cbd5e1;'>กระสุนพลาดเป้าหมายไปทาง:</span><div style='background:#1e293b; padding:6px; border-radius:4px; font-size:13px;'>↔️ <b style='color:#ef4444;'>${Math.abs(diffX_m).toFixed(0)}m</b> ${dirX}<br>↕️ <b style='color:#ef4444;'>${Math.abs(diffY_m).toFixed(0)}m</b> ${dirY}</div>`;
 
-        // ✅ คำนวณค่ายิงแก้ด้วย computeSolutionForGun() ตัวเดียวกับปุ่ม Calculate หลัก (ไม่ใช้สูตรชุดซ้ำอีกต่อไป)
-        // แก้บั๊กเดิม: (1) ไม่รวม rangeOffset  (2) คิดเฉพาะ High Angle — ปืนที่มีแต่ Low Angle (2A36, ควัน 2B9)
-        // ปุ่ม "ยืนยันชดเชย" ไม่เคยกดได้  (3) ใช้ปืนกระบอก 1 เสมอแม้เลือกดูกระบอกอื่น / โหมดหน้ากระดาน
-        // ผลลัพธ์จะตรงกับค่าที่ได้หลังกด "ยืนยันชดเชย" ทุกประการ (applyFOCorrection เลื่อน aimOffset เท่ากันนี้)
+        // ใช้ computeSolutionForGun ตัวเดียวกับ Calculate (ผลเท่ากับหลังกดยืนยันชดเชย)
         const tZ = parseFloat(DOM["targetZ"].value) || 0;
         const guns = collectGunPositions();
         const aimPoints = computeSheafTargets(tX, tY, guns.length);
@@ -2221,14 +2133,12 @@ function applyFOCorrection() {
 
 function findBestCharge(dist, dz = 0, windSpeed = 0, windDirDeg = 0, aimBearingDeg = 0, minClearance = 0) {
     let tableSource = currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
-    // 🔥 เรียงตามเลข Charge จริง (c1, c2, ... c10) ไม่ใช่เรียงแบบ string เพื่อให้ตรงกับ Low Angle auto-select
+    // เรียงตามเลข charge (c2 < c10)
     let keys = Object.keys(tableSource).sort((a, b) => parseInt(a.replace(/[^0-9]/g, '')) - parseInt(b.replace(/[^0-9]/g, '')));
     const limitMin = currentLimits ? currentLimits.minElev : 0; const limitMax = currentLimits ? currentLimits.maxElev : 6400;
     const milSystem = currentWeapon.milSystem || 6400; const halfMil = milSystem / 2;
     const driftCoeff = currentWeapon.windDriftCoeff || 0.3725; const rangeCoeff = currentWeapon.windRangeCoeff || 0.40;
 
-    // 🔥 คำนวณ elevation จริงสำหรับ Charge นี้ โดยใช้สูตรเดียวกับ calculate() ทุกประการ
-    // (รวมผลลม + ใช้ dElevPer100m ถ้าตารางมีข้อมูล) เพื่อให้ AUTO เลือก Charge ที่ตรงกับผลจริงที่จะคำนวณออกมา
     function evalCharge(table) {
         const w = solveWind(table, dist, aimBearingDeg, windSpeed, windDirDeg, milSystem, driftCoeff, rangeCoeff);
         const finalInterpDataHigh = w.interp; const aimDistH = w.aimDist;
@@ -2247,13 +2157,13 @@ function findBestCharge(dist, dz = 0, windSpeed = 0, windDirDeg = 0, aimBearingD
     let fallback = null;
     for (const cId of keys) {
         let table = tableSource[cId];
-        if (!table || table.length === 0) continue; // ข้ามตาราง Charge ที่ยังไม่มีข้อมูล (placeholder ว่าง)
+        if (!table || table.length === 0) continue;
         let minRange = table[0][0]; let maxRange = table[table.length - 1][0];
         if (dist < minRange || dist > maxRange) continue;
         let result = evalCharge(table);
         if (!result) continue;
         let isValidElev = result.elev >= limitMin && result.elev <= limitMax;
-        if (!fallback && isValidElev) fallback = cId; // เก็บตัวเลือกแรกที่มุมเงยใช้ได้ไว้เผื่อไม่มีตัวไหนผ่านเงื่อนไข clearance
+        if (!fallback && isValidElev) fallback = cId;
         if (isValidElev && result.peakAlt >= minClearance) return cId;
     }
     if (fallback) return fallback;
@@ -2273,8 +2183,6 @@ function adjustTarget(dirX, dirY) {
     resetFOState(); mapMode = 'target'; calculate();
 }
 
-// คำนวณผลลัพธ์วิถีกระสุนสำหรับปืน 1 กระบอก (แยกออกมาจาก calculate() เดิม เพื่อรองรับหลายกระบอก)
-// targetXIn/targetYIn = จุดเล็งจริงของกระบอกนี้ (อาจต่างจากพิกัดเป้าหมายหลัก ถ้าเป็นโหมดยิงแบบหน้ากระดาน)
 function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) {
     const targetX = targetXIn; const targetY = targetYIn;
     const windSpeed = parseFloat(DOM["windSpeed"].value) || 0; const windDirDeg = parseFloat(DOM["windDir"].value) || 0;
@@ -2304,7 +2212,7 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
     let aimBearingDeg = Math.atan2(dx, dy) * 180 / Math.PI; aimBearingDeg = (aimBearingDeg + 360) % 360; const aimBearingMil = aimBearingDeg * (milSystem / 360);
     const MAX_ELEVATION_MIL = currentLimits.maxElev; const MIN_ELEVATION_MIL = currentLimits.minElev;
     
-    // 🔥 Air Fuze Logic: effectiveDz ใช้เฉพาะหา fuze crossing point เท่านั้น ห้ามใช้กับ Elevation/ToF/PeakAlt/Charge selection ที่ใช้ยิงจริง
+    // effectiveDz ใช้หา fuze crossing เท่านั้น ห้ามใช้กับ Elevation/ToF/PeakAlt/Charge
     let effectiveDz = dz + airburstH;
 
     let offsetNotice = `<div style="min-height: 16px; text-align: right; color:#eab308; font-size:11px; margin-top:2px;">`;
@@ -2323,7 +2231,7 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
 
     let trajHigh = null; let simDataHigh = null; let fuzeTimeHigh = null;
 
-    // ================= 1. High Angle =================
+    // ── HIGH ANGLE ──
     let chargeCodeHigh = DOM["chargeVelHigh"].value;
     if (chargeCodeHigh === 'auto') chargeCodeHigh = findBestCharge(aimGridDistance, dz, windSpeed, windDirDeg, aimBearingDeg, minClearance);
     let tableSourceHigh = currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
@@ -2340,24 +2248,17 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
         let baseTof = finalInterpDataHigh.tof; let g_const = 9.81; 
         const angleOfSiteMilHigh = Math.atan(dz / aimDistH) * (halfMil / Math.PI); 
 
-        // ✅ ยืนยันจากคู่มือเกม + ข้อมูลทดสอบจริง (5052m, dz=+146, Charge 2):
-        // "D ELEV PER 100M DR" = การเปลี่ยนแปลง Elevation ต่อความสูงเป้าหมายต่างกัน 100m (ไม่ใช่ต่อระยะทาง)
-        // ทดสอบแล้วตรงกับคำตอบที่ถูกต้องจริง (คำนวณได้ 1185.3 mils เทียบกับค่าที่ถูกต้อง 1185 mils)
-        // ใช้แทนสูตรตรีโกณมิติเดิม (atan(dz/dist)) ซึ่งให้ค่าคลาดเคลื่อนมาก (ทำให้กระสุนเลยเป้าไป 200m)
-        // ⚠️ ยังไม่ได้ยืนยันซ้ำกับเคสอื่น (เช่น เป้าต่ำกว่าปืนที่ระยะไกลกว่านี้) - ควรทดสอบเพิ่มเติม
+        // High Angle: elev − (dz/100)·D ELEV
         if (finalInterpDataHigh.hasDeltaData) {
             let elevCorrection = (dz / 100) * finalInterpDataHigh.dElevPer100m;
             finalElevHigh = finalInterpDataHigh.elev - elevCorrection;
         } else {
-            // ตารางไม่มีข้อมูล D ELEV/D ToF (fallback) — ใช้สูตรตรีโกณมิติเดิม
+            // ไม่มีข้อมูล D ELEV → ใช้ atan(dz/ระยะ)
             finalElevHigh = finalInterpDataHigh.elev - angleOfSiteMilHigh;
         }
         finalAziHigh = (aimBearingMil + deflHighMil + milSystem) % milSystem; finalAziHighToPass = finalAziHigh;
 
-        // ✅ ยืนยันแล้ว: ตัวแปรนี้คือ "เวลากระทบพื้น" (ToF เต็ม) ไม่ใช่เวลาระเบิดกลางอากาศ (fuze time)
-        // fuze time เป็นผลลัพธ์จากขั้นตอนถัดไป (getDragSimulatedPoints หาจุดตัด burstAlt) ไม่ใช่ค่านี้โดยตรง
-        // เดิมเข้าใจผิดว่าต้องปรับ ToF ให้ตรงกับ fuze time (51.2s) แต่จริงๆ ToF ควรตรงกับเวลากระทบพื้น (~51.9s)
-        // ยืนยันจาก 2 แหล่งอิสระที่คำนวณเวลากระทบพื้นเหมือนกัน: armacalc.pages.dev (51.9s) และสูตรพาราโบลาสมมาตรนี้ (51.92s)
+        // ToF = เวลากระทบเป้า (ไม่ใช่ fuze time)
         let tofRootTerm = (baseTof * baseTof) - (8 * dz / g_const);
         tofHighToPass = (tofRootTerm >= 0) ? (baseTof + Math.sqrt(tofRootTerm)) / 2 : baseTof;
 
@@ -2426,8 +2327,7 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
 
     let trajLow = null; let simDataLow = null; let fuzeTimeLow = null;
 
-    // ================= 2. Low Angle =================
-    // 🔥 ปรับ Logic ให้เช็คปลอดภัยขึ้น ตรงกับตารางจริงๆ
+    // ── LOW ANGLE ──
     if (!isMortar && currentAmmo.table && currentAmmo.table.lowAngle) {
         let userSelectedLow = DOM["chargeVelLow"].value; let lowChargesToTest = [];
         if (userSelectedLow === 'auto') { lowChargesToTest = Object.keys(currentAmmo.table.lowAngle).sort((a, b) => parseInt(a.replace(/[^0-9]/g, '')) - parseInt(b.replace(/[^0-9]/g, ''))); } 
@@ -2442,21 +2342,18 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
             if (finalInterpDataLow && finalInterpDataLow.clamped) { continue; }
 
             if (finalInterpDataLow) {
-                // ชดเชยความสูงเป้าด้วยแบบจำลองแรงต้านอากาศ (ดูคำอธิบายที่ lowAngleHeightCorrectionMil)
-                // ถ้าคำนวณไม่ได้ (ข้อมูลตารางผิดปกติ) ใช้สูตรเดิม: มุมที่มองเห็นเป้า atan(dz/ระยะ)
+                // คำนวณไม่ได้ → ใช้ atan(dz/ระยะ)
                 const angleOfSiteMilLow = Math.atan(dz / aimDistL) * (halfMil / Math.PI);
                 const dragCorrLow = ArtilleryPhysics.lowAngleHeightCorrectionMil(tableLow, windLow.virtualDist, finalInterpDataLow.elev, finalInterpDataLow.tof, dz, milSystem);
                 finalElevLowMil = finalInterpDataLow.elev + (dragCorrLow !== null ? dragCorrLow : angleOfSiteMilLow);
                 
-                // 🔥 ยืนยันจากคู่มือเกม (Ballistic Table): "TIME OF FLIGHT PER 100M DR" = 
-                // "Change in projectile flight time for a 100m DIFFERENCE IN TARGET ALTITUDE" — 
-                // เป็นอัตราต่อความสูงเป้าหมาย (dz) โดยตรง ไม่ใช่ต่อระยะทาง (range) — ใช้ dz หารด้วย 100 คูณอัตรานี้ตรงๆ
+                // ToF Low: + (dz/100)·D ToF จากตาราง (เป้าสูงกว่า → ToF นานขึ้น)
                 let baseTofL = finalInterpDataLow.tof;
                 if (finalInterpDataLow.hasDeltaData) {
                     let tofChange = (dz / 100) * finalInterpDataLow.dTofPer100m;
-                    tofLowToPass_temp = baseTofL + tofChange; // ยืนยันจากข้อมูลจริง: เป้าสูงกว่า (dz+) ต้องใช้เวลานานขึ้น (ไม่ใช่สั้นลง)
+                    tofLowToPass_temp = baseTofL + tofChange;
                 } else {
-                    // ตารางไม่มีข้อมูล D ELEV/D ToF (fallback) — ใช้สูตรพาราโบลาสมมาตรเดิม
+                    // ไม่มีข้อมูล D ToF → ใช้สูตรพาราโบลา
                     let tofRootTermL = (baseTofL * baseTofL) - (8 * dz / 9.81);
                     tofLowToPass_temp = (tofRootTermL >= 0) ? (baseTofL + Math.sqrt(tofRootTermL)) / 2 : baseTofL;
                 }
@@ -2541,11 +2438,10 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
 
     let airburstDataPack = null;
     if (airburstH > 0) {
-        // มอร์ตาร์มีแค่ High Angle เท่านั้น จึงบังคับใช้ simDataHigh เสมอ; อาวุธอื่นให้ตาม fuzeAngleMode ที่ผู้ใช้เลือก (fallback ไปอีกฝั่งถ้าฝั่งที่เลือกไม่มีข้อมูล)
+        // มอร์ตาร์มีแค่ High Angle → ใช้ simDataHigh เสมอ
         let activeSim = isMortar ? simDataHigh : (fuzeAngleMode === 'high' ? (simDataHigh || simDataLow) : (simDataLow || simDataHigh));
         if (activeSim && activeSim.burstX !== null) {
-            // ใช้ effDx/effDy (ยาว = aimGridDistance ซึ่งรวม rangeOffset แล้ว) ไม่ใช่ effTarget-gun (ยาว = baseGridDistance)
-            // เดิมเมื่อ rangeOffset ≠ 0 จุด Air Fuze บนแผนที่จะเลื่อนผิดตำแหน่งตามสัดส่วน base/aim
+            // ใช้ effDx/effDy (รวม rangeOffset) ไม่ใช่ effTarget − gun
             let ratio = activeSim.burstX / aimGridDistance;
             airburstDataPack = {
                 x: gunX + effDx * ratio,
@@ -2560,10 +2456,7 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
     };
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// calculate() — orchestrator: รวบรวมพิกัดปืน (1 หรือหลายกระบอก), หาจุดเล็งตามโหมดยิง,
-// เรียก computeSolutionForGun ต่อกระบอก แล้วประกอบผลลัพธ์ทั้งหมดแสดงผล/วาดกราฟ
-// ═══════════════════════════════════════════════════════════════════
+// ── CALCULATE: ปืนทุกกระบอก → computeSolutionForGun ──
 function calculate() {
     updateOffsetDisplay();
 
@@ -2574,13 +2467,10 @@ function calculate() {
 
     const solutions = guns.map((g, i) => computeSolutionForGun(g.x, g.y, g.z, aimPoints[i].x, aimPoints[i].y, targetZ));
 
-    // แสดงผลเฉพาะกระบอกที่เลือกไว้ (dropdown #gunSelect) — ไม่แสดงรวมทุกกระบอกพร้อมกัน
     if (selectedGunIndex > solutions.length - 1) selectedGunIndex = 0;
     const displaySol = solutions[selectedGunIndex] || solutions[0];
     DOM["result"].innerHTML = displaySol.resultHTML;
 
-    // กระบอกที่กำลังแสดงผล (ตามที่เลือกใน dropdown) ใช้เป็นข้อมูลหลักสำหรับแผนที่/กราฟวิถี/ประวัติ/มุมมอง 3D/Copy to Chat
-    // เพื่อให้ทุกอย่างที่แสดงบนหน้าจอ (แผนที่, กราฟ, ปุ่ม Chat Gunner) สอดคล้องกับกระบอกที่เลือกดูอยู่เสมอ
     const primary = displaySol;
     const primaryTargetX = aimPoints[selectedGunIndex] ? aimPoints[selectedGunIndex].x : aimPoints[0].x;
     const primaryTargetY = aimPoints[selectedGunIndex] ? aimPoints[selectedGunIndex].y : aimPoints[0].y;
@@ -2604,37 +2494,32 @@ function calculate() {
     if (is3DMode) update3DScene();
 }
 
-// วาดเลขพิกัดกริดตรงขอบแผนที่ (เลียนแบบสไตล์แผนที่ในเกม Arma Reforger)
-// เลขที่โชว์ = พิกัดโลก(เมตร) / 100 นับจากมุมล่างซ้ายของแมป (ตรงกับระบบ parseArmaGrid 3 หลัก)
+// ป้ายกริดขอบแผนที่: เลข 3 หลัก = เมตร/100 จากมุมล่างซ้าย
 function drawGridEdgeLabels(ctx, w, h, viewMinX, viewMaxX, viewMinY, viewMaxY, toCanvasX, toCanvasY, mapZoom, bgMap) {
-    // เลือกระยะห่างของเส้นกริดที่จะแปะเลข ให้เหมาะกับระดับซูมปัจจุบัน (พยายามให้มีป้ายห่างกันพอเหมาะบนจอ)
-    // ต่ำสุดที่ 500m เสมอ (ไม่โชว์ป้ายถี่กว่า 500m แม้จะซูมเข้าลึกแค่ไหนก็ตาม)
     const candidateSteps = [500, 1000, 2000, 5000, 10000];
-    const minPxGap = 55; // ระยะห่างขั้นต่ำระหว่างป้ายบนจอ (px) ก่อนจะถือว่าโอเค
+    const minPxGap = 55;
     let step = candidateSteps[candidateSteps.length - 1];
     for (const s of candidateSteps) { if (s * mapZoom >= minPxGap) { step = s; break; } }
 
-    const barSizeTB = 24;  // ความหนาแถบพื้นหลังบน-ล่าง
-    const barSizeLR = 30;  // ความหนาแถบพื้นหลังซ้าย-ขวา (กว้างกว่าเพราะตัวเลขไม่หมุนแล้ว ต้องมีที่พอ)
+    const barSizeTB = 24;
+    const barSizeLR = 30;
     const bg = "rgba(255, 255, 255, 0.5)";
     const fg = "#1f1a0f";
     const tick = "rgba(31,26,15,0.6)";
 
     ctx.save();
 
-    // แถบพื้นหลังทั้ง 4 ขอบ กันตัวเลขไปทับแผนที่จนอ่านยาก
     ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, w, barSizeTB);            // บน
-    ctx.fillRect(0, h - barSizeTB, w, barSizeTB);  // ล่าง
-    ctx.fillRect(0, 0, barSizeLR, h);            // ซ้าย
-    ctx.fillRect(w - barSizeLR, 0, barSizeLR, h);  // ขวา
+    ctx.fillRect(0, 0, w, barSizeTB);
+    ctx.fillRect(0, h - barSizeTB, w, barSizeTB);
+    ctx.fillRect(0, 0, barSizeLR, h);
+    ctx.fillRect(w - barSizeLR, 0, barSizeLR, h);
 
     ctx.font = "bold 14px monospace";
     ctx.fillStyle = fg;
     ctx.strokeStyle = tick;
     ctx.lineWidth = 1;
 
-    // เส้นกริดแนวตั้ง -> ป้ายเลขคอลัมน์ (X) ที่ขอบบนและล่าง
     ctx.textAlign = "center";
     ctx.beginPath();
     for (let gx = Math.floor(viewMinX / step) * step; gx <= viewMaxX; gx += step) {
@@ -2649,7 +2534,6 @@ function drawGridEdgeLabels(ctx, w, h, viewMinX, viewMaxX, viewMinY, viewMaxY, t
         ctx.moveTo(px, h); ctx.lineTo(px, h - barSizeTB * 0.4);
     }
 
-    // เส้นกริดแนวนอน -> ป้ายเลขแถว (Y) ที่ขอบซ้ายและขวา (แนวนอน ไม่หมุน)
     for (let gy = Math.floor(viewMinY / step) * step; gy <= viewMaxY; gy += step) {
         const py = toCanvasY(gy);
         if (py < barSizeTB || py > h - barSizeTB) continue;
@@ -2698,24 +2582,19 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
     const viewMinY = mapCamY - h / (2 * mapZoom); const viewMaxY = mapCamY + h / (2 * mapZoom);
 
     if (bgMap) {
-        // ภาพแผนที่: พิกัดโลก (0,0) อยู่มุมล่างซ้าย แต่ canvas ของภาพ (0,0) อยู่มุมบนซ้าย (north-up)
-        // จึงต้องกลับแกน Y ตอน map พิกัดโลก -> พิกัดพิกเซลบนภาพต้นฉบับ
+        // พิกัดโลก (0,0) = มุมล่างซ้าย, ภาพ (0,0) = มุมบนซ้าย → กลับแกน Y
         ctx.fillStyle = "#0f172a"; ctx.fillRect(0, 0, w, h);
         ctx.imageSmoothingEnabled = true;
 
         const drawLayer = (layer) => {
-            const scaleImgToWorld = layer.width / layer.image.width; // เมตรต่อ 1 พิกเซลภาพระดับนี้
+            const scaleImgToWorld = layer.width / layer.image.width;
             const imgW = layer.image.width, imgH = layer.image.height;
             const rawSrcX = viewMinX / scaleImgToWorld;
             const rawSrcYTop = (layer.height - viewMaxY) / scaleImgToWorld;
             const rawSrcW = (viewMaxX - viewMinX) / scaleImgToWorld;
             const rawSrcH = (viewMaxY - viewMinY) / scaleImgToWorld;
 
-            // จำกัด source rect ให้อยู่ในขอบเขตภาพจริงเสมอ (สำคัญมากตอนซูมใกล้ขอบแผนที่)
-            // ถ้าปล่อยให้ srcX/srcYTop ติดลบหรือ srcX+srcW เกินขอบภาพ บาง browser (โดยเฉพาะ mobile Safari)
-            // จะบีบ/ยืดส่วนภาพที่มีจริงให้เต็ม destination rect (0,0,w,h) แทนที่จะ error หรือ clip ให้ — ทำให้ภาพยืดเบี้ยว
-            // จึงคำนวณสัดส่วนที่โดนตัดจากทั้งสองด้าน (ซ้าย+ขวา, บน+ล่าง) เทียบกับขนาดต้นฉบับ (rawSrcW/rawSrcH) ทีเดียว
-            // แล้วค่อยลด destination rect ลงตามสัดส่วนนั้น เพื่อให้สเกล 1:1 คงเดิม ไม่ยืด ไม่ว่าจะโดนตัดกี่ด้านพร้อมกัน
+            // จำกัด source rect ในขอบภาพ (mobile Safari ยืดภาพถ้าเกินขอบ)
             const cutLeft = Math.max(0, -rawSrcX);
             const cutTop = Math.max(0, -rawSrcYTop);
             const cutRight = Math.max(0, (rawSrcX + rawSrcW) - imgW);
@@ -2731,15 +2610,13 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
             const dstW = w - ((cutLeft + cutRight) / rawSrcW) * w;
             const dstH = h - ((cutTop + cutBottom) / rawSrcH) * h;
 
-            if (srcW <= 0 || srcH <= 0 || dstW <= 0 || dstH <= 0) return; // มุมมองอยู่นอกภาพทั้งหมด ข้ามวาด
-            try { ctx.drawImage(layer.image, srcX, srcYTop, srcW, srcH, dstX, dstY, dstW, dstH); } catch (e) { /* เผื่อกรณีอื่นๆ ข้ามได้ */ }
+            if (srcW <= 0 || srcH <= 0 || dstW <= 0 || dstH <= 0) return;
+            try { ctx.drawImage(layer.image, srcX, srcYTop, srcW, srcH, dstX, dstY, dstW, dstH); } catch (e) {}
         };
 
-        drawLayer(bgMap.base); // ภาพหยาบเต็มแมป วาดก่อนเป็นพื้นเสมอ
+        drawLayer(bgMap.base);
 
         if (bgMap.refined) {
-            // refined เป็น canvas ขนาดเท่าระดับ zoom นั้น แต่โหลดจริงแค่บางพื้นที่ (coveredCols/coveredRows)
-            // คำนวณขอบเขตพิกัดโลกที่ครอบคลุมจริง แล้ว clip การวาดให้อยู่แค่ช่วงนั้น กันวาดพื้นที่ว่างทับภาพหยาบ
             const meta = bgMap.meta;
             const rz = bgMap.refined;
             const lvl = meta.levels.find(l => l.width === rz.image.width && l.height === rz.image.height) ||
@@ -2768,19 +2645,17 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
             }
         }
 
-        ctx.fillStyle = "rgba(15, 23, 42, 0.25)"; ctx.fillRect(0, 0, w, h); // ทับให้ marker อ่านง่ายขึ้น
+        ctx.fillStyle = "rgba(15, 23, 42, 0.25)"; ctx.fillRect(0, 0, w, h);
     }
 
     const drawGrid = (step, color, width) => { ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); for(let gx = Math.floor(viewMinX / step) * step; gx <= viewMaxX; gx += step) { let px = toCanvasX(gx); ctx.moveTo(px, 0); ctx.lineTo(px, h); } for(let gy = Math.floor(viewMinY / step) * step; gy <= viewMaxY; gy += step) { let py = toCanvasY(gy); ctx.moveTo(0, py); ctx.lineTo(w, py); } ctx.stroke(); };
     if (!bgMap) { if (mapZoom > 0.5) drawGrid(10, "#d1cbb8", 1); drawGrid(100, "#b3ab94", 1.5); drawGrid(1000, "#1e293b", 2.0); }
     else { if (mapZoom > 0.5) drawGrid(10, "rgba(255,255,255,0.06)", 1); drawGrid(100, "rgba(255,255,255,0.12)", 1.5); drawGrid(1000, "rgba(255,255,255,0.25)", 2.0); }
 
-    // ป้ายพิกัดกริดตรงขอบแผนที่ (สไตล์ Arma Reforger: เลข 3 หลัก = ระยะ/100m นับจากมุมล่างซ้ายของแมป)
     drawGridEdgeLabels(ctx, w, h, viewMinX, viewMaxX, viewMinY, viewMaxY, toCanvasX, toCanvasY, mapZoom, bgMap);
     
     const cx1 = toCanvasX(x1), cy1 = toCanvasY(y1); const cx2 = toCanvasX(x2), cy2 = toCanvasY(y2);
     ctx.setLineDash([6, 4]); ctx.strokeStyle = "#333"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx1, cy1); ctx.lineTo(cx2, cy2); ctx.stroke(); ctx.setLineDash([]);
-    // ใช้พิกัดจริง (เมตร) ของกระบอกที่กำลังแสดงผลอยู่ แปลงกลับเป็นรูปแบบกริด แทนที่จะอ่านจาก input ดิบ (ซึ่งเป็นของกระบอก 1 เท่านั้น)
     const strGunX = formatMetersToArma(x1, 4); const strGunY = formatMetersToArma(y1, 4); const strTgtX = formatMetersToArma(x2, 4); const strTgtY = formatMetersToArma(y2, 4);
     const gunLabelText = otherGuns ? `GUN ${selectedIdx + 1}` : "GUN";
     ctx.strokeStyle = "#b91c1c"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx2, cy2, 8, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx2-12, cy2); ctx.lineTo(cx2+12, cy2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx2, cy2-12); ctx.lineTo(cx2, cy2+12); ctx.stroke();
@@ -2789,7 +2664,6 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
     if (aimOffsetX !== 0 || aimOffsetY !== 0) { const cxEff = toCanvasX(effX); const cyEff = toCanvasY(effY); ctx.setLineDash([4, 4]); ctx.strokeStyle = "#a855f7"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx2, cy2); ctx.lineTo(cxEff, cyEff); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = "#a855f7"; ctx.beginPath(); ctx.arc(cxEff, cyEff, 6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#7e22ce"; ctx.font = "bold 11px sans-serif"; ctx.fillText("AIM OFFSET", cxEff + 10, cyEff - 5); }
     ctx.fillStyle = "#1d4ed8"; ctx.beginPath(); ctx.moveTo(cx1, cy1 - 10); ctx.lineTo(cx1 - 8, cy1 + 6); ctx.lineTo(cx1 + 8, cy1 + 6); ctx.fill(); ctx.font = "bold 16px sans-serif"; ctx.lineWidth = 4; ctx.strokeStyle = bgMap ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.85)"; ctx.strokeText(gunLabelText, cx1 - 14, cy1 + 24); ctx.fillStyle = bgMap ? "#f8fafc" : "#1f1a0f"; ctx.fillText(gunLabelText, cx1 - 14, cy1 + 24); ctx.fillStyle = "#93c5fd"; ctx.font = "bold 14px monospace"; ctx.strokeStyle = "rgba(0,0,0,0.85)"; ctx.lineWidth = 4; ctx.strokeText(`[${strGunX},${strGunY}]`, cx1 - 14, cy1 + 42); ctx.fillText(`[${strGunX},${strGunY}]`, cx1 - 14, cy1 + 42); 
 
-    // ปืนกระบอกอื่นที่ไม่ได้เลือกดูอยู่: แสดงแค่จุดมาร์คตำแหน่งปืน (พร้อม TEXT บอกเลขกระบอก), เส้นเล็ง, และจุดมาร์ค TARGET (ไม่มี TEXT ซ้ำ)
     if (otherGuns) {
         otherGuns.forEach((g, i) => {
             if (i === selectedIdx || g.empty) return;
@@ -2797,14 +2671,11 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
             const ap = otherAimPoints && otherAimPoints[i] ? otherAimPoints[i] : { x: g.targetX, y: g.targetY };
             const otx = toCanvasX(ap.x), oty = toCanvasY(ap.y);
 
-            // เส้นเล็ง (ของกระบอกอื่นที่ไม่ได้เลือกอยู่)
             ctx.setLineDash([5, 4]); ctx.strokeStyle = "rgba(30,41,59,0.9)"; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(ogx, ogy); ctx.lineTo(otx, oty); ctx.stroke(); ctx.setLineDash([]);
 
-            // จุดมาร์คตำแหน่งปืน (สามเหลี่ยมเล็กสีเทา-ฟ้า) + TEXT "GUN N"
             ctx.fillStyle = "rgba(96,165,250,0.85)"; ctx.beginPath(); ctx.moveTo(ogx, ogy - 7); ctx.lineTo(ogx - 6, ogy + 5); ctx.lineTo(ogx + 6, ogy + 5); ctx.fill();
             ctx.font = "bold 11px sans-serif"; ctx.lineWidth = 3; ctx.strokeStyle = bgMap ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.85)"; ctx.strokeText(`GUN ${i + 1}`, ogx + 9, ogy + 12); ctx.fillStyle = "#bfdbfe"; ctx.fillText(`GUN ${i + 1}`, ogx + 9, ogy + 12);
 
-            // จุดมาร์ค TARGET ของกระบอกนี้ (กากบาทเล็ก ไม่มี TEXT กันซ้อนทับ)
             ctx.strokeStyle = "rgba(220,38,38,0.7)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(otx, oty, 6, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(otx-9, oty); ctx.lineTo(otx+9, oty); ctx.stroke(); ctx.beginPath(); ctx.moveTo(otx, oty-9); ctx.lineTo(otx, oty+9); ctx.stroke();
         });
     }
@@ -2829,7 +2700,6 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
 
     drawCounterBatteryLayer(ctx, toCanvasX, toCanvasY, mapZoom);
 
-    // จุดมาร์คที่ผู้ใช้ตั้งเอง (คลิกขวา) — ผูกกับแผนที่ปัจจุบันเท่านั้น — รูปสามเหลี่ยมหัวชี้ลงสีดำ ปลายแหลมชี้ตำแหน่งจริง
     if (typeof getMarkersForCurrentMap === "function") {
         const userMarkers = getMarkersForCurrentMap();
         ctx.textBaseline = "alphabetic";
@@ -2839,7 +2709,7 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
             ctx.strokeStyle = "#ffffff";
             ctx.lineWidth = 1.2;
             ctx.beginPath();
-            ctx.moveTo(mx, my + 9);      // ปลายแหลมชี้ลง = ตำแหน่งจริงของจุดมาร์ค
+            ctx.moveTo(mx, my + 9);
             ctx.lineTo(mx - 7, my - 6);
             ctx.lineTo(mx + 7, my - 6);
             ctx.closePath();
@@ -2857,12 +2727,10 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
 
         ctx.save();
 
-        // แผงหลังทรงกลม HUD
         ctx.beginPath(); ctx.arc(cx, cy, R + 8, 0, Math.PI * 2);
         ctx.fillStyle = "rgba(6,10,13,0.6)"; ctx.fill();
         ctx.lineWidth = 1; ctx.strokeStyle = "rgba(42,58,74,0.9)"; ctx.stroke();
 
-        // วงแหวนสเกลองศา (ทุก 30°)
         ctx.strokeStyle = "rgba(79,195,247,0.25)"; ctx.lineWidth = 1;
         for (let a = 0; a < 360; a += 30) {
             const rad = a * Math.PI / 180;
@@ -2874,17 +2742,15 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
         ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
         ctx.strokeStyle = "rgba(79,195,247,0.45)"; ctx.lineWidth = 1.5; ctx.stroke();
 
-        // ตัวหนอนศึก N/E/S/W
         ctx.fillStyle = "#4a5761"; ctx.font = "600 9px 'JetBrains Mono', monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
         ctx.fillText("N", cx, cy - R - 9); ctx.fillText("S", cx, cy + R + 9);
         ctx.fillText("E", cx + R + 9, cy); ctx.fillText("W", cx - R - 9, cy);
 
-        // ลูกศรทิศทางลม (glow ตามความแรง) — วาดเป็นรูปทรงเดียวปิด (silhouette) เพื่อให้เส้นขอบอยู่รอบนอกจริง
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate((windDirDeg + 90) * (Math.PI / 180));
         const arrowLen = R * 1.15;
-        const shaftHalfW = 7;     // ครึ่งความหนาของด้าม (หนาขึ้น)
+        const shaftHalfW = 7;
         const tailX = -arrowLen * 0.55;
         const shaftTipX = arrowLen * 0.15;
         const headBaseX = arrowLen * 0.15;
@@ -2904,10 +2770,8 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
         ctx.fill();
         ctx.restore();
 
-        // จุดศูนย์กลาง
         ctx.beginPath(); ctx.arc(cx, cy, 2, 0, Math.PI * 2); ctx.fillStyle = "#d7e2e8"; ctx.fill();
 
-        // ป้ายความเร็วลมสไตล์ HUD (อยู่ทางซ้ายของเข็มทิศ)
         const labelText = `${windSpeed} m/s`;
         ctx.font = "700 13px 'JetBrains Mono', monospace"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
         const labelW = ctx.measureText(labelText).width;
@@ -3017,8 +2881,7 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
 
             ctx.fillStyle = traj.color; ctx.beginPath(); ctx.arc(toX(maxPt.x), toY(maxPt.y), 5, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = "white"; ctx.font = "bold 16px sans-serif"; ctx.textAlign = "center";
-            // แสดงค่าสูงสุดที่วาดจริงบนกราฟ (maxYVal) แทนค่า traj.peakAlt จากตาราง
-            // เพื่อให้ตัวเลข label กับตำแหน่งจุด marker ตรงกันเสมอ (ไม่บังคับกราฟให้ผ่าน peakAlt อีกแล้ว)
+            // แสดงค่าสูงสุดของเส้นที่วาดจริง ให้ตรงกับจุด marker
             ctx.fillText(`Max: ${maxYVal.toFixed(0)}m`, toX(maxPt.x), toY(maxPt.y) - 12);
 
             if (traj.alt100m !== null) {
@@ -3037,12 +2900,10 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
                 ctx.moveTo(bX - 6, bY - 6); ctx.lineTo(bX + 6, bY + 6);
                 ctx.moveTo(bX + 6, bY - 6); ctx.lineTo(bX - 6, bY + 6);
                 ctx.stroke();
-                // ป้ายข้อความของ Air Fuze ย้ายไปแสดงรวมที่ด้านบนกราฟ (drawFuzeSummary) — เดิมป้าย LO/HI ทับกันตรงใกล้เป้า
             }
         }
     };
 
-    // สรุป Air Fuze ด้านบนกราฟ (แทนป้ายที่จุดระเบิด ซึ่งเดิม LO/HI วางซ้อนกันจนอ่านไม่ออก)
     const drawFuzeSummary = () => {
         const parts = [];
         if (trajLow && trajLow.fuzeTime != null) parts.push(`LO ${trajLow.fuzeTime.toFixed(1)}s`);
@@ -3072,8 +2933,8 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
 let scene, camera, renderer, controls;
 let animationFrameId = null; let dynamicCurves = []; 
 let gunMesh3D, targetMesh3D, poleMesh3D, gunLabel3D, targetLabel3D;
-let groundPlane3D = null; let groundPlaneMapName = null; // แคชไว้ไม่ต้องสร้าง texture ใหม่ทุกครั้งถ้าแผนที่ไม่เปลี่ยน
-let dynamicLabels3D = []; // label/marker เพิ่มเติมที่ต้องสร้าง/ลบใหม่ทุกครั้ง (Max height, Alt@100m, Air Fuze)
+let groundPlane3D = null; let groundPlaneMapName = null;
+let dynamicLabels3D = [];
 
 function createTextSprite(message, color) {
     const canvas = document.createElement('canvas'); const context = canvas.getContext('2d');
@@ -3083,11 +2944,10 @@ function createTextSprite(message, color) {
     const texture = new THREE.CanvasTexture(canvas); texture.minFilter = THREE.LinearFilter;
     const spriteMaterial = new THREE.SpriteMaterial({ map: texture, depthTest: false });
     const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.renderOrder = 10; // สูงสุดเสมอ ไม่ให้เส้นวิถีกระสุน/กริดวาดทับป้าย
+    sprite.renderOrder = 10;
     return sprite;
 }
 
-// สร้าง label หลายบรรทัด/มีพื้นหลังจาง ๆ เพื่อให้อ่านง่ายเหมือนกับ label ใน 2D (เช่น "Max: 123m", "Alt @100m: 45.6m")
 function createDataLabelSprite(lines, textColor) {
     const measureCanvas = document.createElement('canvas'); const measureCtx = measureCanvas.getContext('2d');
     const fontSize = 46; const lineHeight = fontSize * 1.3; const paddingX = 24; const paddingY = 16;
@@ -3105,12 +2965,11 @@ function createDataLabelSprite(lines, textColor) {
     const texture = new THREE.CanvasTexture(canvas); texture.minFilter = THREE.LinearFilter;
     const spriteMaterial = new THREE.SpriteMaterial({ map: texture, depthTest: false });
     const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.renderOrder = 10; // สูงสุดเสมอ ไม่ให้เส้นวิถีกระสุน/กริดวาดทับป้าย
+    sprite.renderOrder = 10;
     sprite.userData.aspect = canvas.width / canvas.height;
     return sprite;
 }
 
-// วางภาพแผนที่ (ถ้าเลือกไว้) เป็นพื้นใน 3D ให้ตรงกับพิกัดโลกจริง โดยใช้ base layer (ภาพเต็มแมปเสมอ)
 function updateGroundPlane3D(gunX, gunY) {
     const bgMap = MapBackground.getCurrent();
 
@@ -3119,7 +2978,7 @@ function updateGroundPlane3D(gunX, gunY) {
         return;
     }
 
-    const meta = bgMap.meta; // { width, height } หน่วยเมตร (ขนาดแมปจริง)
+    const meta = bgMap.meta;
     const currentMapName = DOM["mapBgSelect"] ? DOM["mapBgSelect"].value : null;
 
     if (!groundPlane3D || groundPlaneMapName !== currentMapName) {
@@ -3129,20 +2988,17 @@ function updateGroundPlane3D(gunX, gunY) {
         const geometry = new THREE.PlaneGeometry(meta.width, meta.height);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true, opacity: 0.95 });
         groundPlane3D = new THREE.Mesh(geometry, material);
-        groundPlane3D.renderOrder = -1; // ต่ำสุดเสมอ อยู่ใต้กริดและทุกอย่าง
-        groundPlane3D.rotation.x = -Math.PI / 2; // วางราบกับพื้น (แกน Y ขึ้น ตรงกับระบบ dz ของโค้ดนี้)
+        groundPlane3D.renderOrder = -1;
+        groundPlane3D.rotation.x = -Math.PI / 2;
         scene.add(groundPlane3D);
         groundPlaneMapName = currentMapName;
     } else {
-        // แผนที่เดิม แค่ tile ละเอียดขึ้นจาก progressive loading -> รีเฟรช texture เฉย ๆ ไม่ต้องสร้าง geometry ใหม่
         groundPlane3D.material.map.needsUpdate = true;
     }
 
-    // พิกัดโลกจริง (0,0) อยู่มุมล่างซ้ายของแมป ส่วน plane นี้มีจุดกึ่งกลางที่ (0,0,0) ของตัวเอง
-    // ต้อง offset ให้ตำแหน่งใต้ gun (dx=0,dy=0 ในระบบพิกัดสัมพัทธ์ที่ใช้วาด gun/target) ตรงกับพิกัดโลกจริงของ gun
     const planeCenterWorldX = meta.width / 2;
     const planeCenterWorldY = meta.height / 2;
-    // ระบบพิกัด 3D ที่ใช้วาด gun/target: X=dx (ทิศตะวันออกสัมพัทธ์), Z=-dy (ทิศเหนือสัมพัทธ์ กลับเครื่องหมาย)
+    // 3D: X = dx (ตะวันออก), Z = -dy (เหนือ)
     groundPlane3D.position.set(planeCenterWorldX - gunX, 0, -(planeCenterWorldY - gunY));
 }
 
@@ -3176,31 +3032,24 @@ function init3D() {
     window.addEventListener('resize', () => { if (!is3DMode) return; camera.aspect = container.clientWidth / container.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(container.clientWidth, container.clientHeight); });
 }
 
-// สร้างกริดพื้น 3 ระดับ (10m/100m/1000m) ให้ตรงกับ drawGrid ของ Tactical Top-Down Map (2D)
-// dx, dy = ตำแหน่ง target สัมพัทธ์จาก gun (gun อยู่ที่ 0,0 เสมอในระบบพิกัดนี้)
 let tacticalGridGroup3D = null;
 function updateTacticalGrid3D(dx, dy, dist) {
     if (tacticalGridGroup3D) { scene.remove(tacticalGridGroup3D); tacticalGridGroup3D.children.forEach(l => { l.geometry.dispose(); l.material.dispose(); }); }
     tacticalGridGroup3D = new THREE.Group();
 
-    // ใช้สีอ่อนคงที่เสมอ ไม่ว่าจะเลือกแผนที่ไว้หรือไม่ (กันความรู้สึกว่าสีกริดไม่คงที่/สลับไปมา)
-    // opacity ตั้งค่าต่ำ เพราะตอนมองเฉียง เส้นกริดจำนวนมากจะบีบอัด/ซ้อนทับกันในมุมมอง (perspective foreshortening)
-    // ทำให้ opacity สะสมสูงกว่าที่ตั้งไว้มาก ต้องตั้งต้นให้ต่ำเพื่อไม่ให้ผลรวมดูเข้มเกินไป
+    // opacity ต่ำ: มองเฉียงแล้วเส้นกริดซ้อนกันจนเข้มเกิน
     const levels = [
         { step: 10, color: 0xffffff, opacity: 0.05 },
         { step: 100, color: 0xffffff, opacity: 0.08 },
         { step: 1000, color: 0xffffff, opacity: 0.14 },
     ];
 
-    // ครอบคลุมพื้นที่รอบ gun-target ให้เห็นกริดกว้างพอ แต่ไม่กว้างเกินจำเป็น (ลดจำนวนเส้นซ้อนทับตอนมองเฉียง)
     const halfSpan = Math.max(dist * 1.0, 400);
     const centerX = dx / 2, centerZ = -dy / 2;
     const minX = centerX - halfSpan, maxX = centerX + halfSpan;
     const minZ = centerZ - halfSpan, maxZ = centerZ + halfSpan;
 
     levels.forEach(({ step, color, opacity }) => {
-        // ข้ามระดับ 10m เมื่อระยะยิงไกล (กริดจะถี่เกินไปจนเป็นภาระ render โดยไม่มีประโยชน์ต่อสายตา)
-        // อิงจาก dist จริง ไม่ใช่ halfSpan ที่มี floor ต่ำสุดไว้ที่ 500m เสมอ
         if (step === 10 && dist > 300) return;
         const points = [];
         for (let gx = Math.floor(minX / step) * step; gx <= maxX; gx += step) { points.push(new THREE.Vector3(gx, 0, minZ), new THREE.Vector3(gx, 0, maxZ)); }
@@ -3209,11 +3058,11 @@ function updateTacticalGrid3D(dx, dy, dist) {
         const geometry = new THREE.BufferGeometry().setFromPoints(points);
         const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
         const gridLine = new THREE.LineSegments(geometry, material);
-        gridLine.renderOrder = 0; // วาดก่อนสุด อยู่ชั้นล่างสุดเสมอ ไม่ให้ทับป้าย/เส้นวิถีกระสุน
+        gridLine.renderOrder = 0;
         tacticalGridGroup3D.add(gridLine);
     });
 
-    tacticalGridGroup3D.position.y = Math.max(dist * 0.002, 0.1); // ยกเหนือพื้นแผนที่ตามสัดส่วนระยะยิง กันเส้นจมภาพ/กระพริบ (Z-fighting)
+    tacticalGridGroup3D.position.y = Math.max(dist * 0.002, 0.1); // ยกเหนือพื้นแผนที่ กัน Z-fighting
     scene.add(tacticalGridGroup3D);
 }
 
@@ -3227,7 +3076,6 @@ function update3DScene() {
     dynamicCurves.forEach(obj => { scene.remove(obj); if (obj.geometry) obj.geometry.dispose(); if (obj.material) obj.material.dispose(); }); dynamicCurves = [];
     dynamicLabels3D.forEach(obj => { scene.remove(obj); if (obj.material && obj.material.map) obj.material.map.dispose(); if (obj.material) obj.material.dispose(); }); dynamicLabels3D = [];
 
-    // พื้นแผนที่ (ถ้ามีการเลือกแผนที่ไว้) — ต้องมาก่อน grid เพื่อให้กริดวาดทับเบา ๆ ด้านบนได้
     if (typeof gunX === 'number' && typeof gunY === 'number') { updateGroundPlane3D(gunX, gunY); }
 
     if (!gunMesh3D) {
@@ -3245,7 +3093,6 @@ function update3DScene() {
 
     updateTacticalGrid3D(dx, dy, dist);
 
-    // เพิ่มเข้า scene ทีละอัน พร้อมเก็บ reference ไว้ล้างตอนรอบถัดไป (เหมือน dynamicCurves)
     const addLabel = (sprite, pos, scale) => {
         sprite.position.copy(pos);
         const aspect = sprite.userData.aspect || 2;
@@ -3256,23 +3103,18 @@ function update3DScene() {
     const buildCurve3D = (trajInfo) => {
         if (!trajInfo) return null;
         const halfMil = milSystem / 2;
-        let aimRad = trajInfo.azi * (Math.PI / halfMil); // ทิศทางปากกระบอกจริง (รวมมุมเผื่อลมแล้ว)
+        let aimRad = trajInfo.azi * (Math.PI / halfMil);
 
-        // มุมเผื่อลม (deflection) = ทิศเล็ง - ทิศตรงไปเป้าหมาย (ยังไม่เผื่อลม)
         const aimBearingDeg = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
         const aimBearingMil = aimBearingDeg * (milSystem / 360);
         let deflMil = trajInfo.azi - aimBearingMil;
-        // ปรับให้อยู่ในช่วง -halfMil..+halfMil (กันกรณี wrap รอบ milSystem)
         if (deflMil > halfMil) deflMil -= milSystem; else if (deflMil < -halfMil) deflMil += milSystem;
         const deflRad = deflMil * (Math.PI / halfMil);
-        // ระยะเบี่ยงรวม (เมตร) ที่ปลายวิถี ณ ระยะเล็ง — สอดคล้องกับมุมเผื่อลมที่คำนวณจากตาราง crossWind จริง
         const totalDriftMeters = (windSpeed > 0) ? dist * Math.tan(deflRad) : 0;
-        // ทิศทางตั้งฉากกับแนวเล็ง (ด้านขวาของแนวยิง) ใช้ลากกระสุนออกจากแนวเล็งแล้วดึงกลับเข้าเป้าตามสัดส่วนระยะ
         const perpX = Math.cos(aimRad), perpY = -Math.sin(aimRad);
-        // แปลงระยะตามแนวเล็ง (bx) เป็นพิกัดโลก X/Y โดยรวมผลเบี่ยงจากลมที่สะสมตามสัดส่วนระยะ
         const windDeflectXY = (bx) => {
             const frac = dist > 0 ? (bx / dist) : 0;
-            const drift = frac * totalDriftMeters; // ลมสะสมตามระยะที่กระสุนเดินทางไปแล้ว (เพิ่มขึ้นเรื่อยๆ ไม่ใช่เส้นตรง)
+            const drift = frac * totalDriftMeters;
             return { x: bx * Math.sin(aimRad) - drift * perpX, y: bx * Math.cos(aimRad) - drift * perpY };
         };
 
@@ -3295,7 +3137,7 @@ function update3DScene() {
         const colorCode = trajInfo.color === "rgba(234, 179, 8, 1)" ? 0xeab308 : 0x3b82f6;
         const colorHex = trajInfo.color === "rgba(234, 179, 8, 1)" ? "#eab308" : "#3b82f6";
         const lineMesh = new THREE.Line(new THREE.BufferGeometry().setFromPoints(smoothPoints), new THREE.LineBasicMaterial({ color: colorCode, linewidth: 2 }));
-        lineMesh.renderOrder = 1; // สูงกว่ากริด (0) แต่ต่ำกว่า label (10)
+        lineMesh.renderOrder = 1;
         scene.add(lineMesh); dynamicCurves.push(lineMesh);
         
         const dropMat = new THREE.LineBasicMaterial({ color: colorCode, opacity: 0.15, transparent: true });
@@ -3306,13 +3148,11 @@ function update3DScene() {
             scene.add(dLine); dynamicCurves.push(dLine);
         }
 
-        // ── Label: Max Height (ตรงกับ "Max: XXXm" ใน 2D) ──
         const peakPt = points[maxHIndex];
         addLabel(createDataLabelSprite([`MAX: ${maxH.toFixed(0)}m`], colorHex), new THREE.Vector3(peakPt.x, peakPt.y + labelScale * 0.5, peakPt.z), labelScale * 0.4);
 
-        // ── Label: Alt @100m (ตรงกับจุดสีม่วงใน 2D) ──
         if (trajInfo.alt100m !== null && trajInfo.alt100m !== undefined && dist > 100) {
-            const targetRangeFrac = (dist - 100) / dist; // สัดส่วนระยะจากปืนถึงจุด 100m ก่อนเป้า
+            const targetRangeFrac = (dist - 100) / dist;
             const idx100 = Math.min(simPts.length - 1, Math.round(targetRangeFrac * (simPts.length - 1)));
             const bx100 = simPts[idx100].x;
             const { x: x100, y: y100 } = windDeflectXY(bx100);
@@ -3329,7 +3169,6 @@ function update3DScene() {
             addLabel(createDataLabelSprite([`ALT@100m: ${trajInfo.alt100m.toFixed(1)}m`], "#e9d5ff"), new THREE.Vector3(alt100Point.x, alt100Point.y + labelScale * 0.4, alt100Point.z), labelScale * 0.32);
         }
 
-        // ── Label: Air Fuze Point (ตรงกับกากบาทแดงใน 2D) ──
         if (trajInfo.fuzeX !== undefined && trajInfo.fuzeY !== undefined) {
             const fuzeFrac = trajInfo.fuzeX / dist;
             const idxFuze = Math.min(simPts.length - 1, Math.round(fuzeFrac * (simPts.length - 1)));
@@ -3361,7 +3200,6 @@ function update3DScene() {
 }
 
 function redrawMapOnly() {
-    // วาดเฉพาะแผนที่ใหม่ ไม่คำนวณใหม่ทั้งหมด ลดอาการกระตุก
     const windSpeed = parseFloat(DOM["windSpeed"].value) || 0; const windDirDeg = parseFloat(DOM["windDir"].value) || 0;
     if (allGunSolutions && allGunSolutions.length > 0) {
         const sol = allGunSolutions[selectedGunIndex] || allGunSolutions[0];
@@ -3380,8 +3218,8 @@ mapCanvas.addEventListener('mousemove', (e) => { if(isPanning){ mapCamX -= (e.of
 mapCanvas.addEventListener('mouseup', () => isPanning = false); mapCanvas.addEventListener('mouseleave', () => isPanning = false);
 mapCanvas.addEventListener('wheel', (e) => { e.preventDefault(); if (mapMode === 'auto') mapMode = 'free'; mapZoom *= e.deltaY > 0 ? 0.9 : 1.1; if (!isRedrawing) { isRedrawing = true; requestAnimationFrame(() => { redrawMapOnly(); isRedrawing = false; }); } MapBackground.notifyViewChanged(); });
 
-// ===== Touch support (มือถือ/iPad): ลากนิ้วเดียว = pan, สองนิ้ว = pinch zoom =====
-mapCanvas.style.touchAction = 'none'; // กันเบราว์เซอร์แย่ง gesture (scroll/zoom หน้าเว็บ) ไปจาก canvas
+// ── TOUCH: นิ้วเดียว = pan, สองนิ้ว = pinch zoom ──
+mapCanvas.style.touchAction = 'none'; // กันเบราว์เซอร์แย่ง gesture (scroll/zoom หน้าเว็บ)
 function getCanvasOffset(touch) {
     const rect = mapCanvas.getBoundingClientRect();
     return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
@@ -3438,21 +3276,16 @@ function zoomMap(factor) { if (mapMode === 'auto') mapMode = 'free'; mapZoom *= 
 function resetMap() { mapMode = 'auto'; redrawMapOnly(); MapBackground.notifyViewChanged(); }
 function zoomToTarget() { mapMode = 'target'; mapZoom = 5; redrawMapOnly(); MapBackground.notifyViewChanged(); }
 
-// ═══════════════════════════════════════════════════════════════════
-// MAP DOUBLE-CLICK CONTEXT MENU — ดับเบิลคลิกบนแผนที่เพื่อเลือกตั้งพิกัด Gun/Target
-// ═══════════════════════════════════════════════════════════════════
-let pendingMapWorldCoord = null; // พิกัดโลก (เมตร) ที่เพิ่งดับเบิลคลิกไว้ รอผู้ใช้เลือก Target/Gun
+// ── MAP CONTEXT MENU (ดับเบิลคลิก: ตั้ง Gun/Target) ──
+let pendingMapWorldCoord = null;
 
 function screenToWorldCoord(offsetX, offsetY) {
-    // canvas ถูก CSS ปรับขนาดแสดงผล (width:100%) ต่างจาก internal ลอจิคัล (700x700)
-    // ต้องคูณ scale factor ก่อน ไม่งั้นตำแหน่งคลิกจะเพี้ยนตามขนาดจอ
-    // ใช้ค่าลอจิคัลคงที่ (700) แทน canvas.width ตรงๆ เพราะ canvas.width ตอนนี้ถูกขยายตาม devicePixelRatio เพื่อความคมชัด
+    // canvas ถูก CSS ย่อ/ขยาย → แปลงเป็นพิกัดลอจิคัล 700x700
     const logicalSize = 700;
     const scaleX = logicalSize / mapCanvas.clientWidth;
     const scaleY = logicalSize / mapCanvas.clientHeight;
     const canvasX = offsetX * scaleX;
     const canvasY = offsetY * scaleY;
-    // สูตรผกผันของ toCanvasX/toCanvasY ใน drawGraph: toCanvasX(x) = w/2 + (x - mapCamX) * mapZoom
     const worldX = mapCamX + (canvasX - logicalSize / 2) / mapZoom;
     const worldY = mapCamY - (canvasY - logicalSize / 2) / mapZoom;
     return { x: worldX, y: worldY };
@@ -3464,7 +3297,6 @@ mapCanvas.addEventListener('dblclick', (e) => {
 });
 
 function positionMapPopup(menu, offsetX, offsetY, menuW, menuH) {
-    // จำกัดตำแหน่งไม่ให้ popup ล้นขอบ wrapper (กันเมนูโผล่นอกจอตอนคลิกใกล้ขอบแผนที่)
     const wrapperW = mapCanvas.clientWidth, wrapperH = mapCanvas.clientHeight;
     const left = Math.min(offsetX, wrapperW - menuW - 5);
     const top = Math.min(offsetY, wrapperH - menuH - 5);
@@ -3476,7 +3308,7 @@ function positionMapPopup(menu, offsetX, offsetY, menuW, menuH) {
 function showMapContextMenu(offsetX, offsetY) {
     const menu = DOM["mapContextMenu"];
     if (!menu) return;
-    positionMapPopup(menu, offsetX, offsetY, 200, 120); // ประมาณขนาด popup
+    positionMapPopup(menu, offsetX, offsetY, 200, 120);
 }
 
 function hideMapContextMenu() {
@@ -3502,7 +3334,6 @@ function applyMapContextMenu(role) {
     calculate();
 }
 
-// คลิกที่อื่นนอกเมนู (บนแผนที่หรือนอกแผนที่) ให้ปิดเมนูอัตโนมัติ
 document.addEventListener('click', (e) => {
     const menu = DOM["mapContextMenu"];
     if (menu && menu.style.display !== "none" && !menu.contains(e.target) && e.target !== mapCanvas) { hideMapContextMenu(); }
@@ -3511,17 +3342,15 @@ document.addEventListener('click', (e) => {
     const eMenu = DOM["mapMarkerEditMenu"];
     if (eMenu && eMenu.style.display !== "none" && !eMenu.contains(e.target) && e.target !== mapCanvas) { hideMapMarkerMenus(); }
 });
-// ป้องกันการคลิกครั้งแรกของ dblclick (ที่ทำให้เกิด 'click' event ก่อน dblclick) ปิดเมนูตัวเองทันทีที่เพิ่งเปิด
+// กัน click แรกของ dblclick ปิดเมนูที่เพิ่งเปิด
 mapCanvas.addEventListener('click', (e) => e.stopPropagation());
 
-// ═══════════════════════════════════════════════════════════════════
-// MAP MARKERS — คลิกขวา เพื่อตั้ง/แก้ไข/ลบ จุดมาร์คบนแผนที่ (ผูกติดกับแผนที่ที่เลือกอยู่)
-// ═══════════════════════════════════════════════════════════════════
-let mapMarkers = {}; // { [mapName]: [{x, y, name}, ...] }
+// ── MAP MARKERS (คลิกขวา 2 ครั้ง, เก็บแยกตามแผนที่) ──
+let mapMarkers = {};
 try { const md = localStorage.getItem('m777_map_markers'); mapMarkers = md ? JSON.parse(md) : {}; } catch (e) { mapMarkers = {}; }
 
-let pendingMarkerWorldCoord = null; // พิกัดที่กำลังจะสร้างมาร์คใหม่
-let pendingMarkerEditIndex = -1;    // index ของมาร์คที่กำลังจะแก้ไข/ลบ (ในแผนที่ปัจจุบัน)
+let pendingMarkerWorldCoord = null;
+let pendingMarkerEditIndex = -1;
 
 function currentMapKey() {
     return DOM["mapBgSelect"] ? (DOM["mapBgSelect"].value || "") : "";
@@ -3537,7 +3366,6 @@ function saveMapMarkers() {
     try { localStorage.setItem('m777_map_markers', JSON.stringify(mapMarkers)); } catch (e) { console.error("Error saving map markers", e); }
 }
 
-// หามาร์คที่อยู่ใกล้ตำแหน่งคลิก (ในระยะพิกเซลบนจอ) — คืน index ในแผนที่ปัจจุบัน หรือ -1 ถ้าไม่เจอ
 function findMarkerNearScreenPoint(offsetX, offsetY) {
     const logicalSize = 700;
     const scaleX = logicalSize / mapCanvas.clientWidth;
@@ -3562,24 +3390,22 @@ const DOUBLE_RIGHTCLICK_MS = 450;
 const DOUBLE_RIGHTCLICK_PX = 12;
 
 mapCanvas.addEventListener('contextmenu', (e) => {
-    e.preventDefault(); // กันเมนูคลิกขวาของเบราว์เซอร์เสมอ ไม่ว่าจะครั้งเดียวหรือสองครั้ง
+    e.preventDefault();
 
     const now = Date.now();
     const dx = e.offsetX - lastContextMenuPos.x, dy = e.offsetY - lastContextMenuPos.y;
     const isDoubleRightClick = (now - lastContextMenuTime) <= DOUBLE_RIGHTCLICK_MS && Math.sqrt(dx * dx + dy * dy) <= DOUBLE_RIGHTCLICK_PX;
 
     if (!isDoubleRightClick) {
-        // คลิกขวาครั้งแรก — แค่บันทึกไว้รอดูว่าจะมีครั้งที่สองตามมาหรือไม่ ยังไม่เปิดเมนู
         lastContextMenuTime = now;
         lastContextMenuPos = { x: e.offsetX, y: e.offsetY };
         return;
     }
-    // คลิกขวาครั้งที่สอง (ในเวลา/ระยะที่กำหนด) — เปิดเมนูจุดมาร์ค แล้วรีเซ็ตตัวจับเวลา
     lastContextMenuTime = 0;
     lastContextMenuPos = { x: -9999, y: -9999 };
 
     hideMapContextMenu();
-    hideMapMarkerMenus(); // ปิดเมนูมาร์คเก่า (ถ้ามีค้าง) ก่อนตั้งพิกัดใหม่ กันไม่ให้ค่าที่กำลังจะตั้งโดนล้างทับทีหลัง
+    hideMapMarkerMenus(); // ปิดเมนูมาร์คเก่าก่อนตั้งพิกัดใหม่ กันค่าถูกล้างทับ
     const hitIdx = findMarkerNearScreenPoint(e.offsetX, e.offsetY);
     if (hitIdx > -1) {
         pendingMarkerEditIndex = hitIdx;
@@ -3613,8 +3439,7 @@ function hideMapMarkerMenus() {
     pendingMarkerEditIndex = -1;
 }
 
-// สแนปพิกัดให้อยู่กึ่งกลางช่องกริดหลัก 10 เมตร (ตรงกับตำแหน่งที่ระบบตั้ง Target/Gun จากแผนที่จริงๆ ใช้)
-// อิงตาม formatMetersToArma(...,4) [floor(m/10)] + parseArmaGrid ย้อนกลับ [*10 + 5]
+// สแนปกลางช่องกริด 10m (ตรงกับ formatMetersToArma(...,4) + parseArmaGrid)
 function snapTo10mGrid(meters) {
     const isNeg = meters < 0;
     const cell = Math.floor(Math.abs(meters) / 10);
@@ -3658,18 +3483,13 @@ function deleteMapMarker() {
     hideMapMarkerMenus();
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// COPY TO CHAT — สร้างข้อความ FIRE MISSION สำหรับแจ้งทีม/พลยิง จากผลคำนวณล่าสุด
-// ═══════════════════════════════════════════════════════════════════
+// ── COPY TO CHAT ──
 function getActiveTraj() {
-    // ถ้ามีทั้ง Low และ High Angle ใช้ Low Angle เป็นค่าหลัก (มาตรฐานที่ใช้บ่อยกว่าสำหรับปืนใหญ่)
-    // ถ้าไม่มี Low Angle (เช่น ปูนครกที่มีแต่ High Angle) ใช้ High Angle แทน
     if (!currentCalcData) return null;
     return pickFiringTraj(currentCalcData.low, currentCalcData.high);
 }
 
-// เลือกวิถีที่จะส่งเข้าแชท: Low ก่อน "เฉพาะเมื่อใช้ยิงได้จริง" (มุมเงยอยู่ในขีดจำกัด + ผ่านความสูงสิ่งกีดขวาง)
-// เดิมเลือก Low เสมอแม้จะขึ้นเตือนสีแดง (มุมเกิน Max / ชนสิ่งกีดขวาง) ทำให้ส่งค่าที่ยิงไม่ได้เข้าแชท ทั้งที่ High ใช้ได้
+// Low ก่อนเฉพาะเมื่อยิงได้จริง (มุมในขีดจำกัด + ผ่านสิ่งกีดขวาง) ไม่งั้นใช้ High
 function isTrajFireable(traj) {
     if (!traj || isNaN(traj.elev)) return false;
     const lim = currentLimits || { minElev: -Infinity, maxElev: Infinity };
@@ -3687,7 +3507,7 @@ function pickFiringTraj(low, high) {
 function getWeaponShortName() {
     const opt = DOM["weaponSelect"] && DOM["weaponSelect"].selectedOptions[0];
     if (!opt) return "";
-    return opt.text.split(" ")[0]; // "M777 Howitzer (155mm) - US" -> "M777"
+    return opt.text.split(" ")[0];
 }
 
 function getAmmoShortName() {
@@ -3697,7 +3517,6 @@ function getAmmoShortName() {
         raw = opt ? opt.text : "";
     }
     if (!raw) return "";
-    // ตัดขนาดลำกล้อง (เช่น "155mm ") และคำว่า "Shell" ออก เช่น "155mm M107 HE Shell" -> "M107 HE"
     return raw.replace(/^\d+\s*mm\s*/i, "").replace(/\s*Shell\s*$/i, "").trim();
 }
 
@@ -3714,7 +3533,7 @@ function copyTextToClipboard(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
         return navigator.clipboard.writeText(text);
     }
-    // fallback สำหรับเบราว์เซอร์/บริบทที่ไม่รองรับ Clipboard API (เช่น http ไม่ใช่ https)
+    // fallback เมื่อไม่มี Clipboard API (เช่น http)
     return new Promise((resolve, reject) => {
         try {
             const ta = document.createElement('textarea');
@@ -3751,7 +3570,6 @@ function copyToChatTeam() {
         .catch(() => showCopyChatStatus("❌ Copy ไม่สำเร็จ ลองอีกครั้ง", true));
 }
 
-// สร้างข้อความบรรทัดเดียวสำหรับพลยิง จากข้อมูลผลลัพธ์ของปืน 1 กระบอก (ใช้ร่วมกันทั้งโหมดกระบอกเดียวและหลายกระบอก)
 function buildGunnerLine(sol, weapon, ammo) {
     const traj = pickFiringTraj(sol.trajLow, sol.trajHigh);
     if (!traj) return null;
@@ -3772,8 +3590,6 @@ function buildGunnerLine(sol, weapon, ammo) {
     return `${weaponPart} | ${chargeLabel} ${chargeNum} | AZI ${azi} | ELEV ${elev} | ToF ${tof}s${fuzePart}`;
 }
 
-// sol (ถ้าระบุ) = ผลลัพธ์ของกระบอกนั้นๆ — โหมดหน้ากระดานแต่ละกระบอกมีจุดเล็งต่างกัน
-// เดิมใช้ currentCalcData (กระบอกที่เลือกดูอยู่) เสมอ ทำให้ปุ่ม Gun 2/3/... ส่ง Grid ของกระบอกที่เลือกดูแทน
 function buildGunnerGridPart(sol) {
     const hasOffset = (Math.abs(aimOffsetX) >= 0.01 || Math.abs(aimOffsetY) >= 0.01);
     const src = sol || currentCalcData;
@@ -3785,8 +3601,7 @@ function buildGunnerGridPart(sol) {
     return ` | Grid: ${tgtXStr} ${tgtYStr}`;
 }
 
-// ปุ่ม Chat Gunner หลัก: ใช้เฉพาะโหมดปืนเดียว (ข้อความสั้นบรรทัดเดียวแบบเดิม)
-// เกมจำกัดความยาวข้อความแชทและพิมพ์ขึ้นบรรทัดใหม่เองไม่ได้ ดังนั้นโหมดหลายกระบอกจะใช้ปุ่มแยกต่อกระบอกแทน (ดู renderCopyGunnerMultiRow)
+// แชทในเกมไม่รับข้อความยาว/ขึ้นบรรทัดใหม่ → หลายกระบอกใช้ปุ่มแยกต่อกระบอก
 function copyToChatGunner() {
     const traj = getActiveTraj();
     if (!traj || !currentCalcData) { showCopyChatStatus("⚠️ กรุณาคำนวณก่อน (ใส่พิกัดเป้าหมาย)", true); return; }
@@ -3802,7 +3617,6 @@ function copyToChatGunner() {
         .catch(() => showCopyChatStatus("❌ Copy ไม่สำเร็จ ลองอีกครั้ง", true));
 }
 
-// Copy ข้อความของกระบอกที่ระบุ (idx = 0-based) เป็นบรรทัดสั้นเดียว — ใช้สำหรับปุ่มแยกต่อกระบอกในโหมดหลายกระบอก
 function copyToChatGunnerFor(idx) {
     if (!allGunSolutions || !allGunSolutions[idx]) { showCopyChatStatus("⚠️ กรุณาคำนวณก่อน (ใส่พิกัดเป้าหมาย)", true); return; }
     const sol = allGunSolutions[idx];
@@ -3820,8 +3634,6 @@ function copyToChatGunnerFor(idx) {
         .catch(() => showCopyChatStatus("❌ Copy ไม่สำเร็จ ลองอีกครั้ง", true));
 }
 
-// แสดง/ซ่อนแถวปุ่ม Chat Gunner แยกต่อกระบอก — โผล่เฉพาะตอนเปิดระบบหลายกระบอกและมีมากกว่า 1 กระบอก
-// สลับกับปุ่ม Chat Gunner หลัก (ปุ่มเดียว) เพราะเกมพิมพ์ข้อความยาวหรือขึ้นบรรทัดใหม่ในแชทไม่ได้
 function renderCopyGunnerMultiRow() {
     const row = document.getElementById('copyGunnerMultiRow');
     const mainBtn = document.getElementById('copyGunnerBtn');
@@ -3857,14 +3669,14 @@ window.handleDrop = function(e) {
 }
 window.handleDragEnd = function(e) { e.currentTarget.classList.remove('dragging'); document.querySelectorAll('.memory-item').forEach(item => item.classList.remove('drag-over')); dragStartIndex = null; }
 
-// กัน XSS: escape ตัวอักษรพิเศษก่อนแทรกลง innerHTML (เผื่อผู้ใช้ตั้งชื่อเป้าหมายเป็นแท็ก HTML/สคริปต์)
+// กัน XSS
 function escapeHtml(str) {
     return String(str == null ? '' : str).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 }
 function renderMemoryList() {
     const list = DOM["memoryList"]; list.innerHTML = '';
     savedTargets.forEach((mem, index) => {
-        // 🔥 คืนค่า ondrag กลับมา เพื่อให้สามารถลากสลับตำแหน่งได้ตามเดิม (อัพเดทให้เรียกผ่าน window. เพื่อกันบั๊ก Not Defined)
+        // เรียกผ่าน window. กัน error Not Defined
         list.innerHTML += `<div class="memory-item" draggable="true" data-index="${index}" ondragstart="window.handleDragStart(event)" ondragover="window.handleDragOver(event)" ondragleave="window.handleDragLeave(event)" ondrop="window.handleDrop(event)" ondragend="window.handleDragEnd(event)"><div style="display: flex; flex-direction: column; gap: 4px; pointer-events: none;"><span style="font-weight:bold; color:#38bdf8;"><span style="color:#64748b; margin-right:4px;">⣿</span>${escapeHtml(mem.name)}</span><span style="color:#94a3b8; font-size: 11px; padding-left: 18px;">X:${escapeHtml(mem.tx)} Y:${escapeHtml(mem.ty)} Z:${escapeHtml(mem.tz)}</span></div><div style="display: flex; gap: 5px;"><button class="btn-load" onclick="loadMemory(${index})">Load</button><button class="btn-edit" onclick="editMemoryName(${index})" title="แก้ไขชื่อเป้าหมาย">✏️</button><button class="btn-delete" onclick="openDeleteModal(${index})">X</button></div></div>`;
     });
 }
@@ -3888,13 +3700,11 @@ function closeDeleteModal() { DOM['deleteModal'].style.display = 'none'; memoryT
 function confirmDeleteMemory() { if (memoryToDeleteIndex > -1) { savedTargets.splice(memoryToDeleteIndex, 1); localStorage.setItem('m777_memory', JSON.stringify(savedTargets)); renderMemoryList(); } closeDeleteModal(); }
 function forceLoadFromLocalStorage() { try { const localData = localStorage.getItem('m777_memory'); if (localData) { savedTargets = JSON.parse(localData); renderMemoryList(); alert("✅ โหลดข้อมูลจาก Local Storage เรียบร้อยแล้ว!"); } else { alert("⚠️ ยังไม่มีข้อมูลเป้าหมายถูกบันทึกไว้ในระบบ"); } } catch (error) { console.error("Error loading from localStorage", error); alert("❌ เกิดข้อผิดพลาดในการอ่านข้อมูลจากระบบ"); } }
 
-// ═══════════════════════════════════════════════════════════════════
-// FIRE HISTORY — บันทึกตำแหน่งการยิงที่เคยกด Calculate ไปแล้วโดยอัตโนมัติ
-// ═══════════════════════════════════════════════════════════════════
-const HISTORY_MAX = 51; // เก็บสูงสุดในระบบ 51 จุด (เกินกว่านี้ลบอันเก่าสุดทิ้ง) — แสดงผลล่าสุดก่อน + เลื่อนดูได้
+// ── FIRE HISTORY ──
+const HISTORY_MAX = 51;
 
 function logHistory(calcSummary) {
-    // ป้องกันไม่ให้บันทึกซ้ำถ้าพิกัด/ปืน/กระสุนเหมือนรายการล่าสุดเป๊ะ (กันสแปมตอนพิมพ์เลขปรับทีละหลัก)
+    // กันบันทึกซ้ำตอนพิมพ์ปรับทีละหลัก
     const gunXRaw = DOM["gunX"].value, gunYRaw = DOM["gunY"].value, gunZRaw = DOM["gunZ"].value;
     const targetXRaw = DOM["targetX"].value, targetYRaw = DOM["targetY"].value, targetZRaw = DOM["targetZ"].value;
     const windSpeedRaw = DOM["windSpeed"].value, windDirRaw = DOM["windDir"].value;
@@ -3915,7 +3725,7 @@ function logHistory(calcSummary) {
         minClearance: minClearanceRaw, airburstHeight: airburstRaw, rangeOffset: rangeOffsetRaw,
         chargeVelHigh: DOM["chargeVelHigh"] ? DOM["chargeVelHigh"].value : null,
         chargeVelLow: DOM["chargeVelLow"] ? DOM["chargeVelLow"].value : null,
-        // ระยะชดเชยจากปุ่มปรับเป้า / FO — เดิมไม่ได้บันทึก ทำให้ยิงแก้แล้วไม่ถูกบันทึกลงประวัติ และโหลดกลับมาได้ค่าผิด
+        // บันทึก aimOffset ด้วย (ไม่งั้นยิงแก้แล้วไม่ลงประวัติ)
         aimOffsetX: aimOffsetX, aimOffsetY: aimOffsetY,
         dist: Math.round(calcSummary.aimGridDistance || 0),
         dz: Math.round(calcSummary.dz || 0),
@@ -3938,7 +3748,7 @@ function logHistory(calcSummary) {
         last.chargeVelHigh === entry.chargeVelHigh && last.chargeVelLow === entry.chargeVelLow &&
         (last.aimOffsetX || 0) === entry.aimOffsetX && (last.aimOffsetY || 0) === entry.aimOffsetY &&
         last.elevHigh === entry.elevHigh && last.elevLow === entry.elevLow) {
-        return; // ไม่มีอะไรเปลี่ยนจากครั้งก่อน ไม่ต้องบันทึกซ้ำ
+        return;
     }
 
     historySeq++;
@@ -4003,7 +3813,7 @@ function loadHistory(index) {
     if (h.chargeVelHigh && DOM["chargeVelHigh"].querySelector(`option[value="${h.chargeVelHigh}"]`)) DOM["chargeVelHigh"].value = h.chargeVelHigh;
     if (h.chargeVelLow && DOM["chargeVelLow"].querySelector(`option[value="${h.chargeVelLow}"]`)) DOM["chargeVelLow"].value = h.chargeVelLow;
 
-    // คืนค่าระยะชดเชยที่ใช้ตอนยิงจริง (รายการเก่าที่ไม่มีข้อมูลนี้ = 0) แทนการล้างทิ้ง
+    // คืนค่า aimOffset ที่ใช้ตอนยิง (รายการเก่าไม่มี = 0)
     if (aimOffsetX !== 0 || aimOffsetY !== 0) offsetHistory.push({ x: aimOffsetX, y: aimOffsetY });
     aimOffsetX = Number(h.aimOffsetX) || 0; aimOffsetY = Number(h.aimOffsetY) || 0;
     resetFOState(); calculate();

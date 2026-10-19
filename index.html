@@ -992,7 +992,142 @@ const ArtilleryPhysics = (() => {
         return 100 * Math.tan(impactAngleRad);
     }
 
+    // ═══ DRAG TRAJECTORY MODEL (point-mass + quadratic air drag: a = -g·ŷ - k·|v|·v) ═══
+    // ไม่ต้องมีข้อมูลแรงต้านเพิ่ม: หา v0 (ความเร็วปากลำกล้อง) และ k (ค่าแรงต้าน) ย้อนกลับจากตารางยิง
+    // โดยบังคับ 2 เงื่อนไข: ยิงด้วยมุมเงยจริง (รวม dz) แล้วต้องตกที่ (ระยะ, dz) พอดี และใช้เวลา = ToF พอดี
+    // ใช้วาดรูปทรงวิถีเท่านั้น — ไม่กระทบ Elevation/Azimuth/ToF/Charge/Fuze Timer ที่ใช้ยิงจริง
+    const DRAG_STEPS = 200;
+    const dragWarmStart = new Map();   // chargeKey → {v0, k} ของนัดล่าสุด (v0/k แทบคงที่ต่อ charge → Newton ลู่เข้าเร็ว)
+    const dragResultCache = new Map(); // shotKey → ผลลัพธ์ที่คำนวณแล้ว (2D/3D/แผนที่เรียกซ้ำได้ไม่ต้องคำนวณใหม่)
+
+    // RK4 จนกระสุนเคลื่อนที่ถึงระยะ dist ในแนวราบ (vx > 0 เสมอเมื่อมีแรงต้าน จึงผ่าน dist ได้ครั้งเดียว)
+    // คืนความสูง Y และเวลา T ณ ระยะเป้า — ใช้ได้ทั้งกรณีโดนเป้าขาลง (ปกติ) และขาขึ้น (Low Angle ระยะใกล้ เป้าสูงกว่าปืน)
+    function dragIntegrate(v0, k, th, dist, Tref, keep) {
+        const g = 9.81, dt = Tref / DRAG_STEPS;
+        let x = 0, y = 0, vx = v0 * Math.cos(th), vy = v0 * Math.sin(th), t = 0;
+        const pts = keep ? [{ x: 0, y: 0, t: 0 }] : null;
+        for (let i = 0; i < DRAG_STEPS * 4; i++) {
+            let v = Math.hypot(vx, vy);
+            const a1x = -k * v * vx, a1y = -g - k * v * vy;
+            const ux = vx + a1x * dt / 2, uy = vy + a1y * dt / 2; v = Math.hypot(ux, uy);
+            const a2x = -k * v * ux, a2y = -g - k * v * uy;
+            const wx = vx + a2x * dt / 2, wy = vy + a2y * dt / 2; v = Math.hypot(wx, wy);
+            const a3x = -k * v * wx, a3y = -g - k * v * wy;
+            const zx = vx + a3x * dt, zy = vy + a3y * dt; v = Math.hypot(zx, zy);
+            const a4x = -k * v * zx, a4y = -g - k * v * zy;
+            const nx = x + dt * (vx + 2 * ux + 2 * wx + zx) / 6, ny = y + dt * (vy + 2 * uy + 2 * wy + zy) / 6;
+            vx += dt * (a1x + 2 * a2x + 2 * a3x + a4x) / 6; vy += dt * (a1y + 2 * a2y + 2 * a3y + a4y) / 6;
+            if (nx >= dist) {
+                const f = (dist - x) / (nx - x); const Y = y + (ny - y) * f, T = t + dt * f;
+                if (keep) pts.push({ x: dist, y: Y, t: T });
+                return { Y, T, pts };
+            }
+            x = nx; y = ny; t += dt;
+            if (keep) pts.push({ x, y, t });
+        }
+        return null; // ยังไปไม่ถึงระยะเป้าภายใน 4 เท่าของ ToF (ช้าเกิน)
+    }
+
+    // แก้หา (v0, k) — Newton 2 ตัวแปร (warm start จากนัดก่อนของ charge เดียวกัน) แล้ว fallback เป็น bisection
+    function dragFit(th, dist, dz, T, chargeKey) {
+        const g = 9.81, TOL_X = 0.3, TOL_T = 0.003;
+        const resid = (v0, k) => { const r = dragIntegrate(v0, k, th, dist, T, false); return r ? [r.Y - dz, r.T - T] : null; };
+        const s2 = Math.sin(2 * th);
+        const vVac = s2 > 0.01 ? Math.sqrt(dist * g / s2) : Math.max(100, dist / T);
+        let guesses = [];
+        if (chargeKey && dragWarmStart.has(chargeKey)) guesses.push(dragWarmStart.get(chargeKey));
+        guesses.push({ v0: vVac * 1.1, k: 5e-5 }, { v0: vVac * 1.3, k: 2e-4 }, { v0: vVac * 1.02, k: 1e-5 });
+        for (const gs of guesses) {
+            let v0 = gs.v0, lk = Math.log(Math.max(gs.k, 1e-7)), r = resid(v0, Math.exp(lk));
+            for (let it = 0; it < 10 && r; it++) {
+                if (Math.abs(r[0]) < TOL_X && Math.abs(r[1]) < TOL_T) return { v0, k: Math.exp(lk) };
+                const dv = v0 * 1e-3, dl = 1e-3;
+                const rv = resid(v0 + dv, Math.exp(lk)), rl = resid(v0, Math.exp(lk + dl));
+                if (!rv || !rl) break;
+                const J00 = (rv[0] - r[0]) / dv, J01 = (rl[0] - r[0]) / dl, J10 = (rv[1] - r[1]) / dv, J11 = (rl[1] - r[1]) / dl;
+                const det = J00 * J11 - J01 * J10; if (!isFinite(det) || Math.abs(det) < 1e-12) break;
+                let sv = -(J11 * r[0] - J01 * r[1]) / det, sl = -(-J10 * r[0] + J00 * r[1]) / det;
+                const sc = Math.min(1, (0.2 * v0) / Math.abs(sv || 1e-9), 0.7 / Math.abs(sl || 1e-9)); sv *= sc; sl *= sc;
+                let nr = null;
+                for (let h = 0; h < 6; h++) { nr = resid(v0 + sv, Math.exp(lk + sl)); if (nr) break; sv /= 2; sl /= 2; }
+                if (!nr) break;
+                v0 += sv; lk += sl; r = nr;
+                if (lk < -18) break; // k → 0: ToF ในตารางสั้นเกินกว่าจะมีแรงต้าน — ไม่ต้องวนต่อ
+            }
+            if (r && Math.abs(r[0]) < TOL_X && Math.abs(r[1]) < TOL_T) return { v0, k: Math.exp(lk) };
+        }
+        // Fallback: bisection (ช้ากว่าแต่ทนทาน) — k ไล่จากน้อยไปมากจนได้ ToF ตามตาราง
+        const v0For = (k) => { let lo = 1, hi = Math.max(3000, vVac * 6); for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; const r = dragIntegrate(m, k, th, dist, T, false); if (!r || r.Y < dz) lo = m; else hi = m; } return (lo + hi) / 2; };
+        const tAt = (k) => { const r = dragIntegrate(v0For(k), k, th, dist, T, false); return r ? r.T : Infinity; };
+        let kLo = 0, kHi = null;
+        if (tAt(0) >= T) return null; // แม้ไม่มีแรงต้านก็ยังช้ากว่า ToF ในตาราง → ไม่มีคำตอบ k ≥ 0 (ให้ผู้เรียกใช้ fallback)
+        for (let k = 1e-6; kHi === null && k < 5e-2; k *= 1.6) { if (tAt(k) >= T) kHi = k; else kLo = k; }
+        if (kHi === null) return null;
+        for (let i = 0; i < 30 && kHi > 0; i++) { const k = (kLo + kHi) / 2; if (tAt(k) < T) kLo = k; else kHi = k; }
+        const k = (kLo + kHi) / 2, v0 = v0For(k), r = resid(v0, k);
+        return (r && Math.abs(r[0]) < 2 && Math.abs(r[1]) < 0.05) ? { v0, k } : null;
+    }
+
+    // คืนเส้นวิถี 101 จุด (เวลาเท่ากัน) + จุดดิบละเอียด — null ถ้าแก้สมการไม่ได้หรือค่าผิดปกติ (ผู้เรียกใช้เส้นแบบเดิมแทน)
+    function simulateDragTrajectory(elevRad, dist, dz, T, chargeKey) {
+        if (!(dist > 0) || !(T > 0) || !isFinite(dz) || !(elevRad > -Math.PI / 4) || elevRad >= Math.PI / 2) return null;
+        const key = elevRad.toFixed(7) + "|" + dist.toFixed(2) + "|" + dz.toFixed(2) + "|" + T.toFixed(4);
+        if (dragResultCache.has(key)) return dragResultCache.get(key);
+        let out = null, approx = false;
+        let fit = dragFit(elevRad, dist, dz, T, chargeKey);
+        if (!fit) {
+            // มุมเงย+ToF ชุดนี้ไม่มีคำตอบทางฟิสิกส์พร้อมกันทั้งคู่ (เช่น Low Angle ระยะใกล้ ยิงลงต่ำ: ToF จากตารางสั้นกว่าสุญญากาศ)
+            // → ใช้ค่าแรงต้านของ charge นี้จากนัดก่อน (หรือ 0) แล้วหา v0 ให้เส้นผ่านเป้าพอดีอย่างเดียว เพื่อรูปทรงที่สมเหตุสมผล
+            const k = (chargeKey && dragWarmStart.has(chargeKey)) ? dragWarmStart.get(chargeKey).k : 0; // ไม่มีข้อมูล charge นี้ → ใช้แบบไม่มีแรงต้าน (ระยะใกล้ผลต่างน้อยมาก)
+            let lo = 1, hi = 5000;
+            for (let i = 0; i < 45; i++) { const m = (lo + hi) / 2; const r = dragIntegrate(m, k, elevRad, dist, T, false); if (!r || r.Y < dz) lo = m; else hi = m; }
+            const r = dragIntegrate(lo, k, elevRad, dist, T, false);
+            if (r && Math.abs(r.Y - dz) < 1) { fit = { v0: lo, k }; approx = true; }
+        }
+        if (fit && fit.v0 > 20 && fit.v0 < 3000 && fit.k >= 0 && fit.k < 0.05) {
+            const run = dragIntegrate(fit.v0, fit.k, elevRad, dist, T, true);
+            if (run && run.pts) {
+                const raw = run.pts, Tend = raw[raw.length - 1].t;
+                const pts = []; let j = 1;
+                for (let i = 0; i <= 100; i++) {
+                    const tt = Tend * i / 100;
+                    while (j < raw.length - 1 && raw[j].t < tt) j++;
+                    const p = raw[j - 1], q = raw[j], f = q.t > p.t ? (tt - p.t) / (q.t - p.t) : 0;
+                    pts.push({ x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f, t_norm: i / 100 });
+                }
+                pts[100] = { x: dist, y: dz, t_norm: 1 }; // ปลายเส้นตรงเป้าพอดี (คลาดจากการแก้สมการ < 0.3m)
+                out = { pts, raw, v0: fit.v0, k: fit.k, approx };
+                // เก็บเป็นค่าเริ่มต้นของ charge นี้เฉพาะนัดที่ ToF ยาวพอ (ToF สั้นในตารางปัดทศนิยม 0.1s ทำให้ค่า k ไม่นิ่ง)
+                if (chargeKey && !approx && T >= 5) dragWarmStart.set(chargeKey, { v0: fit.v0, k: fit.k });
+            }
+        }
+        dragResultCache.set(key, out);
+        if (dragResultCache.size > 300) dragResultCache.delete(dragResultCache.keys().next().value);
+        return out;
+    }
+
+    // ═══ เส้นวิถีที่ใช้แสดงผล (2D / 3D / จุด Air Fuze บนแผนที่) ═══
+    // รูปทรงเส้น = แบบจำลองแรงต้านอากาศด้านบน; Air Fuze Timer = สูตรเดิม (approxTrajectoryPoints) ซึ่งทดสอบในเกมแล้ว
+    // ถ้าแบบจำลองแก้สมการไม่ได้ (ข้อมูลตารางผิดปกติ/กรณีสุดขั้ว) จะใช้เส้นแบบเดิมทั้งหมดแทน กราฟไม่พัง
     const getDragSimulatedPoints = (traj, dist, dz, airburstH = 0, currentWeaponObj) => {
+        const base = approxTrajectoryPoints(traj, dist, dz, airburstH, currentWeaponObj);
+        if (!base) return base;
+        const milSystem = (currentWeaponObj && currentWeaponObj.milSystem) || 6400;
+        const sim = simulateDragTrajectory(traj.elev * (Math.PI / (milSystem / 2)), dist, dz, traj.tof, traj.dragKey);
+        if (!sim) return Object.assign(base, { model: "approx" });
+        let burstX = base.burstX;
+        if (airburstH > 0 && base.fuzeTime !== null) {
+            const burstAlt = dz + airburstH, raw = sim.raw;
+            for (let i = raw.length - 1; i > 0; i--) {
+                if (raw[i].y < burstAlt && raw[i - 1].y >= burstAlt) { const a = raw[i - 1], b = raw[i]; burstX = a.x + (b.x - a.x) * (a.y - burstAlt) / (a.y - b.y); break; }
+            }
+        }
+        return { pts: sim.pts, fuzeTime: base.fuzeTime, burstX: base.fuzeTime !== null ? burstX : null, burstAlt: base.burstAlt,
+                 apexAlt: Math.max(...sim.pts.map(p => p.y)), model: sim.approx ? "drag-approx" : "drag", v0: sim.v0, k: sim.k };
+    };
+
+    // สูตรประมาณแบบเดิม (พาราโบลาแนวตั้ง + บีบแนวนอนแบบ exponential) — ใช้หา Air Fuze Timer และเป็นเส้นสำรอง
+    const approxTrajectoryPoints = (traj, dist, dz, airburstH = 0, currentWeaponObj) => {
         if (!traj || dist <= 0) return null;
         let pts = [];
         let g = 9.81;
@@ -1072,7 +1207,14 @@ const ArtilleryPhysics = (() => {
         return { interp, deflMil, aimDist, aimBearingDeg };
     }
 
-    return { getInterpolatedData, calculateAltAtLast100m, getDragSimulatedPoints, solveWind };
+    // ความสูงของเส้นวิถีเหนือเป้า ณ ระยะ x (ใช้หา Alt @100m จากเส้นจริง แทนสูตรเส้นตรง 100·tan(มุมตก) ที่ให้ค่าสูงเกินจริง)
+    function trajHeightAboveTargetAt(pts, x, dz) {
+        if (!pts || pts.length < 2) return null;
+        for (let i = 1; i < pts.length; i++) if (pts[i].x >= x) { const a = pts[i - 1], b = pts[i]; const f = b.x > a.x ? (x - a.x) / (b.x - a.x) : 0; return a.y + (b.y - a.y) * f - dz; }
+        return null;
+    }
+
+    return { getInterpolatedData, calculateAltAtLast100m, getDragSimulatedPoints, approxTrajectoryPoints, simulateDragTrajectory, trajHeightAboveTargetAt, solveWind };
 })();
 
 // Legacy Wrapper for older functions
@@ -2183,10 +2325,11 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
             peakAlt: finalInterpDataHigh.hasPeakAlt ? finalInterpDataHigh.peakAlt : (vy > 0 ? (vy*vy)/(2*g_const) : 0),
             alt100m: aimGridDistance > 100 ? calculateAltAtLast100m(finalInterpDataHigh) : null,
             color: "rgba(234, 179, 8, 1)", azi: finalAziHighToPass,
-            chargeCode: chargeCodeHigh, isMortar: isMortar
+            chargeCode: chargeCodeHigh, isMortar: isMortar, dragKey: tableHigh
         };
 
         simDataHigh = getDragSimulatedPoints(trajHigh, aimGridDistance, dz, airburstH);
+        if (simDataHigh && aimGridDistance > 100) trajHigh.alt100m = ArtilleryPhysics.trajHeightAboveTargetAt(simDataHigh.pts, aimGridDistance - 100, dz);
         if (airburstH > 0 && simDataHigh && simDataHigh.burstX !== null) {
             fuzeTimeHigh = simDataHigh.fuzeTime;
             trajHigh.fuzeX = simDataHigh.burstX;
@@ -2292,10 +2435,11 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
                 peakAlt: bestLowCalc.maxHLow,
                 alt100m: aimGridDistance > 100 ? calculateAltAtLast100m(bestLowCalc.finalInterpDataLow) : null,
                 color: "rgba(56, 189, 248, 1)", azi: finalAziLowToPass,
-                chargeCode: bestLowCalc.cId, isMortar: false
+                chargeCode: bestLowCalc.cId, isMortar: false, dragKey: currentAmmo.table.lowAngle[bestLowCalc.cId]
             };
 
             simDataLow = getDragSimulatedPoints(trajLow, aimGridDistance, dz, airburstH);
+            if (simDataLow && aimGridDistance > 100) trajLow.alt100m = ArtilleryPhysics.trajHeightAboveTargetAt(simDataLow.pts, aimGridDistance - 100, dz);
             if (airburstH > 0 && simDataLow && simDataLow.burstX !== null) {
                 fuzeTimeLow = simDataLow.fuzeTime;
                 trajLow.fuzeX = simDataLow.burstX;
@@ -2846,10 +2990,21 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
                 ctx.moveTo(bX - 6, bY - 6); ctx.lineTo(bX + 6, bY + 6);
                 ctx.moveTo(bX + 6, bY - 6); ctx.lineTo(bX - 6, bY + 6);
                 ctx.stroke();
-                ctx.fillStyle = "#ef4444"; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "left";
-                ctx.fillText(`💥 AIR FUZE: ${(traj.fuzeY - dz).toFixed(0)}m`, bX + 10, bY - 4);
+                // ป้ายข้อความของ Air Fuze ย้ายไปแสดงรวมที่ด้านบนกราฟ (drawFuzeSummary) — เดิมป้าย LO/HI ทับกันตรงใกล้เป้า
             }
         }
+    };
+
+    // สรุป Air Fuze ด้านบนกราฟ (แทนป้ายที่จุดระเบิด ซึ่งเดิม LO/HI วางซ้อนกันจนอ่านไม่ออก)
+    const drawFuzeSummary = () => {
+        const parts = [];
+        if (trajLow && trajLow.fuzeTime != null) parts.push(`LO ${trajLow.fuzeTime.toFixed(1)}s`);
+        if (trajHigh && trajHigh.fuzeTime != null) parts.push(`HI ${trajHigh.fuzeTime.toFixed(1)}s`);
+        if (parts.length === 0) return;
+        const t = trajLow && trajLow.fuzeY !== undefined ? trajLow : trajHigh;
+        ctx.save(); ctx.fillStyle = "#ef4444"; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "left";
+        ctx.fillText(`💥 AIR FUZE ${(t.fuzeY - dz).toFixed(0)}m (✕)   ${parts.join("  ·  ")}`, paddingLeft + 8, 24);
+        ctx.restore();
     };
 
     const animateFrame = (now) => {
@@ -2860,6 +3015,7 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
         drawAxes();
         if (trajLow) drawCurveProgress(trajLow, pointsLow, false, pLow);
         if (trajHigh) drawCurveProgress(trajHigh, pointsHigh, true, pHigh);
+        if (pLow >= 1 && pHigh >= 1) drawFuzeSummary();
 
         if (pLow < 1 || pHigh < 1) { window.trajectoryAnimId = requestAnimationFrame(animateFrame); } 
     };

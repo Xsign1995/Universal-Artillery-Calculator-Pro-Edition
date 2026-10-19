@@ -1106,50 +1106,6 @@ const ArtilleryPhysics = (() => {
         return out;
     }
 
-    // ═══ LOW ANGLE: ชดเชยมุมเงยเมื่อเป้าสูง/ต่ำกว่าปืน ด้วยแบบจำลองแรงต้านอากาศ ═══
-    // ทำไมไม่ใช้ D ELEV PER 100M DR จากตาราง: ค่าในตาราง Low Angle ของ M777/M777A1 เป็นชุดเดียวกับ High Angle (น้อยเกินไป 3-5 เท่า)
-    //   ยิงทดสอบ 20 ต.ค. 2026 (M777 Charge 3, 11.1km, เป้าสูง +251m): dElev 564 → สั้น ~300m, แบบจำลอง 589 → โดนเป้า
-    // ทำไมไม่ใช้ atan(dz/ระยะ) อย่างเดียว: ใกล้ระยะไกลสุดของ charge วิถีโค้งมาก ต้องยกมุมเพิ่มมากกว่ามุมที่มองเห็นเป้า (สูตรนี้ได้ 567 ในเคสเดียวกัน)
-    // วิธีคิด: หา v0/k ของ charge จากตารางหลายแถวรอบระยะเป้า → มุมที่ต้องเพิ่ม = θ(ถึงเป้าที่ dz) − θ(ถึงเป้าที่พื้นราบ)
-    //   ณ ระยะหลังชดเชยลม แล้วบวกกับมุมจากตาราง (dz = 0 → ได้ค่าเดิมจากตารางทุกประการ)
-    const rowFitCache = new WeakMap(); // table → [ {v0,k} | null ] ต่อแถว (คำนวณครั้งเดียวต่อแถว)
-    function rowDragFit(table, idx, milSystem) {
-        let arr = rowFitCache.get(table); if (!arr) { arr = []; rowFitCache.set(table, arr); }
-        if (arr[idx] !== undefined) return arr[idx];
-        const r = table[idx]; let f = null;
-        if (r && r[0] > 0 && r[1] > 0 && r[2] > 0) f = dragFit(r[1] * (Math.PI / (milSystem / 2)), r[0], 0, r[2], table);
-        if (f && f.v0 > 20 && f.v0 < 3000 && f.k >= 0 && f.k < 0.05) { if (r[2] >= 5) dragWarmStart.set(table, f); } else f = null;
-        arr[idx] = f; return f;
-    }
-    function lowAngleHeightCorrectionMil(table, virtualDist, levelElevMil, levelTof, dz, milSystem) {
-        if (!dz) return 0;
-        if (!table || table.length < 2 || !(virtualDist > 0) || !(levelTof > 0)) return null;
-        // แถวรอบระยะเป้า ±600m (ToF ≥ 5s เพื่อเลี่ยงค่าที่ปัดทศนิยมแล้วไม่นิ่ง) — ไม่พอให้ใช้ 3 แถวที่ใกล้สุด
-        let idxs = table.map((r, i) => i).filter(i => Math.abs(table[i][0] - virtualDist) <= 600 && table[i][2] >= 5);
-        if (idxs.length < 2) idxs = table.map((r, i) => i).sort((a, b) => Math.abs(table[a][0] - virtualDist) - Math.abs(table[b][0] - virtualDist)).slice(0, 3);
-        const fits = idxs.map(i => rowDragFit(table, i, milSystem)).filter(Boolean);
-        if (fits.length === 0) return null;
-        const v0 = fits.reduce((s, f) => s + f.v0, 0) / fits.length, k = fits.reduce((s, f) => s + f.k, 0) / fits.length;
-        const MIL = Math.PI / (milSystem / 2);
-        const yAt = (thMil) => { const r = dragIntegrate(v0, k, thMil * MIL, virtualDist, levelTof * 1.5, false); return r ? r.Y : -Infinity; };
-        // มุมต่ำสุด (Low Angle) ที่ทำให้ความสูง ณ ระยะเป้า = h — ไล่ทีละ 10 mil แล้ว bisection
-        const solve = (h) => {
-            let a = levelElevMil, ya = yAt(a), step = ya < h ? 10 : -10, b = a;
-            for (let i = 0; i < 160; i++) { b = a + step; const yb = yAt(b); if ((ya - h) * (yb - h) <= 0) break; a = b; ya = yb; if (b * MIL > 1.4 || b * MIL < -0.7) return null; }
-            let lo = Math.min(a, b), hi = Math.max(a, b);
-            if ((yAt(lo) - h) * (yAt(hi) - h) > 0) return null;
-            for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (yAt(m) < h) lo = m; else hi = m; }
-            return (lo + hi) / 2;
-        };
-        const th0 = solve(0), thH = solve(dz);
-        if (th0 === null || thH === null) return null;
-        const delta = thH - th0;
-        // กันค่าผิดปกติ: ทิศต้องตรงกับ dz และไม่มากเกินเหตุเทียบกับมุมที่มองเห็นเป้า
-        const sight = Math.atan(dz / virtualDist) / MIL;
-        if (!isFinite(delta) || Math.sign(delta) !== Math.sign(dz) || Math.abs(delta) > Math.abs(sight) * 5 + 30) return null;
-        return delta;
-    }
-
     // ═══ เส้นวิถีที่ใช้แสดงผล (2D / 3D / จุด Air Fuze บนแผนที่) ═══
     // รูปทรงเส้น = แบบจำลองแรงต้านอากาศด้านบน; Air Fuze Timer = สูตรเดิม (approxTrajectoryPoints) ซึ่งทดสอบในเกมแล้ว
     // ถ้าแบบจำลองแก้สมการไม่ได้ (ข้อมูลตารางผิดปกติ/กรณีสุดขั้ว) จะใช้เส้นแบบเดิมทั้งหมดแทน กราฟไม่พัง
@@ -1229,15 +1185,15 @@ const ArtilleryPhysics = (() => {
     // ชดเชยลม (วนซ้ำ 4 รอบ): ลมทวน/ตาม → ปรับระยะเสมือน, ลมขวาง → เผื่อทิศ (deflection)
     // ใช้ค่าจากตาราง (Long/Cross Wind 10m/s) ถ้ามี ไม่งั้นใช้สัมประสิทธิ์ของอาวุธ (driftCoeff/rangeCoeff)
     // ตัวเดียวที่ใช้ร่วมกันทั้ง High Angle, Low Angle และ Auto Charge (findBestCharge)
-    // คืนค่า { interp, deflMil, aimDist, aimBearingDeg, virtualDist } — interp = null ถ้าตารางว่าง
+    // คืนค่า { interp, deflMil, aimDist, aimBearingDeg } — interp = null ถ้าตารางว่าง
     function solveWind(table, aimGridDistance, baseBearingDeg, windSpeed, windDirDeg, milSystem, driftCoeff, rangeCoeff) {
         const halfMil = milSystem / 2;
-        let aimDist = aimGridDistance; let aimBearingDeg = baseBearingDeg; let deflMil = 0; let interp = null; let lastVirtualDist = aimGridDistance;
+        let aimDist = aimGridDistance; let aimBearingDeg = baseBearingDeg; let deflMil = 0; let interp = null;
         for (let iter = 0; iter < 4; iter++) {
             let cw = windSpeed * Math.sin((windDirDeg - aimBearingDeg) * (Math.PI / 180)); let hw = windSpeed * Math.cos((windDirDeg - aimBearingDeg) * (Math.PI / 180));
             let baseInterp = getInterpolatedData(aimDist, table); if (!baseInterp) break;
             let rangeAdj = baseInterp.hasWindData ? (hw / 10) * baseInterp.longWind : hw * baseInterp.tof * rangeCoeff;
-            let virtualDist = aimDist + rangeAdj; interp = getInterpolatedData(virtualDist, table); lastVirtualDist = virtualDist;
+            let virtualDist = aimDist + rangeAdj; interp = getInterpolatedData(virtualDist, table);
             if (interp.hasWindData) {
                 deflMil = (cw / 10) * interp.crossWind;
                 let deflDeg = deflMil * (360 / milSystem);
@@ -1248,7 +1204,7 @@ const ArtilleryPhysics = (() => {
                 aimBearingDeg = baseBearingDeg + (deflRad * 180 / Math.PI); aimDist = aimGridDistance / Math.cos(deflRad);
             }
         }
-        return { interp, deflMil, aimDist, aimBearingDeg, virtualDist: lastVirtualDist };
+        return { interp, deflMil, aimDist, aimBearingDeg };
     }
 
     // ความสูงของเส้นวิถีเหนือเป้า ณ ระยะ x (ใช้หา Alt @100m จากเส้นจริง แทนสูตรเส้นตรง 100·tan(มุมตก) ที่ให้ค่าสูงเกินจริง)
@@ -1258,7 +1214,7 @@ const ArtilleryPhysics = (() => {
         return null;
     }
 
-    return { getInterpolatedData, calculateAltAtLast100m, getDragSimulatedPoints, approxTrajectoryPoints, simulateDragTrajectory, trajHeightAboveTargetAt, solveWind, lowAngleHeightCorrectionMil };
+    return { getInterpolatedData, calculateAltAtLast100m, getDragSimulatedPoints, approxTrajectoryPoints, simulateDragTrajectory, trajHeightAboveTargetAt, solveWind };
 })();
 
 // Legacy Wrapper for older functions
@@ -2442,11 +2398,8 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
             if (finalInterpDataLow && finalInterpDataLow.clamped) { continue; }
 
             if (finalInterpDataLow) {
-                // ชดเชยความสูงเป้าด้วยแบบจำลองแรงต้านอากาศ (ดูคำอธิบายที่ lowAngleHeightCorrectionMil)
-                // ถ้าคำนวณไม่ได้ (ข้อมูลตารางผิดปกติ) ใช้สูตรเดิม: มุมที่มองเห็นเป้า atan(dz/ระยะ)
-                const angleOfSiteMilLow = Math.atan(dz / aimDistL) * (halfMil / Math.PI);
-                const dragCorrLow = ArtilleryPhysics.lowAngleHeightCorrectionMil(tableLow, windLow.virtualDist, finalInterpDataLow.elev, finalInterpDataLow.tof, dz, milSystem);
-                finalElevLowMil = finalInterpDataLow.elev + (dragCorrLow !== null ? dragCorrLow : angleOfSiteMilLow);
+                const angleOfSiteMilLow = Math.atan(dz / aimDistL) * (halfMil / Math.PI); 
+                finalElevLowMil = finalInterpDataLow.elev + angleOfSiteMilLow;
                 
                 // 🔥 ยืนยันจากคู่มือเกม (Ballistic Table): "TIME OF FLIGHT PER 100M DR" = 
                 // "Change in projectile flight time for a 100m DIFFERENCE IN TARGET ALTITUDE" — 

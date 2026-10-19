@@ -866,15 +866,15 @@ function setupHiDPICanvas(canvas, logicalW, logicalH, maxDpr = Infinity) {
 }
 
 
-function parseArmaGrid(elId) {
-    let el = DOM[elId];
-    if(!el) return 0;
-    let valStr = el.value.trim();
+// แปลงพิกัดกริด Arma (3/4/5 หลัก หรือมีทศนิยม) เป็นเมตร — ตัวหลักตัวเดียวของทั้งโปรแกรม
+// 3 หลัก = ช่อง 100m (+50 กลางช่อง), 4 หลัก = ช่อง 10m (+5), 5 หลัก = 1m, มีทศนิยม = ไม่บวกกลางช่อง
+function parseArmaGridValue(valStr) {
+    valStr = (valStr || "").trim();
     if (valStr === "") return 0;
     let isNeg = valStr.startsWith('-');
     let str = isNeg ? valStr.substring(1) : valStr;
-    let multiplier = 1; let offset = 0; 
-    let intStr = str.split('.')[0]; 
+    let multiplier = 1; let offset = 0;
+    let intStr = str.split('.')[0];
 
     if (str.includes('.')) {
         if (intStr.length === 3) multiplier = 100;
@@ -882,14 +882,18 @@ function parseArmaGrid(elId) {
         else if (intStr.length < 3) multiplier = 100; // เช่น "45.5" = 045.5 (สอดคล้องกับกรณีไม่มีจุด "45" = 045)
         else { multiplier = 1; offset = 0; }
     } else {
-        if (intStr.length === 3) { multiplier = 100; offset = 50; }     
-        else if (intStr.length === 4) { multiplier = 10; offset = 5; }  
-        else if (intStr.length === 5) { multiplier = 1; offset = 0; }     
-        else if (intStr.length < 3) { multiplier = 100; offset = 50; } 
+        if (intStr.length === 3) { multiplier = 100; offset = 50; }
+        else if (intStr.length === 4) { multiplier = 10; offset = 5; }
+        else if (intStr.length === 5) { multiplier = 1; offset = 0; }
+        else if (intStr.length < 3) { multiplier = 100; offset = 50; }
         else { multiplier = 1; offset = 0; }
     }
     return ((parseFloat(str) || 0) * multiplier + offset) * (isNeg ? -1 : 1);
 }
+// อ่านจากช่อง input ด้วย id (เช่น "gunX")
+function parseArmaGrid(elId) { const el = DOM[elId]; return el ? parseArmaGridValue(el.value) : 0; }
+// อ่านจากตัว element โดยตรง (ช่องพิกัดปืน 2-5 ที่สร้างขึ้นทีหลัง)
+function parseArmaGridFromEl(el) { return el ? parseArmaGridValue(el.value) : 0; }
 
 function formatMetersToArma(meters, prefLength = 4) {
     let isNeg = meters < 0; let m = Math.abs(meters); let val;
@@ -1043,12 +1047,38 @@ const ArtilleryPhysics = (() => {
         return { pts, fuzeTime: exactFuzeTime, burstX: exactBurstX, burstAlt: burstAlt, apexAlt: Math.max(...pts.map(p => p.y)) };
     };
 
-    return { getInterpolatedData, calculateAltAtLast100m, getDragSimulatedPoints };
+    // ชดเชยลม (วนซ้ำ 4 รอบ): ลมทวน/ตาม → ปรับระยะเสมือน, ลมขวาง → เผื่อทิศ (deflection)
+    // ใช้ค่าจากตาราง (Long/Cross Wind 10m/s) ถ้ามี ไม่งั้นใช้สัมประสิทธิ์ของอาวุธ (driftCoeff/rangeCoeff)
+    // ตัวเดียวที่ใช้ร่วมกันทั้ง High Angle, Low Angle และ Auto Charge (findBestCharge)
+    // คืนค่า { interp, deflMil, aimDist, aimBearingDeg } — interp = null ถ้าตารางว่าง
+    function solveWind(table, aimGridDistance, baseBearingDeg, windSpeed, windDirDeg, milSystem, driftCoeff, rangeCoeff) {
+        const halfMil = milSystem / 2;
+        let aimDist = aimGridDistance; let aimBearingDeg = baseBearingDeg; let deflMil = 0; let interp = null;
+        for (let iter = 0; iter < 4; iter++) {
+            let cw = windSpeed * Math.sin((windDirDeg - aimBearingDeg) * (Math.PI / 180)); let hw = windSpeed * Math.cos((windDirDeg - aimBearingDeg) * (Math.PI / 180));
+            let baseInterp = getInterpolatedData(aimDist, table); if (!baseInterp) break;
+            let rangeAdj = baseInterp.hasWindData ? (hw / 10) * baseInterp.longWind : hw * baseInterp.tof * rangeCoeff;
+            let virtualDist = aimDist + rangeAdj; interp = getInterpolatedData(virtualDist, table);
+            if (interp.hasWindData) {
+                deflMil = (cw / 10) * interp.crossWind;
+                let deflDeg = deflMil * (360 / milSystem);
+                aimBearingDeg = baseBearingDeg + deflDeg; aimDist = aimGridDistance / Math.cos(deflDeg * Math.PI / 180);
+            } else {
+                let driftMeters = cw * interp.tof * driftCoeff;
+                let deflRad = Math.atan(driftMeters / aimGridDistance); deflMil = deflRad * (halfMil / Math.PI);
+                aimBearingDeg = baseBearingDeg + (deflRad * 180 / Math.PI); aimDist = aimGridDistance / Math.cos(deflRad);
+            }
+        }
+        return { interp, deflMil, aimDist, aimBearingDeg };
+    }
+
+    return { getInterpolatedData, calculateAltAtLast100m, getDragSimulatedPoints, solveWind };
 })();
 
 // Legacy Wrapper for older functions
 const getInterpolatedData = ArtilleryPhysics.getInterpolatedData;
 const calculateAltAtLast100m = ArtilleryPhysics.calculateAltAtLast100m;
+const solveWind = ArtilleryPhysics.solveWind;
 const getDragSimulatedPoints = (traj, dist, dz, airburstH = 0) => ArtilleryPhysics.getDragSimulatedPoints(traj, dist, dz, airburstH, currentWeapon);
 
 let airburstDataPack = null;
@@ -1198,29 +1228,6 @@ function saveExtraGunCoord(gunIdx) {
     const xEl = document.getElementById(`gun${gunIdx}X`); const yEl = document.getElementById(`gun${gunIdx}Y`); const zEl = document.getElementById(`gun${gunIdx}Z`);
     if (!xEl) return;
     extraGunValues[gunIdx] = { x: xEl.value || "0000", y: yEl.value || "0000", z: zEl.value || "00" };
-}
-
-function parseArmaGridFromEl(el) {
-    if (!el) return 0;
-    let valStr = el.value.trim();
-    if (valStr === "") return 0;
-    let isNeg = valStr.startsWith('-');
-    let str = isNeg ? valStr.substring(1) : valStr;
-    let multiplier = 1; let offset = 0;
-    let intStr = str.split('.')[0];
-    if (str.includes('.')) {
-        if (intStr.length === 3) multiplier = 100;
-        else if (intStr.length === 4) multiplier = 10;
-        else if (intStr.length < 3) multiplier = 100; // เช่น "45.5" = 045.5 (สอดคล้องกับกรณีไม่มีจุด "45" = 045)
-        else { multiplier = 1; offset = 0; }
-    } else {
-        if (intStr.length === 3) { multiplier = 100; offset = 50; }
-        else if (intStr.length === 4) { multiplier = 10; offset = 5; }
-        else if (intStr.length === 5) { multiplier = 1; offset = 0; }
-        else if (intStr.length < 3) { multiplier = 100; offset = 50; }
-        else { multiplier = 1; offset = 0; }
-    }
-    return ((parseFloat(str) || 0) * multiplier + offset) * (isNeg ? -1 : 1);
 }
 
 // รวบรวมพิกัดปืนทุกกระบอกที่กำลังใช้งานอยู่ (กระบอกที่ 1 เสมอ + กระบอก 2-N ถ้าเปิดระบบหลายกระบอก)
@@ -1781,28 +1788,6 @@ function clearCounterBatteryAll() {
 }
 
 // เหมือน parseArmaGrid() แต่รับ string ตรงๆ แทนการอ่านจาก DOM id (ใช้กับช่อง Counter-Battery ที่สร้างแบบ dynamic)
-function parseArmaGridValue(valStr) {
-    valStr = (valStr || "").trim();
-    if (valStr === "") return 0;
-    let isNeg = valStr.startsWith('-');
-    let str = isNeg ? valStr.substring(1) : valStr;
-    let multiplier = 1; let offset = 0;
-    let intStr = str.split('.')[0];
-    if (str.includes('.')) {
-        if (intStr.length === 3) multiplier = 100;
-        else if (intStr.length === 4) multiplier = 10;
-        else if (intStr.length < 3) multiplier = 100; // เช่น "45.5" = 045.5 (สอดคล้องกับกรณีไม่มีจุด "45" = 045)
-        else { multiplier = 1; offset = 0; }
-    } else {
-        if (intStr.length === 3) { multiplier = 100; offset = 50; }
-        else if (intStr.length === 4) { multiplier = 10; offset = 5; }
-        else if (intStr.length === 5) { multiplier = 1; offset = 0; }
-        else if (intStr.length < 3) { multiplier = 100; offset = 50; }
-        else { multiplier = 1; offset = 0; }
-    }
-    return ((parseFloat(str) || 0) * multiplier + offset) * (isNeg ? -1 : 1);
-}
-
 function getActiveCbPoints() { return cbPoints.filter(p => p !== null); }
 
 // Convex hull (monotone chain) — ใช้หาขอบเขตรอบนอกสุดของจุดตรวจจับ เพื่อโยงเส้นเฉพาะจุดขอบ ไม่ใช่จุดที่ถูกล้อมอยู่ข้างใน
@@ -2059,23 +2044,8 @@ function findBestCharge(dist, dz = 0, windSpeed = 0, windDirDeg = 0, aimBearingD
     // 🔥 คำนวณ elevation จริงสำหรับ Charge นี้ โดยใช้สูตรเดียวกับ calculate() ทุกประการ
     // (รวมผลลม + ใช้ dElevPer100m ถ้าตารางมีข้อมูล) เพื่อให้ AUTO เลือก Charge ที่ตรงกับผลจริงที่จะคำนวณออกมา
     function evalCharge(table) {
-        let aimDistH = dist; let aimBearingDegH = aimBearingDeg; let finalInterpDataHigh = null;
-        for (let iter = 0; iter < 4; iter++) {
-            let cw = windSpeed * Math.sin((windDirDeg - aimBearingDegH) * (Math.PI / 180));
-            let hw = windSpeed * Math.cos((windDirDeg - aimBearingDegH) * (Math.PI / 180));
-            let baseInterp = getInterpolatedData(aimDistH, table); if (!baseInterp) return null;
-            let rangeAdj = baseInterp.hasWindData ? (hw / 10) * baseInterp.longWind : hw * baseInterp.tof * rangeCoeff;
-            let virtualDist = aimDistH + rangeAdj;
-            finalInterpDataHigh = getInterpolatedData(virtualDist, table);
-            if (finalInterpDataHigh.hasWindData) {
-                let deflDeg = ((cw / 10) * finalInterpDataHigh.crossWind) * (360 / milSystem);
-                aimBearingDegH = aimBearingDeg + deflDeg; aimDistH = dist / Math.cos(deflDeg * Math.PI / 180);
-            } else {
-                let driftMeters = cw * finalInterpDataHigh.tof * driftCoeff;
-                let deflRad = Math.atan(driftMeters / dist);
-                aimBearingDegH = aimBearingDeg + (deflRad * 180 / Math.PI); aimDistH = dist / Math.cos(deflRad);
-            }
-        }
+        const w = solveWind(table, dist, aimBearingDeg, windSpeed, windDirDeg, milSystem, driftCoeff, rangeCoeff);
+        const finalInterpDataHigh = w.interp; const aimDistH = w.aimDist;
         if (!finalInterpDataHigh || finalInterpDataHigh.clamped) return null;
 
         let elev;
@@ -2174,24 +2144,9 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
     if (!tableSourceHigh[chargeCodeHigh]) chargeCodeHigh = Object.keys(tableSourceHigh)[0];
     const tableHigh = tableSourceHigh[chargeCodeHigh];
     
-    let aimDistH = aimGridDistance; let aimBearingDegH = aimBearingDeg; let deflHighMil = 0;
-    let finalInterpDataHigh = null; let finalElevHigh = 0; let finalAziHigh = 0;
-
-    for(let iter=0; iter<4; iter++) {
-        let cw = windSpeed * Math.sin((windDirDeg - aimBearingDegH) * (Math.PI / 180)); let hw = windSpeed * Math.cos((windDirDeg - aimBearingDegH) * (Math.PI / 180));
-        let baseInterp = getInterpolatedData(aimDistH, tableHigh); if(!baseInterp) break;
-        let rangeAdj = baseInterp.hasWindData ? (hw / 10) * baseInterp.longWind : hw * baseInterp.tof * rangeCoeff;
-        let virtualDist = aimDistH + rangeAdj; finalInterpDataHigh = getInterpolatedData(virtualDist, tableHigh);
-        if (finalInterpDataHigh.hasWindData) {
-            deflHighMil = (cw / 10) * finalInterpDataHigh.crossWind;
-            let deflDeg = deflHighMil * (360 / milSystem);
-            aimBearingDegH = aimBearingDeg + deflDeg; aimDistH = aimGridDistance / Math.cos(deflDeg * Math.PI / 180);
-        } else {
-            let driftMeters = cw * finalInterpDataHigh.tof * driftCoeff;
-            let deflRad = Math.atan(driftMeters / aimGridDistance); deflHighMil = deflRad * (halfMil / Math.PI);
-            aimBearingDegH = aimBearingDeg + (deflRad * 180 / Math.PI); aimDistH = aimGridDistance / Math.cos(deflRad); 
-        }
-    }
+    const windHigh = solveWind(tableHigh, aimGridDistance, aimBearingDeg, windSpeed, windDirDeg, milSystem, driftCoeff, rangeCoeff);
+    let finalInterpDataHigh = windHigh.interp; const aimDistH = windHigh.aimDist; const aimBearingDegH = windHigh.aimBearingDeg; const deflHighMil = windHigh.deflMil;
+    let finalElevHigh = 0; let finalAziHigh = 0;
 
     if (finalInterpDataHigh && finalInterpDataHigh.clamped) { finalInterpDataHigh = null; }
 
@@ -2293,25 +2248,9 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
 
         for (let cId of lowChargesToTest) {
             const tableLow = currentAmmo.table.lowAngle[cId];
-            let aimDistL = aimGridDistance; let aimBearingDegL = aimBearingDeg; let deflLowMil = 0;
-            let finalInterpDataLow = null; let finalElevLowMil = NaN; let tofLowToPass_temp = null;
-            
-            for(let iter=0; iter<4; iter++) {
-                let cw = windSpeed * Math.sin((windDirDeg - aimBearingDegL) * (Math.PI / 180)); let hw = windSpeed * Math.cos((windDirDeg - aimBearingDegL) * (Math.PI / 180));
-                let baseInterp = getInterpolatedData(aimDistL, tableLow); if(!baseInterp) break;
-                let rangeAdj = baseInterp.hasWindData ? (hw / 10) * baseInterp.longWind : hw * baseInterp.tof * rangeCoeff;
-                let virtualDist = aimDistL + rangeAdj; finalInterpDataLow = getInterpolatedData(virtualDist, tableLow);
-                
-                if (finalInterpDataLow.hasWindData) {
-                    deflLowMil = (cw / 10) * finalInterpDataLow.crossWind;
-                    let deflDeg = deflLowMil * (360 / milSystem);
-                    aimBearingDegL = aimBearingDeg + deflDeg; aimDistL = aimGridDistance / Math.cos(deflDeg * Math.PI / 180);
-                } else {
-                    let driftMeters = cw * finalInterpDataLow.tof * driftCoeff;
-                    let deflRad = Math.atan(driftMeters / aimGridDistance); deflLowMil = deflRad * (halfMil / Math.PI);
-                    aimBearingDegL = aimBearingDeg + (deflRad * 180 / Math.PI); aimDistL = aimGridDistance / Math.cos(deflRad); 
-                }
-            }
+            const windLow = solveWind(tableLow, aimGridDistance, aimBearingDeg, windSpeed, windDirDeg, milSystem, driftCoeff, rangeCoeff);
+            const finalInterpDataLow = windLow.interp; const aimDistL = windLow.aimDist; const aimBearingDegL = windLow.aimBearingDeg; const deflLowMil = windLow.deflMil;
+            let finalElevLowMil = NaN; let tofLowToPass_temp = null;
 
             if (finalInterpDataLow && finalInterpDataLow.clamped) { continue; }
 

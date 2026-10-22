@@ -678,6 +678,7 @@
                 <option value="Marnivka">Marnivka</option>
                 <option value="Merak">Merak</option>
                 <option value="Myrnohrad">Myrnohrad</option>
+                <option value="Novobakhmutivka">Novobakhmutivka</option>
                 <option value="Orlivka">Orlivka</option>
                 <option value="Predniprovsk">Predniprovsk</option>
                 <option value="Rostov">Rostov</option>
@@ -1481,10 +1482,15 @@ const MapBackground = (() => {
     const ALLOWED_MAPS = new Set([
         "Anizay", "Arland", "Avdiivka", "Bakhmut", "Bakhmut City", "Bakhmut Skini", "Belleau Wood", "Chernarus",
         "Chervonopilia", "DonAir", "Donetsk", "Everon", "Fallujah", "Faschivka",
-        "Gogland", "Grotov", "Gulf Coast Islands", "Kolguyev", "Kunar", "Lysychansk", "Marnivka", "Merak", "Myrnohrad", "Orlivka", "Predniprovsk",
+        "Gogland", "Grotov", "Gulf Coast Islands", "Kolguyev", "Kunar", "Lysychansk", "Marnivka", "Merak", "Myrnohrad", "Novobakhmutivka", "Orlivka", "Predniprovsk",
         "Rostov", "Ruha", "Serhiivka_CIE", "Serhiivka_WCS", "Takistan", "Udachne",
         "West Zagoria", "Yunakivka", "Yunakivka-Sudzha", "Zargabad", "Zarichne",
     ]);
+
+    // แผนที่ภาพเดี่ยว (ไม่มีใน ArmaMapsTiles) — ฝังเป็น data URL ใน maps/*.js เพื่อให้เปิดผ่าน file:// และใช้ใน 3D ได้
+    const LOCAL_MAPS = {
+        "Novobakhmutivka": { script: "maps/novobakhmutivka_map.js", worldSize: 6912 },
+    };
 
     const BASE_TARGET_DIM = 1400;
     const REFINE_DEBOUNCE_MS = 300;
@@ -1546,6 +1552,26 @@ const MapBackground = (() => {
         });
     }
 
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = src;
+            s.onload = resolve;
+            s.onerror = () => reject(new Error(`โหลดไฟล์ไม่สำเร็จ: ${src}`));
+            document.head.appendChild(s);
+        });
+    }
+
+    async function loadLocalMap(mapName) {
+        const def = LOCAL_MAPS[mapName];
+        window.LOCAL_MAP_IMAGES = window.LOCAL_MAP_IMAGES || {};
+        if (!window.LOCAL_MAP_IMAGES[mapName]) await loadScript(def.script);
+        const img = await loadImage(window.LOCAL_MAP_IMAGES[mapName]);
+        const size = def.worldSize;
+        mapMeta[mapName] = { width: size, height: size, levels: [{ z: 0, width: img.naturalWidth, height: img.naturalHeight }], maxZoom: 0 };
+        tileCache[mapName] = { 0: { image: img, width: size, height: size, status: 'ready', full: true } };
+    }
+
     async function loadZoomLevel(mapName, z, statusCb, colRange = null, rowRange = null) {
         const meta = mapMeta[mapName];
         const lvl = meta.levels[z];
@@ -1600,6 +1626,13 @@ const MapBackground = (() => {
 
         setStatus("กำลังโหลด...", "loading");
         try {
+            if (LOCAL_MAPS[mapName]) {
+                await loadLocalMap(mapName);
+                if (myToken !== loadToken) return;
+                setStatus("พร้อมใช้งาน", "ready");
+                redrawMapOnly();
+                return;
+            }
             if (!mapMeta[mapName]) {
                 const { width, height } = await fetchMetadata(mapName);
                 const { levels, maxZoom } = computeLevels(width, height);
@@ -2615,6 +2648,7 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
         };
 
         drawLayer(bgMap.base);
+
 
         if (bgMap.refined) {
             const meta = bgMap.meta;

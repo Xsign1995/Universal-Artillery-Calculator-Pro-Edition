@@ -1,6 +1,6 @@
 # 🎯 Universal Artillery Calculator — Pro Edition
 
-**เวอร์ชันปัจจุบัน: v3.2.5 · รองรับ Arma Reforger 1.8** · [ดู Changelog](CHANGELOG.md)
+**เวอร์ชันปัจจุบัน: v3.2.6 · รองรับ Arma Reforger 1.8** · [ดู Changelog](CHANGELOG.md)
 
 เครื่องคำนวณการยิงปืนใหญ่และปืนครกสำหรับ **Arma Reforger** ทำงานบนเว็บเบราว์เซอร์ล้วน ไม่ต้องติดตั้งอะไร
 คำนวณ Elevation / Azimuth / Time of Flight พร้อมชดเชยลม ความสูง และแสดงผลบนแผนที่จริง
@@ -34,7 +34,7 @@
 - รองรับพิกัด **Arma Reforger Grid** แบบ 3 / 4 / 5 หลัก (Auto Grid) และแสดงผลเป็น MILs หรือ Degree
 
 ### 🗺️ แผนที่และการแสดงผล
-- **Tactical Top-Down Map** ใช้ภาพแผนที่จริงจาก ArmaMapTiles รองรับ **36 แผนที่** (Everon, Arland, Kolguyev, Chernarus, Takistan ฯลฯ)
+- **Tactical Top-Down Map** ใช้ภาพแผนที่จริงจาก ArmaMapTiles รองรับ **37 แผนที่** (Everon, Arland, Kolguyev, Chernarus, Takistan ฯลฯ)
 - ดับเบิลคลิกบนแผนที่เพื่อ **Set Target / Set Gun Position**
 - **จุดมาร์คแผนที่** (คลิกขวา 2 ครั้ง) ตั้งชื่อ แก้ไข ลบได้ บันทึกแยกตามแผนที่
 - รองรับมือถือ / iPad: **แตะค้าง (Long-press)** แทนดับเบิลคลิก/คลิกขวา
@@ -55,8 +55,8 @@
 
 **ออนไลน์:** เปิดลิงก์ GitHub Pages ด้านบน
 
-**ออฟไลน์:** ดาวน์โหลด `index.html` และ `ballistic_data.js` ไว้ในโฟลเดอร์เดียวกัน แล้วดับเบิลคลิกเปิด `index.html`
-(การคำนวณใช้งานได้แบบออฟไลน์ ส่วนภาพแผนที่และ 3D ต้องต่ออินเทอร์เน็ต)
+**ออฟไลน์:** ดาวน์โหลด `index.html`, `ballistic_data.js` และโฟลเดอร์ `maps/` ไว้ในโฟลเดอร์เดียวกัน แล้วดับเบิลคลิกเปิด `index.html`
+(การคำนวณใช้งานได้แบบออฟไลน์ ส่วนภาพแผนที่ (ยกเว้นแผนที่ใน `maps/`) และ 3D ต้องต่ออินเทอร์เน็ต)
 
 1. เลือกอาวุธ กระสุน และ Charge (หรือ Auto Select)
 2. ใส่พิกัดปืนและเป้าหมาย (X / Y / Z) หรือดับเบิลคลิกบนแผนที่
@@ -74,6 +74,7 @@
 ## 🙏 Credits
 
 - ภาพแผนที่: [ArmaMapTiles](https://armamaptiles.github.io/)
+- แผนที่ Novobakhmutivka: ผู้สร้าง xJESUSx
 - ตารางยิง: ถอดจากตำรา (Firing Table) ในเกม Arma Reforger และม็อด PandaMods, CIE Artillery, Adult Mortars
 
 > โปรเจกต์นี้เป็นเครื่องมือที่แฟนเกมทำขึ้นเอง ไม่มีส่วนเกี่ยวข้องกับ Bohemia Interactive

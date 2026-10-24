@@ -1,6 +1,6 @@
 # 🎯 Universal Artillery Calculator — Pro Edition
 
-**เวอร์ชันปัจจุบัน: v3.2.6 · รองรับ Arma Reforger 1.8** · [ดู Changelog](CHANGELOG.md)
+**เวอร์ชันปัจจุบัน: v3.3 · รองรับ Arma Reforger 1.8** · [ดู Changelog](CHANGELOG.md)
 
 เครื่องคำนวณการยิงปืนใหญ่และปืนครกสำหรับ **Arma Reforger** ทำงานบนเว็บเบราว์เซอร์ล้วน ไม่ต้องติดตั้งอะไร
 คำนวณ Elevation / Azimuth / Time of Flight พร้อมชดเชยลม ความสูง และแสดงผลบนแผนที่จริง
@@ -15,7 +15,7 @@
 
 | อาวุธ | ขนาด | ระบบ MIL | กระสุน |
 |---|---|---|---|
-| M777 Howitzer — US (PandaMods) | 155mm | 6400 | M107 HE |
+| M777 Howitzer — US (PandaMods) | 155mm | 6400 | M107 HE, M982 Excalibur (นำวิถี) |
 | M777A1 Howitzer — US (CIE Artillery) | 155mm | 6400 | M107 HE, M795 HE |
 | 2A36 Giatsint-B — Soviet (CIE Artillery) | 152mm | 6400 | 30F59 "Khrebet", 30F29 "Bekas" |
 | M252 Mortar — US | 81mm | 6400 | M821 HE, M853A1 Illumination, M819 Smoke |
@@ -76,5 +76,6 @@
 - ภาพแผนที่: [ArmaMapTiles](https://armamaptiles.github.io/)
 - แผนที่ Novobakhmutivka: ผู้สร้าง xJESUSx
 - ตารางยิง: ถอดจากตำรา (Firing Table) ในเกม Arma Reforger และม็อด PandaMods, CIE Artillery, Adult Mortars
+- ตาราง M982 Excalibur: สร้างจากข้อมูลวิถีกระสุนในม็อด M777 Howitzer Artillery ของ PandaMods (APL-SA)
 
 > โปรเจกต์นี้เป็นเครื่องมือที่แฟนเกมทำขึ้นเอง ไม่มีส่วนเกี่ยวข้องกับ Bohemia Interactive

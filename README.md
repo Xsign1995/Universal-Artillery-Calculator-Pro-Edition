@@ -1,6 +1,6 @@
 # 🎯 Universal Artillery Calculator — Pro Edition
 
-**เวอร์ชันปัจจุบัน: v3.3 · รองรับ Arma Reforger 1.8** · [ดู Changelog](CHANGELOG.md)
+**เวอร์ชันปัจจุบัน: v3.3.1 · รองรับ Arma Reforger 1.8** · [ดู Changelog](CHANGELOG.md)
 
 เครื่องคำนวณการยิงปืนใหญ่และปืนครกสำหรับ **Arma Reforger** ทำงานบนเว็บเบราว์เซอร์ล้วน ไม่ต้องติดตั้งอะไร
 คำนวณ Elevation / Azimuth / Time of Flight พร้อมชดเชยลม ความสูง และแสดงผลบนแผนที่จริง
@@ -75,6 +75,7 @@
 
 - ภาพแผนที่: [ArmaMapTiles](https://armamaptiles.github.io/)
 - แผนที่ Novobakhmutivka: ผู้สร้าง xJESUSx
+- แผนที่ Yunakivka: ผู้สร้าง Rumor / SPEARHEAD
 - ตารางยิง: ถอดจากตำรา (Firing Table) ในเกม Arma Reforger และม็อด PandaMods, CIE Artillery, Adult Mortars
 - ตาราง M982 Excalibur: สร้างจากข้อมูลวิถีกระสุนในม็อด M777 Howitzer Artillery ของ PandaMods (APL-SA)
 

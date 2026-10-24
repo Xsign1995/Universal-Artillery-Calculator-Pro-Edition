@@ -1473,7 +1473,7 @@ let mapMode = 'auto'; let mapCamX = 0; let mapCamY = 0; let mapZoom = 1;
 let isPanning = false; let startPanX, startPanY; let isRedrawing = false;
 let is3DMode = false; let currentCalcData = null; window.trajectoryAnimId = null;
 
-// ── MAP BACKGROUND (armamaptiles.github.io) ──
+// ── MAP BACKGROUND (armamaptiles.github.io + maps/) ──
 const MapBackground = (() => {
     const TILE_BASE = "https://armamaptiles.github.io/ArmaMapsTiles";
     const TILESIZE = 256;
@@ -1491,6 +1491,12 @@ const MapBackground = (() => {
     const LOCAL_MAPS = {
         "Novobakhmutivka": { script: "maps/novobakhmutivka_map.js", worldSize: 6912 },
     };
+
+    // แผนที่ tile (Zoomify) ที่เก็บใน repo แทน ArmaMapsTiles
+    const LOCAL_TILE_MAPS = {
+        "Yunakivka": { base: "maps/Yunakivka", width: 10240, height: 10240 },
+    };
+    const tileBase = (mapName) => LOCAL_TILE_MAPS[mapName] ? LOCAL_TILE_MAPS[mapName].base : `${TILE_BASE}/${mapName}`;
 
     const BASE_TARGET_DIM = 1400;
     const REFINE_DEBOUNCE_MS = 300;
@@ -1532,7 +1538,9 @@ const MapBackground = (() => {
     }
 
     async function fetchMetadata(mapName) {
-        const url = `${TILE_BASE}/${mapName}/ImageProperties.xml`;
+        const local = LOCAL_TILE_MAPS[mapName];
+        if (local) return { width: local.width, height: local.height }; // file:// ใช้ fetch ไม่ได้
+        const url = `${tileBase(mapName)}/ImageProperties.xml`;
         const res = await fetch(url);
         if (!res.ok) throw new Error(`โหลด metadata ไม่สำเร็จ (HTTP ${res.status})`);
         const text = await res.text();
@@ -1545,7 +1553,7 @@ const MapBackground = (() => {
     function loadImage(url) {
         return new Promise((resolve, reject) => {
             const img = new Image();
-            img.crossOrigin = "anonymous";
+            if (location.protocol !== "file:" || /^https?:/i.test(url)) img.crossOrigin = "anonymous";
             img.onload = () => resolve(img);
             img.onerror = () => reject(new Error(`โหลดภาพไม่สำเร็จ: ${url}`));
             img.src = url;
@@ -1591,7 +1599,7 @@ const MapBackground = (() => {
         for (let row = r0; row <= r1; row++) {
             for (let col = c0; col <= c1; col++) {
                 const group = tileGroupFor(meta.levels, z, col, row);
-                const url = `${TILE_BASE}/${mapName}/TileGroup${group}/${z}-${col}-${row}.jpg`;
+                const url = `${tileBase(mapName)}/TileGroup${group}/${z}-${col}-${row}.jpg`;
                 tasks.push(
                     loadImage(url)
                         .then(img => { ctx.drawImage(img, col * TILESIZE, row * TILESIZE); })
@@ -3016,7 +3024,9 @@ function updateGroundPlane3D(gunX, gunY) {
     const currentMapName = DOM["mapBgSelect"] ? DOM["mapBgSelect"].value : null;
 
     if (!groundPlane3D || groundPlaneMapName !== currentMapName) {
-        if (groundPlane3D) { scene.remove(groundPlane3D); groundPlane3D.geometry.dispose(); groundPlane3D.material.dispose(); }
+        if (groundPlane3D) { scene.remove(groundPlane3D); groundPlane3D.geometry.dispose(); groundPlane3D.material.dispose(); groundPlane3D = null; groundPlaneMapName = null; }
+        // tile ใน maps/ ที่เปิดผ่าน file:// ทำให้ canvas ติด taint → WebGL ใช้เป็น texture ไม่ได้
+        try { bgMap.base.image.getContext && bgMap.base.image.getContext('2d').getImageData(0, 0, 1, 1); } catch (e) { return; }
         const texture = new THREE.CanvasTexture(bgMap.base.image);
         texture.colorSpace = THREE.SRGBColorSpace || texture.colorSpace;
         const geometry = new THREE.PlaneGeometry(meta.width, meta.height);

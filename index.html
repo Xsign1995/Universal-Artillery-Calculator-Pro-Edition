@@ -272,13 +272,13 @@
 
         .map-controls { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 5px; z-index: 10; }
         .map-controls button { width: 32px; height: 32px; padding: 0; margin: 0; background: rgba(6,10,13, 0.9); color: var(--tblue); border: 1px solid var(--line-bright); border-radius: 2px; font-size: 16px; display: flex; align-items: center; justify-content: center; }
-        .map-controls button.off { opacity: 0.4; }
         .map-controls button:hover { background: var(--tblue); color: #041820; box-shadow: 0 0 10px rgba(79,195,247,0.4); }
 
         .map-select-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
         .map-select-row label { margin: 0; white-space: nowrap; flex-shrink: 0; }
         #mapBgSelect { margin: 0; font-weight: normal; text-align: left; }
-        .map-status { font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); margin-left: 4px; white-space: nowrap; flex-shrink: 0; min-width: 90px; text-align: right; }
+        .map-title-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .map-status { font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); white-space: nowrap; flex-shrink: 0; text-align: right; text-transform: none; letter-spacing: 0; }
         .map-status.loading { color: var(--amber); }
         .map-status.error { color: var(--danger); }
         .map-status.ready { color: var(--phosphor); }
@@ -657,7 +657,7 @@
     </div>
 
     <div class="card map-panel">
-        <div class="graph-title">🗺️ Tactical Top-Down Map (พิกัดและทิศทางลม)</div>
+        <div class="graph-title map-title-row"><span>🗺️ Tactical Top-Down Map (พิกัดและทิศทางลม)</span><span id="mapBgStatus" class="map-status"></span></div>
         <div class="map-select-row">
             <label for="mapBgSelect" style="flex-shrink:0;">แผนที่:</label>
             <select id="mapBgSelect" onchange="onMapBgChange()">
@@ -701,7 +701,7 @@
                 <option value="Zarichne">Zarichne</option>
             </select>
             <label class="autoz-toggle" id="autoZLabel" title="ดึงค่าความสูง (Z) อัตโนมัติจากตำแหน่งบนแผนที่ — เฉพาะแผนที่ที่มีข้อมูลความสูง"><input type="checkbox" id="autoZToggle" onchange="onAutoZToggle()">⛰️ Auto Z</label>
-            <span id="mapBgStatus" class="map-status"></span>
+            <label class="autoz-toggle" id="labelsToggleLabel" title="แสดง/ซ่อนป้ายชื่อสถานที่และสัญลักษณ์ — เฉพาะแผนที่ที่มีข้อมูลป้าย"><input type="checkbox" id="labelsToggle" onchange="toggleMapLabels()">🏷️ Labels</label>
         </div>
         <div class="map-wrapper">
             <canvas id="graph" width="700" height="700"></canvas>
@@ -710,7 +710,6 @@
                 <button onclick="zoomToTarget()" title="Zoom to Target">🎯</button>
                 <button onclick="resetMap()" title="Reset View">⟲</button>
                 <button onclick="zoomMap(0.8)" title="Zoom Out">-</button>
-                <button id="mapLabelBtn" onclick="toggleMapLabels()" title="แสดง/ซ่อนป้ายชื่อสถานที่">🏷</button>
             </div>
             <div id="mapContextMenu" class="map-context-menu" style="display:none;">
                 <button onclick="applyMapContextMenu('target')" class="map-context-btn target">🎯 Set Target Position</button>
@@ -1939,18 +1938,23 @@ const MapLabels = (() => {
     function setEnabled(on) {
         enabled = on;
         try { localStorage.setItem('m777_map_labels', on ? '1' : '0'); } catch (e) {}
-        updateButton();
     }
-    function updateButton() {
-        const btn = document.getElementById('mapLabelBtn');
-        if (btn) btn.classList.toggle('off', !enabled);
+    function updateUI(mapName) {
+        const label = document.getElementById('labelsToggleLabel');
+        const box = document.getElementById('labelsToggle');
+        if (!label || !box) return;
+        const ok = has(mapName);
+        box.checked = enabled;
+        box.disabled = !ok;
+        label.classList.toggle('unavailable', !ok);
+        label.title = ok ? "แสดง/ซ่อนป้ายชื่อสถานที่และสัญลักษณ์" : "แผนที่นี้ยังไม่มีข้อมูลป้ายชื่อ";
     }
 
-    return { has, load, draw, setEnabled, isEnabled: () => enabled, updateButton };
+    return { has, load, draw, setEnabled, isEnabled: () => enabled, updateUI };
 })();
 
 function toggleMapLabels() {
-    MapLabels.setEnabled(!MapLabels.isEnabled());
+    MapLabels.setEnabled(document.getElementById('labelsToggle').checked);
     redrawMapOnly();
 }
 
@@ -2082,6 +2086,7 @@ function onMapBgChange() {
     try { localStorage.setItem('m777_selected_map', val); } catch (e) {}
     MapBackground.setMap(val);
     MapLabels.load(val);
+    MapLabels.updateUI(val);
     if (!HeightMap.has(val)) { updateAutoZUI('none'); return; }
     if (HeightMap.isReady(val)) { updateAutoZUI('ready'); return; }
     updateAutoZUI('loading');
@@ -2098,7 +2103,7 @@ function restoreSelectedMap() {
     } catch (e) {}
 }
 
-window.addEventListener('load', function() { changeWeapon(); setTimeout(function() { updateAutoZUI('none'); MapLabels.updateButton(); autoLoadFromLocalStorage(); restoreSelectedMap(); }, 200); });
+window.addEventListener('load', function() { changeWeapon(); setTimeout(function() { updateAutoZUI('none'); MapLabels.updateUI(currentMapKey()); autoLoadFromLocalStorage(); restoreSelectedMap(); }, 200); });
 function autoLoadFromLocalStorage() {
     // ไม่ auto-load เป้าจาก Memory (จะทับพิกัดล่าสุดจาก Fire History)
     try {

@@ -1,6 +1,6 @@
 # 🎯 Universal Artillery Calculator — Pro Edition
 
-**เวอร์ชันปัจจุบัน: v3.5 · รองรับ Arma Reforger 1.8** · [ดู Changelog](CHANGELOG.md)
+**เวอร์ชันปัจจุบัน: v3.5.1 · รองรับ Arma Reforger 1.8** · [ดู Changelog](CHANGELOG.md)
 
 เครื่องคำนวณการยิงปืนใหญ่และปืนครกสำหรับ **Arma Reforger** ทำงานบนเว็บเบราว์เซอร์ล้วน ไม่ต้องติดตั้งอะไร
 คำนวณ Elevation / Azimuth / Time of Flight พร้อมชดเชยลม ความสูง และแสดงผลบนแผนที่จริง
@@ -36,7 +36,7 @@
 ### 🗺️ แผนที่และการแสดงผล
 - **Tactical Top-Down Map** ใช้ภาพแผนที่จริงจาก ArmaMapTiles รองรับ **37 แผนที่** (Everon, Arland, Kolguyev, Chernarus, Takistan ฯลฯ)
 - ดับเบิลคลิกบนแผนที่เพื่อ **Set Target / Set Gun Position**
-- **🏷️ ป้ายชื่อสถานที่และสัญลักษณ์** บนแผนที่ (Yunakivka, Novobakhmutivka) ซ่อน/แสดงได้
+- **🏷️ ป้ายชื่อสถานที่และสัญลักษณ์** บนแผนที่ (Yunakivka, Novobakhmutivka) ซ่อน/แสดงได้ด้วยช่องติ๊ก Labels
 - **⛰️ Auto Z** — ดึงค่าความสูงจากตำแหน่งบนแผนที่ให้อัตโนมัติ (Yunakivka, Novobakhmutivka)
 - **จุดมาร์คแผนที่** (คลิกขวา 2 ครั้ง) ตั้งชื่อ แก้ไข ลบได้ บันทึกแยกตามแผนที่
 - รองรับมือถือ / iPad: **แตะค้าง (Long-press)** แทนดับเบิลคลิก/คลิกขวา

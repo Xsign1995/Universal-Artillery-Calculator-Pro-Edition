@@ -1501,11 +1501,29 @@ const MapBackground = (() => {
     const LOCAL_MAPS = {};
 
     // แผนที่ tile (Zoomify) ที่เก็บใน repo แทน ArmaMapsTiles
+    // v = เวอร์ชันของ tile — เปลี่ยนทุกครั้งที่อัปเดตแผนที่ ไม่งั้นเบราว์เซอร์ใช้ tile เก่าใน cache ปนกับของใหม่
     const LOCAL_TILE_MAPS = {
-        "Yunakivka": { base: "maps/Yunakivka", width: 10240, height: 10240 },
-        "Novobakhmutivka": { base: "maps/Novobakhmutivka", width: 6912, height: 6912 },
+        "Yunakivka": { base: "maps/Yunakivka", width: 10240, height: 10240, v: "3.4" },
+        "Novobakhmutivka": { base: "maps/Novobakhmutivka", width: 6912, height: 6912, v: "3.4" },
     };
-    const tileBase = (mapName) => LOCAL_TILE_MAPS[mapName] ? LOCAL_TILE_MAPS[mapName].base : `${TILE_BASE}/${mapName}`;
+    const tileQuery = (mapName) => LOCAL_TILE_MAPS[mapName] ? `?v=${LOCAL_TILE_MAPS[mapName].v}` : "";
+    // เปิดผ่าน file://: โหลด tile จาก GitHub Pages ก่อน (มี CORS → มุมมอง 3D ใช้ภาพได้) ไม่มีเน็ตค่อยใช้ไฟล์ในเครื่อง
+    const ONLINE_BASE = "https://xsign1995.github.io/Universal-Artillery-Calculator-Pro-Edition/";
+    const localTileSource = {};
+    const tileBase = (mapName) => LOCAL_TILE_MAPS[mapName]
+        ? (localTileSource[mapName] || LOCAL_TILE_MAPS[mapName].base)
+        : `${TILE_BASE}/${mapName}`;
+
+    async function pickLocalTileSource(mapName) {
+        if (location.protocol !== "file:" || mapName in localTileSource) return;
+        const online = ONLINE_BASE + LOCAL_TILE_MAPS[mapName].base;
+        try {
+            await loadImage(`${online}/TileGroup0/0-0-0.jpg${tileQuery(mapName)}`);
+            localTileSource[mapName] = online;
+        } catch (e) {
+            localTileSource[mapName] = LOCAL_TILE_MAPS[mapName].base;
+        }
+    }
 
     const BASE_TARGET_DIM = 1400;
     const REFINE_DEBOUNCE_MS = 300;
@@ -1608,7 +1626,7 @@ const MapBackground = (() => {
         for (let row = r0; row <= r1; row++) {
             for (let col = c0; col <= c1; col++) {
                 const group = tileGroupFor(meta.levels, z, col, row);
-                const url = `${tileBase(mapName)}/TileGroup${group}/${z}-${col}-${row}.jpg`;
+                const url = `${tileBase(mapName)}/TileGroup${group}/${z}-${col}-${row}.jpg${tileQuery(mapName)}`;
                 tasks.push(
                     loadImage(url)
                         .then(img => { ctx.drawImage(img, col * TILESIZE, row * TILESIZE); })
@@ -1650,6 +1668,8 @@ const MapBackground = (() => {
                 redrawMapOnly();
                 return;
             }
+            if (LOCAL_TILE_MAPS[mapName]) await pickLocalTileSource(mapName);
+            if (myToken !== loadToken) return;
             if (!mapMeta[mapName]) {
                 const { width, height } = await fetchMetadata(mapName);
                 const { levels, maxZoom } = computeLevels(width, height);
@@ -1799,8 +1819,8 @@ function loadScriptOnce(src) {
 // ── MAP LABELS (ป้ายชื่อ / สัญลักษณ์จาก EnfusionMapMaker labels.json) ──
 const MapLabels = (() => {
     const SCRIPTS = {
-        "Yunakivka": "maps/yunakivka_labels.js",
-        "Novobakhmutivka": "maps/novobakhmutivka_labels.js",
+        "Yunakivka": "maps/yunakivka_labels.js?v=3.4",
+        "Novobakhmutivka": "maps/novobakhmutivka_labels.js?v=3.4",
     };
     // ตัวอักษรของไอคอนแบบ letter (ตรงกับ SYMBOL_ICONS ใน EnfusionMapMaker)
     const LETTERS = {
@@ -1938,8 +1958,8 @@ function toggleMapLabels() {
 // maps/*_height.js: PNG ฝังเป็น data URL (R = ไบต์สูง, G = ไบต์ต่ำ) เพื่อให้อ่านพิกเซลได้แม้เปิดผ่าน file://
 const HeightMap = (() => {
     const SCRIPTS = {
-        "Yunakivka": "maps/yunakivka_height.js",
-        "Novobakhmutivka": "maps/novobakhmutivka_height.js",
+        "Yunakivka": "maps/yunakivka_height.js?v=3.4",
+        "Novobakhmutivka": "maps/novobakhmutivka_height.js?v=3.4",
     };
     const STRIP = 512; // ถอดภาพทีละแถบ — iOS จำกัดขนาด canvas
     const data = {};
@@ -2815,7 +2835,7 @@ function calculate() {
     }
 
     airburstDataPack = primary.airburstDataPack;
-    currentCalcData = { dx: primary.effDx, dy: primary.effDy, dz: primary.dz, gunX: primary.gunX, gunY: primary.gunY, targetX: primary.targetX, targetY: primary.targetY, aimGridDistance: primary.aimGridDistance, windSpeed: primary.windSpeed, windDir: primary.windDirDeg, milSystem: primary.milSystem, low: primary.trajLow, high: primary.trajHigh };
+    currentCalcData = { dx: primary.effDx, dy: primary.effDy, dz: primary.dz, gunX: primary.gunX, gunY: primary.gunY, gunZ: primary.gunZ, targetX: primary.targetX, targetY: primary.targetY, aimGridDistance: primary.aimGridDistance, windSpeed: primary.windSpeed, windDir: primary.windDirDeg, milSystem: primary.milSystem, low: primary.trajLow, high: primary.trajHigh };
     allGunSolutions = solutions;
 
     logHistory({ aimGridDistance: primary.aimGridDistance, dz: primary.dz, trajLow: primary.trajLow, trajHigh: primary.trajHigh });
@@ -3303,6 +3323,106 @@ function createDataLabelSprite(lines, textColor) {
     return sprite;
 }
 
+// ── 3D TERRAIN (แผนที่ที่มีข้อมูลความสูง) ──
+// พื้นนูนตามความสูงจริง สเกล 1:1 กับวิถีกระสุน — แกน Y = ความสูงเทียบกับปืน (Z ปืน = 0)
+let terrain3D = null;          // { mesh, mapName, gunX, gunY, gunZ, ... }
+let terrainTexture3D = null; let terrainTextureMap = null;
+const TERRAIN_SEGMENTS = 200;
+const TERRAIN_LIGHT = (() => { const v = [-0.5, 1, -0.5]; const n = Math.hypot(...v); return v.map(c => c / n); })(); // แสงจากทิศตะวันตกเฉียงเหนือ
+
+function disposeTerrain3D() {
+    if (!terrain3D) return;
+    scene.remove(terrain3D.mesh); terrain3D.mesh.geometry.dispose(); terrain3D.mesh.material.dispose();
+    terrain3D = null;
+}
+
+// ความสูงพื้น (แกน Y ของฉาก 3D) ที่ตำแหน่งในฉาก — ไม่มีข้อมูล = 0
+function terrainY3D(localX, localZ) {
+    if (!terrain3D) return 0;
+    const h = HeightMap.sample(terrain3D.mapName, terrain3D.gunX + localX, terrain3D.gunY - localZ);
+    return h == null ? 0 : h - terrain3D.gunZ;
+}
+
+function getTerrainTexture3D(mapName) {
+    const bgMap = MapBackground.getCurrent();
+    if (!bgMap) return null;
+    if (terrainTexture3D && terrainTextureMap === mapName) { terrainTexture3D.needsUpdate = true; return terrainTexture3D; }
+    if (terrainTexture3D) { terrainTexture3D.dispose(); terrainTexture3D = null; terrainTextureMap = null; }
+    // tile ใน maps/ ที่เปิดผ่าน file:// ทำให้ canvas ติด taint → ใช้สีตามความสูงแทนภาพแผนที่
+    try { bgMap.base.image.getContext && bgMap.base.image.getContext('2d').getImageData(0, 0, 1, 1); } catch (e) { return null; }
+    terrainTexture3D = new THREE.CanvasTexture(bgMap.base.image);
+    terrainTexture3D.colorSpace = THREE.SRGBColorSpace || terrainTexture3D.colorSpace;
+    terrainTextureMap = mapName;
+    return terrainTexture3D;
+}
+
+function heightColor(t) {
+    const stops = [[0, [0.24, 0.38, 0.22]], [0.5, [0.45, 0.47, 0.30]], [1, [0.62, 0.55, 0.40]]];
+    for (let i = 1; i < stops.length; i++) {
+        if (t <= stops[i][0]) {
+            const [t0, c0] = stops[i - 1], [t1, c1] = stops[i], f = (t - t0) / (t1 - t0);
+            return c0.map((c, k) => c + (c1[k] - c) * f);
+        }
+    }
+    return stops[stops.length - 1][1];
+}
+
+function buildTerrain3D(mapName, gunX, gunY, gunZ, dx, dy, dist) {
+    disposeTerrain3D();
+    const meta = MapBackground.getCurrent()?.meta;
+    const W = meta ? meta.width : Infinity, H = meta ? meta.height : Infinity;
+    const halfSpan = Math.max(dist * 1.2, 500);
+    const cx = gunX + dx / 2, cy = gunY + dy / 2;
+    const x0 = Math.max(0, cx - halfSpan), x1 = Math.min(W, cx + halfSpan);
+    const y0 = Math.max(0, cy - halfSpan), y1 = Math.min(H, cy + halfSpan);
+    if (x1 <= x0 || y1 <= y0) return;
+    const nx = Math.max(2, Math.min(TERRAIN_SEGMENTS, Math.round((x1 - x0) / 2)));
+    const ny = Math.max(2, Math.min(TERRAIN_SEGMENTS, Math.round((y1 - y0) / 2)));
+
+    const count = (nx + 1) * (ny + 1);
+    const pos = new Float32Array(count * 3), uv = new Float32Array(count * 2), heights = new Float32Array(count);
+    let hMin = Infinity, hMax = -Infinity;
+    for (let j = 0, k = 0; j <= ny; j++) {
+        const wy = y1 - (y1 - y0) * j / ny;
+        for (let i = 0; i <= nx; i++, k++) {
+            const wx = x0 + (x1 - x0) * i / nx;
+            const h = HeightMap.sample(mapName, wx, wy) ?? gunZ;
+            heights[k] = h; hMin = Math.min(hMin, h); hMax = Math.max(hMax, h);
+            pos[k * 3] = wx - gunX; pos[k * 3 + 1] = h - gunZ; pos[k * 3 + 2] = -(wy - gunY);
+            uv[k * 2] = meta ? wx / W : 0; uv[k * 2 + 1] = meta ? wy / H : 0;
+        }
+    }
+    const index = [];
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+        const a = j * (nx + 1) + i, b = a + 1, c = a + nx + 1, d = c + 1;
+        index.push(a, c, b, b, c, d);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    geometry.setIndex(index);
+    geometry.computeVertexNormals();
+
+    // เงาเนินเขาฝังในสี vertex (ไม่พึ่งแสงในฉาก)
+    const texture = getTerrainTexture3D(mapName);
+    const nrm = geometry.attributes.normal.array, colors = new Float32Array(count * 3);
+    const range = Math.max(hMax - hMin, 1);
+    for (let k = 0; k < count; k++) {
+        const dot = nrm[k * 3] * TERRAIN_LIGHT[0] + nrm[k * 3 + 1] * TERRAIN_LIGHT[1] + nrm[k * 3 + 2] * TERRAIN_LIGHT[2];
+        const shade = Math.min(1, Math.max(0.3, 0.15 + 0.95 * dot));
+        const base = texture ? [1, 1, 1] : heightColor((heights[k] - hMin) / range);
+        // สี vertex ของ three.js เป็น linear → แปลงจาก sRGB ก่อน ไม่งั้นสีจาง
+        for (let ch = 0; ch < 3; ch++) colors[k * 3 + ch] = Math.pow(base[ch] * shade, 2.2);
+    }
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.MeshBasicMaterial({ map: texture, vertexColors: true, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.renderOrder = -1;
+    scene.add(mesh);
+    terrain3D = { mesh, mapName, gunX, gunY, gunZ, cell: Math.max((x1 - x0) / nx, (y1 - y0) / ny) };
+}
+
 function updateGroundPlane3D(gunX, gunY) {
     const bgMap = MapBackground.getCurrent();
 
@@ -3387,8 +3507,24 @@ function updateTacticalGrid3D(dx, dy, dist) {
     levels.forEach(({ step, color, opacity }) => {
         if (step === 10 && dist > 300) return;
         const points = [];
-        for (let gx = Math.floor(minX / step) * step; gx <= maxX; gx += step) { points.push(new THREE.Vector3(gx, 0, minZ), new THREE.Vector3(gx, 0, maxZ)); }
-        for (let gz = Math.floor(minZ / step) * step; gz <= maxZ; gz += step) { points.push(new THREE.Vector3(minX, 0, gz), new THREE.Vector3(maxX, 0, gz)); }
+        if (terrain3D) {
+            // เส้นกริดพาดตามพื้นนูน
+            const seg = Math.max(terrain3D.cell, 2), lift = Math.max(seg * 0.3, 1);
+            const drape = (ax, az, bx, bz) => {
+                const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / seg));
+                let px = ax, pz = az, py = terrainY3D(ax, az) + lift;
+                for (let i = 1; i <= n; i++) {
+                    const qx = ax + (bx - ax) * i / n, qz = az + (bz - az) * i / n, qy = terrainY3D(qx, qz) + lift;
+                    points.push(new THREE.Vector3(px, py, pz), new THREE.Vector3(qx, qy, qz));
+                    px = qx; pz = qz; py = qy;
+                }
+            };
+            for (let gx = Math.floor(minX / step) * step; gx <= maxX; gx += step) drape(gx, minZ, gx, maxZ);
+            for (let gz = Math.floor(minZ / step) * step; gz <= maxZ; gz += step) drape(minX, gz, maxX, gz);
+        } else {
+            for (let gx = Math.floor(minX / step) * step; gx <= maxX; gx += step) { points.push(new THREE.Vector3(gx, 0, minZ), new THREE.Vector3(gx, 0, maxZ)); }
+            for (let gz = Math.floor(minZ / step) * step; gz <= maxZ; gz += step) { points.push(new THREE.Vector3(minX, 0, gz), new THREE.Vector3(maxX, 0, gz)); }
+        }
         if (points.length === 0) return;
         const geometry = new THREE.BufferGeometry().setFromPoints(points);
         const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
@@ -3397,13 +3533,13 @@ function updateTacticalGrid3D(dx, dy, dist) {
         tacticalGridGroup3D.add(gridLine);
     });
 
-    tacticalGridGroup3D.position.y = Math.max(dist * 0.002, 0.1); // ยกเหนือพื้นแผนที่ กัน Z-fighting
+    tacticalGridGroup3D.position.y = terrain3D ? 0 : Math.max(dist * 0.002, 0.1); // ยกเหนือพื้นแผนที่ กัน Z-fighting
     scene.add(tacticalGridGroup3D);
 }
 
 function update3DScene() {
     if (!scene || !currentCalcData) return;
-    const { dx, dy, dz, gunX, gunY, windSpeed, windDir, milSystem, low, high } = currentCalcData;
+    const { dx, dy, dz, gunX, gunY, gunZ, windSpeed, windDir, milSystem, low, high } = currentCalcData;
     const dist = Math.sqrt(dx*dx + dy*dy); if (dist === 0) return; 
 
     const gridSize = Math.max(dist, 1000) * 2; const markerScale = Math.max(dist * 0.010, 7); const labelScale = Math.max(dist * 0.12, 18);
@@ -3411,7 +3547,14 @@ function update3DScene() {
     dynamicCurves.forEach(obj => { scene.remove(obj); if (obj.geometry) obj.geometry.dispose(); if (obj.material) obj.material.dispose(); }); dynamicCurves = [];
     dynamicLabels3D.forEach(obj => { scene.remove(obj); if (obj.material && obj.material.map) obj.material.map.dispose(); if (obj.material) obj.material.dispose(); }); dynamicLabels3D = [];
 
-    if (typeof gunX === 'number' && typeof gunY === 'number') { updateGroundPlane3D(gunX, gunY); }
+    const mapName = currentMapKey();
+    if (MapBackground.getCurrent() && HeightMap.isReady(mapName) && typeof gunX === 'number') {
+        if (groundPlane3D) { scene.remove(groundPlane3D); groundPlane3D.geometry.dispose(); groundPlane3D.material.dispose(); groundPlane3D = null; groundPlaneMapName = null; }
+        buildTerrain3D(mapName, gunX, gunY, gunZ || 0, dx, dy, dist);
+    } else {
+        disposeTerrain3D();
+        if (typeof gunX === 'number' && typeof gunY === 'number') { updateGroundPlane3D(gunX, gunY); }
+    }
 
     if (!gunMesh3D) {
         gunMesh3D = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), new THREE.MeshBasicMaterial({ color: 0x22c55e })); gunMesh3D.renderOrder = 1; scene.add(gunMesh3D);
@@ -3422,7 +3565,7 @@ function update3DScene() {
     }
     gunMesh3D.scale.set(markerScale, markerScale, markerScale);
     targetMesh3D.position.set(dx, dz, -dy); targetMesh3D.scale.set(markerScale, markerScale, markerScale);
-    poleMesh3D.geometry.setFromPoints([new THREE.Vector3(dx, 0, -dy), new THREE.Vector3(dx, dz, -dy)]);
+    poleMesh3D.geometry.setFromPoints([new THREE.Vector3(dx, terrainY3D(dx, -dy), -dy), new THREE.Vector3(dx, dz, -dy)]);
     gunLabel3D.position.set(0, Math.max(dist * 0.05, 20), 0); gunLabel3D.scale.set(labelScale, labelScale / 2, 1);
     targetLabel3D.position.set(dx, dz + Math.max(dist * 0.05, 20), -dy); targetLabel3D.scale.set(labelScale, labelScale / 2, 1);
 
@@ -3478,7 +3621,7 @@ function update3DScene() {
         const dropMat = new THREE.LineBasicMaterial({ color: colorCode, opacity: 0.15, transparent: true });
         for(let i=10; i<smoothPoints.length; i+=10) {
             const pt = smoothPoints[i];
-            const dLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([pt, new THREE.Vector3(pt.x, 0, pt.z)]), dropMat);
+            const dLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([pt, new THREE.Vector3(pt.x, terrainY3D(pt.x, pt.z), pt.z)]), dropMat);
             dLine.renderOrder = 1;
             scene.add(dLine); dynamicCurves.push(dLine);
         }

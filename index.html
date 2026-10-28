@@ -272,6 +272,7 @@
 
         .map-controls { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 5px; z-index: 10; }
         .map-controls button { width: 32px; height: 32px; padding: 0; margin: 0; background: rgba(6,10,13, 0.9); color: var(--tblue); border: 1px solid var(--line-bright); border-radius: 2px; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        .map-controls button.off { opacity: 0.4; }
         .map-controls button:hover { background: var(--tblue); color: #041820; box-shadow: 0 0 10px rgba(79,195,247,0.4); }
 
         .map-select-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
@@ -281,6 +282,12 @@
         .map-status.loading { color: var(--amber); }
         .map-status.error { color: var(--danger); }
         .map-status.ready { color: var(--phosphor); }
+        .autoz-toggle { display: flex; align-items: center; gap: 4px; margin: 0; font-family: var(--font-mono); font-size: 11px; color: var(--ink-dim); white-space: nowrap; flex-shrink: 0; cursor: pointer; }
+        .autoz-toggle input { width: auto; margin: 0; cursor: pointer; }
+        .autoz-toggle.loading { color: var(--amber); }
+        .autoz-toggle.unavailable { opacity: 0.35; cursor: not-allowed; }
+        input.z-auto { animation: zAutoFlash 1.2s ease-out; }
+        @keyframes zAutoFlash { 0% { border-color: var(--phosphor); box-shadow: 0 0 8px rgba(61,255,135,0.6); } 100% { box-shadow: none; } }
 
         #graph { aspect-ratio: 1 / 1; cursor: grab; }
         #graph:active { cursor: grabbing; }
@@ -693,6 +700,7 @@
                 <option value="Zargabad">Zargabad</option>
                 <option value="Zarichne">Zarichne</option>
             </select>
+            <label class="autoz-toggle" id="autoZLabel" title="ดึงค่าความสูง (Z) อัตโนมัติจากตำแหน่งบนแผนที่ — เฉพาะแผนที่ที่มีข้อมูลความสูง"><input type="checkbox" id="autoZToggle" onchange="onAutoZToggle()">⛰️ Auto Z</label>
             <span id="mapBgStatus" class="map-status"></span>
         </div>
         <div class="map-wrapper">
@@ -702,6 +710,7 @@
                 <button onclick="zoomToTarget()" title="Zoom to Target">🎯</button>
                 <button onclick="resetMap()" title="Reset View">⟲</button>
                 <button onclick="zoomMap(0.8)" title="Zoom Out">-</button>
+                <button id="mapLabelBtn" onclick="toggleMapLabels()" title="แสดง/ซ่อนป้ายชื่อสถานที่">🏷</button>
             </div>
             <div id="mapContextMenu" class="map-context-menu" style="display:none;">
                 <button onclick="applyMapContextMenu('target')" class="map-context-btn target">🎯 Set Target Position</button>
@@ -902,6 +911,7 @@ function formatCoord(el) {
     let val = el.value.trim(); if (val === "") return;
     let isNeg = val.startsWith('-'); let clean = isNeg ? val.substring(1) : val;
     if (/^\d+$/.test(clean)) { if (clean.length < 3) clean = clean.padStart(3, '0'); el.value = (isNeg ? '-' : '') + clean; }
+    if (/[XY]$/.test(el.id) && typeof autoFillZFor === 'function') autoFillZFor(el.id.slice(0, -1));
     if (typeof calculate === 'function') calculate();
 }
 function formatDisplayCoord(val_in_meters) { return formatMetersToArma(val_in_meters, 4); }
@@ -1488,13 +1498,12 @@ const MapBackground = (() => {
     ]);
 
     // แผนที่ภาพเดี่ยว (ไม่มีใน ArmaMapsTiles) — ฝังเป็น data URL ใน maps/*.js เพื่อให้เปิดผ่าน file:// และใช้ใน 3D ได้
-    const LOCAL_MAPS = {
-        "Novobakhmutivka": { script: "maps/novobakhmutivka_map.js", worldSize: 6912 },
-    };
+    const LOCAL_MAPS = {};
 
     // แผนที่ tile (Zoomify) ที่เก็บใน repo แทน ArmaMapsTiles
     const LOCAL_TILE_MAPS = {
         "Yunakivka": { base: "maps/Yunakivka", width: 10240, height: 10240 },
+        "Novobakhmutivka": { base: "maps/Novobakhmutivka", width: 6912, height: 6912 },
     };
     const tileBase = (mapName) => LOCAL_TILE_MAPS[mapName] ? LOCAL_TILE_MAPS[mapName].base : `${TILE_BASE}/${mapName}`;
 
@@ -1773,10 +1782,290 @@ const MapBackground = (() => {
     return { setMap, getCurrent, notifyViewChanged, ALLOWED_MAPS, TILESIZE };
 })();
 
+function loadScriptOnce(src) {
+    loadScriptOnce.cache = loadScriptOnce.cache || {};
+    if (!loadScriptOnce.cache[src]) {
+        loadScriptOnce.cache[src] = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = src;
+            s.onload = resolve;
+            s.onerror = () => { delete loadScriptOnce.cache[src]; reject(new Error(`โหลดไฟล์ไม่สำเร็จ: ${src}`)); };
+            document.head.appendChild(s);
+        });
+    }
+    return loadScriptOnce.cache[src];
+}
+
+// ── MAP LABELS (ป้ายชื่อ / สัญลักษณ์จาก EnfusionMapMaker labels.json) ──
+const MapLabels = (() => {
+    const SCRIPTS = {
+        "Yunakivka": "maps/yunakivka_labels.js",
+        "Novobakhmutivka": "maps/novobakhmutivka_labels.js",
+    };
+    // ตัวอักษรของไอคอนแบบ letter (ตรงกับ SYMBOL_ICONS ใน EnfusionMapMaker)
+    const LETTERS = {
+        'ปั๊มน้ำมัน': 'F', 'ผับ / ร้านอาหาร': 'P', 'ร้านค้า': 'S', 'สถานที่ราชการ': 'G', 'สถานีดับเพลิง': 'FD',
+        'สถานีตำรวจ': 'PO', 'โรงเรียน': 'Sc', 'ระบบประปา / หอน้ำ': 'W', 'ปราสาท': 'C', 'อนุสาวรีย์': 'M',
+        'สนามบิน / หอบังคับการบิน': 'A', 'บังเกอร์': 'B', 'ค่ายทหาร': 'X', 'โรงงาน / อุตสาหกรรม': 'I',
+        'เกษตรกรรม': 'Ag', 'ประภาคาร': 'L',
+    };
+    const SYMBOL_MIN_ZOOM = 0.12; // ซ่อนสัญลักษณ์เมื่อซูมออกไกล (รก)
+    const FONT = "'Segoe UI', Tahoma, sans-serif";
+
+    let enabled = true;
+    try { enabled = localStorage.getItem('m777_map_labels') !== '0'; } catch (e) {}
+
+    const has = (mapName) => !!SCRIPTS[mapName];
+    const get = (mapName) => (window.LOCAL_MAP_LABELS || {})[mapName] || null;
+
+    function load(mapName) {
+        if (!has(mapName) || get(mapName)) return Promise.resolve();
+        return loadScriptOnce(SCRIPTS[mapName]).then(() => { if (currentMapKey() === mapName) redrawMapOnly(); })
+            .catch(err => console.error("โหลดป้ายชื่อแผนที่ไม่สำเร็จ:", err));
+    }
+
+    function haloText(ctx, text, x, y, fill, halo, lw) {
+        ctx.lineJoin = 'round'; ctx.lineWidth = lw; ctx.strokeStyle = halo; ctx.strokeText(text, x, y);
+        ctx.fillStyle = fill; ctx.fillText(text, x, y);
+    }
+
+    function drawIcon(ctx, X, Y, r, sym, halo) {
+        const col = sym.color || '#444444';
+        const lw = Math.max(1, r / 6);
+        ctx.lineWidth = lw;
+        if (sym.icon === 'plus') {
+            ctx.fillStyle = halo; ctx.strokeStyle = col;
+            ctx.fillRect(X - r, Y - r, 2 * r, 2 * r); ctx.strokeRect(X - r, Y - r, 2 * r, 2 * r);
+            const t = r * 0.35; ctx.fillStyle = col;
+            ctx.fillRect(X - t, Y - r * 0.75, 2 * t, r * 1.5); ctx.fillRect(X - r * 0.75, Y - t, r * 1.5, 2 * t);
+            return;
+        }
+        if (sym.icon === 'letter' || !sym.icon) {
+            ctx.beginPath(); ctx.arc(X, Y, r, 0, Math.PI * 2);
+            ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = halo; ctx.stroke();
+            const txt = LETTERS[sym.type] || (sym.type || '?').charAt(0);
+            ctx.font = `bold ${Math.round(r * (txt.length === 1 ? 1.3 : 0.95))}px ${FONT}`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = halo;
+            ctx.fillText(txt, X, Y + 0.5);
+            return;
+        }
+        ctx.beginPath(); ctx.arc(X, Y, r, 0, Math.PI * 2);
+        ctx.fillStyle = halo; ctx.fill(); ctx.strokeStyle = sym.icon === 'bolt' ? '#3c3c3c' : col; ctx.stroke();
+        ctx.fillStyle = col;
+        if (sym.icon === 'cross') {
+            const t = Math.max(1, r * 0.17);
+            ctx.fillRect(X - t, Y - r * 0.75, 2 * t, r * 1.5);
+            ctx.fillRect(X - r * 0.5, Y - r * 0.35 - t, r, 2 * t);
+        } else if (sym.icon === 'bolt') {
+            const P = [[.15, -.8], [-.45, .1], [-.02, .1], [-.2, .8], [.45, -.15], [.02, -.15]];
+            ctx.beginPath(); P.forEach(([px, py], i) => i ? ctx.lineTo(X + px * r, Y + py * r) : ctx.moveTo(X + px * r, Y + py * r));
+            ctx.closePath(); ctx.fill(); ctx.strokeStyle = '#3c3c3c'; ctx.lineWidth = 1; ctx.stroke();
+        } else if (sym.icon === 'mast') {
+            ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, r / 4); ctx.beginPath();
+            ctx.moveTo(X, Y - r * .75); ctx.lineTo(X - r * .5, Y + r * .7);
+            ctx.moveTo(X, Y - r * .75); ctx.lineTo(X + r * .5, Y + r * .7);
+            ctx.moveTo(X - r * .28, Y + r * .1); ctx.lineTo(X + r * .28, Y + r * .1); ctx.stroke();
+        }
+    }
+
+    function draw(ctx, mapName, toX, toY, w, h, zoom) {
+        const L = enabled ? get(mapName) : null;
+        if (!L) return;
+        const st = L.style || {};
+        const inView = (X, Y, m) => X > -m && X < w + m && Y > -m && Y < h + m;
+        const boxes = [];
+        const free = (b) => !boxes.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]);
+        ctx.save();
+
+        if (zoom >= SYMBOL_MIN_ZOOM && L.symbols.length) {
+            const halo = (st.symbols && st.symbols.halo) || '#ffffff';
+            const r = zoom >= 0.5 ? 8 : 6.5;
+            L.symbols.forEach(sym => {
+                const X = toX(sym.x), Y = toY(sym.z);
+                if (inView(X, Y, r + 2)) drawIcon(ctx, X, Y, r, sym, halo);
+            });
+        }
+
+        ctx.textBaseline = 'middle';
+        const ps = st.points || {};
+        ctx.font = `bold 11px ${FONT}`; ctx.textAlign = 'left';
+        L.points.forEach(p => {
+            const X = toX(p.x), Y = toY(p.z);
+            if (!inView(X, Y, 200)) return;
+            const col = p.color || ps.color || '#00ffff', halo = ps.halo || '#000000';
+            const tw = ctx.measureText(p.name).width;
+            const box = [X - 4, Y - 7, X + 7 + tw, Y + 7];
+            if (!free(box)) return;
+            boxes.push(box);
+            ctx.beginPath(); ctx.arc(X, Y, 3.5, 0, Math.PI * 2);
+            ctx.fillStyle = col; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = halo; ctx.stroke();
+            haloText(ctx, p.name, X + 7, Y, col, halo, 3);
+        });
+
+        const ns = st.names || {};
+        ctx.font = `bold 13px ${FONT}`; ctx.textAlign = 'center';
+        L.names.forEach(n => {
+            const X = toX(n.x), Y = toY(n.z);
+            if (!inView(X, Y, 300)) return;
+            const tw = ctx.measureText(n.name).width;
+            const box = [X - tw / 2 - 2, Y - 9, X + tw / 2 + 2, Y + 9];
+            if (!free(box)) return;
+            boxes.push(box);
+            haloText(ctx, n.name, X, Y, n.color || ns.color || '#141414', ns.halo || '#f5f5eb', 3.5);
+        });
+        ctx.restore();
+    }
+
+    function setEnabled(on) {
+        enabled = on;
+        try { localStorage.setItem('m777_map_labels', on ? '1' : '0'); } catch (e) {}
+        updateButton();
+    }
+    function updateButton() {
+        const btn = document.getElementById('mapLabelBtn');
+        if (btn) btn.classList.toggle('off', !enabled);
+    }
+
+    return { has, load, draw, setEnabled, isEnabled: () => enabled, updateButton };
+})();
+
+function toggleMapLabels() {
+    MapLabels.setEnabled(!MapLabels.isEnabled());
+    redrawMapOnly();
+}
+
+// ── HEIGHTMAP (Auto Z) ──
+// maps/*_height.js: PNG ฝังเป็น data URL (R = ไบต์สูง, G = ไบต์ต่ำ) เพื่อให้อ่านพิกเซลได้แม้เปิดผ่าน file://
+const HeightMap = (() => {
+    const SCRIPTS = {
+        "Yunakivka": "maps/yunakivka_height.js",
+        "Novobakhmutivka": "maps/novobakhmutivka_height.js",
+    };
+    const STRIP = 512; // ถอดภาพทีละแถบ — iOS จำกัดขนาด canvas
+    const data = {};
+    const pending = {};
+
+    const has = (mapName) => !!SCRIPTS[mapName];
+    const isReady = (mapName) => !!data[mapName];
+
+    function decode(info) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                const w = info.width, h = info.height;
+                const values = new Uint16Array(w * h);
+                const cv = document.createElement('canvas');
+                cv.width = w; cv.height = STRIP;
+                const ctx = cv.getContext('2d', { willReadFrequently: true });
+                for (let y0 = 0; y0 < h; y0 += STRIP) {
+                    const sh = Math.min(STRIP, h - y0);
+                    ctx.clearRect(0, 0, w, STRIP);
+                    ctx.drawImage(img, 0, y0, w, sh, 0, 0, w, sh);
+                    const px = ctx.getImageData(0, 0, w, sh).data;
+                    for (let i = 0, o = y0 * w, n = w * sh; i < n; i++, o++) values[o] = (px[i * 4] << 8) | px[i * 4 + 1];
+                }
+                resolve(values);
+            };
+            img.onerror = () => reject(new Error("ถอดข้อมูลความสูงไม่สำเร็จ"));
+            img.src = info.src;
+        });
+    }
+
+    function load(mapName) {
+        if (!has(mapName)) return Promise.resolve(false);
+        if (data[mapName]) return Promise.resolve(true);
+        if (!pending[mapName]) {
+            pending[mapName] = (async () => {
+                window.LOCAL_HEIGHTMAPS = window.LOCAL_HEIGHTMAPS || {};
+                if (!window.LOCAL_HEIGHTMAPS[mapName]) await loadScriptOnce(SCRIPTS[mapName]);
+                const info = window.LOCAL_HEIGHTMAPS[mapName];
+                const values = await decode(info);
+                delete info.src;
+                data[mapName] = { info, values };
+                return true;
+            })().catch(err => {
+                console.error("โหลดข้อมูลความสูงไม่สำเร็จ:", err);
+                delete pending[mapName];
+                return false;
+            });
+        }
+        return pending[mapName];
+    }
+
+    // ความสูง (เมตร) ที่พิกัด x = East, y = North — bilinear; นอกขอบแผนที่ = null
+    function sample(mapName, x, y) {
+        const d = data[mapName];
+        if (!d) return null;
+        const { width: w, height: h, cell_m, scale, offset, originX, originZ } = d.info;
+        const fc = (x - originX) / cell_m;
+        const fr = (h - 1) - (y - originZ) / cell_m;
+        if (!(fc >= 0 && fr >= 0 && fc <= w - 1 && fr <= h - 1)) return null;
+        const c0 = Math.floor(fc), r0 = Math.floor(fr);
+        const c1 = Math.min(c0 + 1, w - 1), r1 = Math.min(r0 + 1, h - 1);
+        const tx = fc - c0, ty = fr - r0, v = d.values;
+        const top = v[r0 * w + c0] * (1 - tx) + v[r0 * w + c1] * tx;
+        const bot = v[r1 * w + c0] * (1 - tx) + v[r1 * w + c1] * tx;
+        return (top * (1 - ty) + bot * ty) * scale + offset;
+    }
+
+    return { has, isReady, load, sample };
+})();
+
+let autoZEnabled = true;
+try { autoZEnabled = localStorage.getItem('m777_auto_z') !== '0'; } catch (e) {}
+
+// prefix = "gun", "target", "gun2" … (ใช้ช่อง <prefix>X / Y / Z)
+function autoFillZFor(prefix) {
+    if (!autoZEnabled) return false;
+    const xEl = document.getElementById(prefix + "X");
+    const yEl = document.getElementById(prefix + "Y");
+    const zEl = document.getElementById(prefix + "Z");
+    if (!xEl || !yEl || !zEl) return false;
+    const h = HeightMap.sample(currentMapKey(), parseArmaGridFromEl(xEl), parseArmaGridFromEl(yEl));
+    if (h == null) return false;
+    zEl.value = Math.round(h);
+    zEl.classList.remove('z-auto'); void zEl.offsetWidth; zEl.classList.add('z-auto');
+    const m = prefix.match(/^gun(\d+)$/);
+    if (m && typeof saveExtraGunCoord === 'function') saveExtraGunCoord(parseInt(m[1], 10));
+    return true;
+}
+
+function autoFillAllZ() {
+    const prefixes = ["gun", "target"];
+    if (multiGunEnabled) for (let i = 2; i <= gunCount; i++) prefixes.push("gun" + i);
+    let changed = false;
+    prefixes.forEach(p => { if (autoFillZFor(p)) changed = true; });
+    return changed;
+}
+
+function updateAutoZUI(state) {
+    const label = document.getElementById('autoZLabel');
+    const box = document.getElementById('autoZToggle');
+    if (!label || !box) return;
+    box.checked = autoZEnabled;
+    label.classList.toggle('unavailable', state === 'none');
+    label.classList.toggle('loading', state === 'loading');
+    box.disabled = state === 'none';
+    label.title = state === 'none' ? "แผนที่นี้ยังไม่มีข้อมูลความสูง — ใส่ค่า Z เอง"
+        : state === 'loading' ? "กำลังโหลดข้อมูลความสูง..."
+        : "ดึงค่าความสูง (Z) อัตโนมัติเมื่อใส่พิกัด X/Y หรือเลือกจุดบนแผนที่";
+}
+
+function onAutoZToggle() {
+    autoZEnabled = document.getElementById('autoZToggle').checked;
+    try { localStorage.setItem('m777_auto_z', autoZEnabled ? '1' : '0'); } catch (e) {}
+    if (autoZEnabled && autoFillAllZ()) calculate();
+}
+
 function onMapBgChange() {
     const val = DOM["mapBgSelect"].value;
     try { localStorage.setItem('m777_selected_map', val); } catch (e) {}
     MapBackground.setMap(val);
+    MapLabels.load(val);
+    if (!HeightMap.has(val)) { updateAutoZUI('none'); return; }
+    if (HeightMap.isReady(val)) { updateAutoZUI('ready'); return; }
+    updateAutoZUI('loading');
+    HeightMap.load(val).then(ok => { if (currentMapKey() === val) updateAutoZUI(ok ? 'ready' : 'none'); });
 }
 
 function restoreSelectedMap() {
@@ -1789,7 +2078,7 @@ function restoreSelectedMap() {
     } catch (e) {}
 }
 
-window.addEventListener('load', function() { changeWeapon(); setTimeout(function() { autoLoadFromLocalStorage(); restoreSelectedMap(); }, 200); });
+window.addEventListener('load', function() { changeWeapon(); setTimeout(function() { updateAutoZUI('none'); MapLabels.updateButton(); autoLoadFromLocalStorage(); restoreSelectedMap(); }, 200); });
 function autoLoadFromLocalStorage() {
     // ไม่ auto-load เป้าจาก Memory (จะทับพิกัดล่าสุดจาก Fire History)
     try {
@@ -2102,6 +2391,7 @@ function pullFOTarget() {
     const prefLenX = foXStr.length >= 3 ? foXStr.length : 4; const prefLenY = foYStr.length >= 3 ? foYStr.length : 4;
     DOM["targetX"].value = formatMetersToArma(foImpactPoint.x, prefLenX);
     DOM["targetY"].value = formatMetersToArma(foImpactPoint.y, prefLenY);
+    autoFillZFor("target");
     clearOffset(); resetFOState(); mapMode = 'target'; calculate(); 
 }
 
@@ -2694,6 +2984,7 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
     if (!bgMap) { if (mapZoom > 0.5) drawGrid(10, "#d1cbb8", 1); drawGrid(100, "#b3ab94", 1.5); drawGrid(1000, "#1e293b", 2.0); }
     else { if (mapZoom > 0.5) drawGrid(10, "rgba(255,255,255,0.06)", 1); drawGrid(100, "rgba(255,255,255,0.12)", 1.5); drawGrid(1000, "rgba(255,255,255,0.25)", 2.0); }
 
+    if (bgMap) MapLabels.draw(ctx, currentMapKey(), toCanvasX, toCanvasY, w, h, mapZoom);
     drawGridEdgeLabels(ctx, w, h, viewMinX, viewMaxX, viewMinY, viewMaxY, toCanvasX, toCanvasY, mapZoom, bgMap);
     
     const cx1 = toCanvasX(x1), cy1 = toCanvasY(y1); const cx2 = toCanvasX(x2), cy2 = toCanvasY(y2);
@@ -3368,10 +3659,12 @@ function applyMapContextMenu(role) {
     if (role === 'target') {
         DOM["targetX"].value = formatMetersToArma(x, 4);
         DOM["targetY"].value = formatMetersToArma(y, 4);
+        autoFillZFor("target");
         clearOffset(); resetFOState(); mapMode = 'target';
     } else if (role === 'gun') {
         DOM["gunX"].value = formatMetersToArma(x, 4);
         DOM["gunY"].value = formatMetersToArma(y, 4);
+        autoFillZFor("gun");
     }
 
     hideMapContextMenu();

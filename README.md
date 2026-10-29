@@ -1,6 +1,6 @@
 # 🎯 Universal Artillery Calculator — Pro Edition
 
-**เวอร์ชันปัจจุบัน: v3.5.1 · รองรับ Arma Reforger 1.8** · [ดู Changelog](CHANGELOG.md)
+**เวอร์ชันปัจจุบัน: v3.6.0 · รองรับ Arma Reforger 1.8** · [ดู Changelog](CHANGELOG.md)
 
 เครื่องคำนวณการยิงปืนใหญ่และปืนครกสำหรับ **Arma Reforger** ทำงานบนเว็บเบราว์เซอร์ล้วน ไม่ต้องติดตั้งอะไร
 คำนวณ Elevation / Azimuth / Time of Flight พร้อมชดเชยลม ความสูง และแสดงผลบนแผนที่จริง
@@ -15,19 +15,18 @@
 
 | อาวุธ | ขนาด | ระบบ MIL | กระสุน |
 |---|---|---|---|
-| M777 Howitzer — US (PandaMods) | 155mm | 6400 | M107 HE, M982 Excalibur (นำวิถี) |
-| M777A1 Howitzer — US (CIE Artillery) | 155mm | 6400 | M107 HE, M795 HE |
-| 2A36 Giatsint-B — Soviet (CIE Artillery) | 152mm | 6400 | 30F59 "Khrebet", 30F29 "Bekas" |
-| M252 Mortar — US | 81mm | 6400 | M821 HE, M853A1 Illumination, M819 Smoke |
+| M777A1 Howitzer — US (CIE Artillery) | 155mm | 6400 | M107 HE, M795 HE, M982A1 Excalibur |
+| M777 Howitzer (Static) — US (PandaMods) | 155mm | 6400 | M107 HE, M982 Excalibur (นำวิถี) |
+| 2A36 Giatsint-B — Soviet (CIE Artillery) | 152mm | 6000 | 3OF29 "Bekas", 3OF59 "Khrebet" |
+| M252 Mortar — US | 81mm | 6400 | M821 HE, M853A1 Illumination, M819 Smoke, M879 Training |
 | 2B14 Podnos — Soviet | 82mm | 6000 | O-832DU HE, S-832S Illumination, D-832DU Smoke |
-| 2B9 Vasilek Automatic Mortar — Soviet | 82mm | 6000 | O-832DU HE, D-832DU Smoke |
 
 - ปืนครก M252 / 2B14 มี 2 โปรไฟล์ตาราง: **Original (Vanilla)** และ **Adult Mortars (Mod)**
 - เลือก Charge / Ring เองได้ หรือใช้ **⚡ Auto Select** ให้โปรแกรมเลือกให้อัตโนมัติ
 
 ### 📐 การคำนวณ
 - คำนวณทั้ง **Low Angle** และ **High Angle** พร้อมกัน
-- ชดเชย **ความสูงเป้าต่างจากปืน** — High Angle ใช้ D ELEV จากตารางยิง, Low Angle ใช้แบบจำลองแรงต้านอากาศที่คำนวณจากตาราง
+- ชดเชย **ความสูงเป้าต่างจากปืน** ทั้ง High และ Low Angle ด้วยแบบจำลองแรงต้านอากาศ (ใช้ความเร็วต้นและค่าแรงต้านของกระสุนที่อ่านจากไฟล์เกม)
 - ชดเชย **ลม** (ความเร็ว + ทิศทาง) พร้อมเวลาอัปเดตค่าลมล่าสุด (เขียว < 10 นาที / แดง ≥ 10 นาที)
 - **Air Fuze** — คำนวณเวลาตั้งชนวนระเบิดกลางอากาศตามความสูงที่ต้องการ
 - **Min Peak Height** — กำหนดความสูงต่ำสุดของวิถีเพื่อให้พ้นสิ่งกีดขวาง

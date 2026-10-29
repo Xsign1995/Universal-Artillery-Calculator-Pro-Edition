@@ -451,12 +451,6 @@
                     <b class="section-label label-purple">⚔️ Weapon & Map System</b>
                     <div class="grid-1" style="margin-bottom: 8px;">
                         <select id="weaponSelect" title="Select weapon" onchange="changeWeapon()">
-                            <option value="m777" selected>M777 Howitzer (155mm) - US (PandaMods)</option>
-                            <option value="m777a1">M777A1 Howitzer (155mm) - US (CIE Artillery)</option>
-                            <option value="2a36">2A36 Giatsint-B (152mm) - Soviet (CIE Artillery)</option>
-                            <option value="m252">M252 Mortar (81mm) - US</option>
-                            <option value="2b14">2B14 Podnos (82mm) - Soviet</option>
-                            <option value="2b9">2B9 Vasilek (82mm) - Soviet</option>
                         </select>
                     </div>
                     <div class="grid-1" style="margin-bottom: 5px;">
@@ -917,73 +911,40 @@ function formatDisplayCoord(val_in_meters) { return formatMetersToArma(val_in_me
 
 // ── ARTILLERY PHYSICS ──
 const ArtilleryPhysics = (() => {
+    // แถวตาราง: [RANGE, ELEV, TOF, dELEV, dTOF, PEAK, FALL, XWIND, LWIND] — dELEV / dTOF = ต่างเมื่อระยะ +50 m (ไม่ใช้ชดเชยความสูงเป้า)
     function getInterpolatedData(dist, table) {
         if (!table || table.length === 0) return null;
-        let maxIndex = table.length - 1; let d = dist; let isClamped = false;
-        
-        if (d < table[0][0]) { d = table[0][0]; isClamped = true; }
-        if (d > table[maxIndex][0]) { d = table[maxIndex][0]; isClamped = true; }
-        
-        const cols = table[0].length;
-        let idxElev = 1, idxTof = 2, idxDElev = -1, idxDTof = -1, idxPeakAlt = -1, idxAngle = -1, idxCW = -1, idxLW = -1;
-        if (cols >= 9) { idxDElev = 3; idxDTof = 4; idxPeakAlt = 5; idxAngle = 6; idxCW = 7; idxLW = 8; }
-
-        const hasWindData = (idxCW !== -1 && idxLW !== -1);
-        const hasPeakAlt = (idxPeakAlt !== -1);
-        const hasAngle = (idxAngle !== -1);
-        const hasDeltaData = (idxDElev !== -1 && idxDTof !== -1);
-        
-        const packResult = (elev, tof, peakAlt, angle, cw, lw, dElev, dTof) => ({
-            elev, tof, 
-            peakAlt: hasPeakAlt ? Math.max(0, peakAlt) : 0,
-            angleImpact: hasAngle ? Math.max(0, angle) : 0, 
-            crossWind: hasWindData ? Math.max(0, cw) : 0, 
-            longWind: hasWindData ? Math.max(0, lw) : 0, 
-            dElevPer100m: hasDeltaData ? dElev : 0,
-            dTofPer100m: hasDeltaData ? dTof : 0,
-            hasWindData, hasPeakAlt, hasAngle, hasDeltaData, clamped: isClamped 
-        });
-
-        for (let i = 0; i < maxIndex; i++) {
-            if (d >= table[i][0] && d <= table[i+1][0]) {
-                if (d === table[i][0]) return packResult(table[i][idxElev], table[i][idxTof], hasPeakAlt ? table[i][idxPeakAlt] : 0, hasAngle ? table[i][idxAngle] : 0, hasWindData ? table[i][idxCW] : 0, hasWindData ? table[i][idxLW] : 0, hasDeltaData ? table[i][idxDElev] : 0, hasDeltaData ? table[i][idxDTof] : 0);
-                if (d === table[i+1][0]) return packResult(table[i+1][idxElev], table[i+1][idxTof], hasPeakAlt ? table[i+1][idxPeakAlt] : 0, hasAngle ? table[i+1][idxAngle] : 0, hasWindData ? table[i+1][idxCW] : 0, hasWindData ? table[i+1][idxLW] : 0, hasDeltaData ? table[i+1][idxDElev] : 0, hasDeltaData ? table[i+1][idxDTof] : 0);
-
-                if (maxIndex < 2) {
-                    let r1 = table[i][0], e1 = table[i][idxElev], t1 = table[i][idxTof];
-                    let pa1 = hasPeakAlt ? table[i][idxPeakAlt] : 0, ag1 = hasAngle ? table[i][idxAngle] : 0;
-                    let cw1 = hasWindData ? table[i][idxCW] : 0, lw1 = hasWindData ? table[i][idxLW] : 0;
-                    let de1 = hasDeltaData ? table[i][idxDElev] : 0, dt1 = hasDeltaData ? table[i][idxDTof] : 0;
-                    let r2 = table[i+1][0], e2 = table[i+1][idxElev], t2 = table[i+1][idxTof];
-                    let pa2 = hasPeakAlt ? table[i+1][idxPeakAlt] : 0, ag2 = hasAngle ? table[i+1][idxAngle] : 0;
-                    let cw2 = hasWindData ? table[i+1][idxCW] : 0, lw2 = hasWindData ? table[i+1][idxLW] : 0;
-                    let de2 = hasDeltaData ? table[i+1][idxDElev] : 0, dt2 = hasDeltaData ? table[i+1][idxDTof] : 0;
-                    
-                    let ratio = (d - r1) / (r2 - r1);
-                    return packResult( e1 + ratio*(e2-e1), t1 + ratio*(t2-t1), pa1 + ratio*(pa2-pa1), ag1 + ratio*(ag2-ag1), cw1 + ratio*(cw2-cw1), lw1 + ratio*(lw2-lw1), de1 + ratio*(de2-de1), dt1 + ratio*(dt2-dt1) );
-                }
-
-                let p0, p1, p2;
-                if (i === 0) { p0 = 0; p1 = 1; p2 = 2; } 
-                else if (i === maxIndex - 1) { p0 = maxIndex - 2; p1 = maxIndex - 1; p2 = maxIndex; } 
-                else { if ((d - table[i][0]) < (table[i+1][0] - d)) { p0 = i - 1; p1 = i; p2 = i + 1; } else { p0 = i; p1 = i + 1; p2 = i + 2; } }
-
-                let x0 = table[p0][0], x1 = table[p1][0], x2 = table[p2][0];
-                const interCurve = (y0, y1, y2, x) => (y0*((x-x1)*(x-x2))/((x0-x1)*(x0-x2))) + (y1*((x-x0)*(x-x2))/((x1-x0)*(x1-x2))) + (y2*((x-x0)*(x-x1))/((x2-x0)*(x2-x1)));
-
-                return packResult(
-                    interCurve(table[p0][idxElev], table[p1][idxElev], table[p2][idxElev], d),
-                    interCurve(table[p0][idxTof], table[p1][idxTof], table[p2][idxTof], d),
-                    hasPeakAlt ? interCurve(table[p0][idxPeakAlt], table[p1][idxPeakAlt], table[p2][idxPeakAlt], d) : 0,
-                    hasAngle ? interCurve(table[p0][idxAngle], table[p1][idxAngle], table[p2][idxAngle], d) : 0,
-                    hasWindData ? interCurve(table[p0][idxCW], table[p1][idxCW], table[p2][idxCW], d) : 0,
-                    hasWindData ? interCurve(table[p0][idxLW], table[p1][idxLW], table[p2][idxLW], d) : 0,
-                    hasDeltaData ? interCurve(table[p0][idxDElev], table[p1][idxDElev], table[p2][idxDElev], d) : 0,
-                    hasDeltaData ? interCurve(table[p0][idxDTof], table[p1][idxDTof], table[p2][idxDTof], d) : 0
-                );
+        const last = table.length - 1; let d = dist, clamped = false;
+        if (d < table[0][0]) { d = table[0][0]; clamped = true; }
+        if (d > table[last][0]) { d = table[last][0]; clamped = true; }
+        const full = table[0].length >= 9;
+        let at = (c) => table[last][c];
+        for (let i = 0; i < last; i++) {
+            if (d < table[i][0] || d > table[i + 1][0]) continue;
+            if (d === table[i][0]) { at = (c) => table[i][c]; break; }
+            if (d === table[i + 1][0]) { at = (c) => table[i + 1][c]; break; }
+            if (last < 2) {
+                const r = (d - table[i][0]) / (table[i + 1][0] - table[i][0]);
+                at = (c) => table[i][c] + r * (table[i + 1][c] - table[i][c]);
+                break;
             }
+            let p0, p1, p2;
+            if (i === 0) { p0 = 0; p1 = 1; p2 = 2; }
+            else if (i === last - 1) { p0 = last - 2; p1 = last - 1; p2 = last; }
+            else if ((d - table[i][0]) < (table[i + 1][0] - d)) { p0 = i - 1; p1 = i; p2 = i + 1; }
+            else { p0 = i; p1 = i + 1; p2 = i + 2; }
+            const x0 = table[p0][0], x1 = table[p1][0], x2 = table[p2][0];
+            at = (c) => table[p0][c] * ((d - x1) * (d - x2)) / ((x0 - x1) * (x0 - x2))
+                      + table[p1][c] * ((d - x0) * (d - x2)) / ((x1 - x0) * (x1 - x2))
+                      + table[p2][c] * ((d - x0) * (d - x1)) / ((x2 - x0) * (x2 - x1));
+            break;
         }
-        return packResult( table[maxIndex][idxElev], table[maxIndex][idxTof], hasPeakAlt ? table[maxIndex][idxPeakAlt] : 0, hasAngle ? table[maxIndex][idxAngle] : 0, hasWindData ? table[maxIndex][idxCW] : 0, hasWindData ? table[maxIndex][idxLW] : 0, hasDeltaData ? table[maxIndex][idxDElev] : 0, hasDeltaData ? table[maxIndex][idxDTof] : 0 );
+        return {
+            elev: at(1), tof: at(2),
+            peakAlt: full ? Math.max(0, at(5)) : 0, angleImpact: full ? Math.max(0, at(6)) : 0,
+            crossWind: full ? Math.max(0, at(7)) : 0, longWind: full ? Math.max(0, at(8)) : 0,
+            hasWindData: full, hasPeakAlt: full, hasAngle: full, clamped
+        };
     }
 
     function calculateAltAtLast100m(interpData) {
@@ -995,6 +956,9 @@ const ArtilleryPhysics = (() => {
     // ── แบบจำลองแรงต้านอากาศ a = -g·ŷ - k·|v|·v — หา v0/k จาก ระยะ + มุมเงย + ToF ในตาราง ──
     const DRAG_STEPS = 200;
     const dragWarmStart = new Map();
+    // พารามิเตอร์จริงของแต่ละ charge จาก ballistic_data.js: v0 และ k = AirDrag / Mass (a = −g·ŷ − k·|v|·v)
+    const exactFit = new WeakMap();
+    function registerCharge(table, v0, k) { if (table && v0 > 0 && k >= 0) exactFit.set(table, { v0, k }); }
     const dragResultCache = new Map();
 
     function dragIntegrate(v0, k, th, dist, Tref, keep) {
@@ -1029,6 +993,7 @@ const ArtilleryPhysics = (() => {
         const s2 = Math.sin(2 * th);
         const vVac = s2 > 0.01 ? Math.sqrt(dist * g / s2) : Math.max(100, dist / T);
         let guesses = [];
+        if (chargeKey && exactFit.has(chargeKey)) guesses.push(exactFit.get(chargeKey));
         if (chargeKey && dragWarmStart.has(chargeKey)) guesses.push(dragWarmStart.get(chargeKey));
         guesses.push({ v0: vVac * 1.1, k: 5e-5 }, { v0: vVac * 1.3, k: 2e-4 }, { v0: vVac * 1.02, k: 1e-5 });
         for (const gs of guesses) {
@@ -1068,7 +1033,7 @@ const ArtilleryPhysics = (() => {
         let out = null, approx = false;
         let fit = dragFit(elevRad, dist, dz, T, chargeKey);
         if (!fit) {
-            const k = (chargeKey && dragWarmStart.has(chargeKey)) ? dragWarmStart.get(chargeKey).k : 0;
+            const k = (chargeKey && exactFit.has(chargeKey)) ? exactFit.get(chargeKey).k : (chargeKey && dragWarmStart.has(chargeKey)) ? dragWarmStart.get(chargeKey).k : 0;
             let lo = 1, hi = 5000;
             for (let i = 0; i < 45; i++) { const m = (lo + hi) / 2; const r = dragIntegrate(m, k, elevRad, dist, T, false); if (!r || r.Y < dz) lo = m; else hi = m; }
             const r = dragIntegrate(lo, k, elevRad, dist, T, false);
@@ -1096,8 +1061,8 @@ const ArtilleryPhysics = (() => {
         return out;
     }
 
-    // Low Angle: ชดเชยความสูงเป้า = θ(dz) − θ(0) จากแบบจำลองแรงต้าน ณ ระยะหลังชดเชยลม
-    // ไม่ใช้ D ELEV ของตาราง Low Angle (M777/M777A1 เป็นค่าชุดเดียวกับ High Angle)
+    // ชดเชยความสูงเป้า = θ(dz) − θ(0) ที่ระยะหลังชดเชยลม จากแบบจำลองแรงต้าน (v0, k จาก exactFit — ไม่มีก็ fit จากแถวตาราง)
+    // high = กิ่งมุมสูง (Y ที่ระยะนั้นลดลงเมื่อมุมเพิ่ม) · คืน { dElev (mil), tof (s) } หรือ null
     const rowFitCache = new WeakMap();
     function rowDragFit(table, idx, milSystem) {
         let arr = rowFitCache.get(table); if (!arr) { arr = []; rowFitCache.set(table, arr); }
@@ -1107,31 +1072,55 @@ const ArtilleryPhysics = (() => {
         if (f && f.v0 > 20 && f.v0 < 3000 && f.k >= 0 && f.k < 0.05) { if (r[2] >= 5) dragWarmStart.set(table, f); } else f = null;
         arr[idx] = f; return f;
     }
-    function lowAngleHeightCorrectionMil(table, virtualDist, levelElevMil, levelTof, dz, milSystem) {
-        if (!dz) return 0;
-        if (!table || table.length < 2 || !(virtualDist > 0) || !(levelTof > 0)) return null;
-        let idxs = table.map((r, i) => i).filter(i => Math.abs(table[i][0] - virtualDist) <= 600 && table[i][2] >= 5);
-        if (idxs.length < 2) idxs = table.map((r, i) => i).sort((a, b) => Math.abs(table[a][0] - virtualDist) - Math.abs(table[b][0] - virtualDist)).slice(0, 3);
-        const fits = idxs.map(i => rowDragFit(table, i, milSystem)).filter(Boolean);
-        if (fits.length === 0) return null;
-        const v0 = fits.reduce((s, f) => s + f.v0, 0) / fits.length, k = fits.reduce((s, f) => s + f.k, 0) / fits.length;
-        const MIL = Math.PI / (milSystem / 2);
-        const yAt = (thMil) => { const r = dragIntegrate(v0, k, thMil * MIL, virtualDist, levelTof * 1.5, false); return r ? r.Y : -Infinity; };
+    const heightCache = new Map();
+    function heightCorrection(table, virtualDist, levelElevMil, levelTof, dz, milSystem, high) {
+        if (!dz) return { dElev: 0, tof: levelTof };
+        if (!table || !(virtualDist > 0) || !(levelTof > 0)) return null;
+        const ck = [virtualDist.toFixed(1), dz.toFixed(1), high ? 1 : 0].join('|');
+        let tc = heightCache.get(table); if (!tc) { tc = new Map(); heightCache.set(table, tc); }
+        if (tc.has(ck)) return tc.get(ck);
+        const res = heightCorrectionCalc(table, virtualDist, levelElevMil, levelTof, dz, milSystem, high);
+        if (tc.size > 200) tc.clear();
+        tc.set(ck, res); return res;
+    }
+    function heightCorrectionCalc(table, virtualDist, levelElevMil, levelTof, dz, milSystem, high) {
+        let v0, k;
+        const ex = exactFit.get(table);
+        if (ex) { v0 = ex.v0; k = ex.k; }
+        else {
+            if (table.length < 2) return null;
+            let idxs = table.map((r, i) => i).filter(i => Math.abs(table[i][0] - virtualDist) <= 600 && table[i][2] >= 5);
+            if (idxs.length < 2) idxs = table.map((r, i) => i).sort((a, b) => Math.abs(table[a][0] - virtualDist) - Math.abs(table[b][0] - virtualDist)).slice(0, 3);
+            const fits = idxs.map(i => rowDragFit(table, i, milSystem)).filter(Boolean);
+            if (fits.length === 0) return null;
+            v0 = fits.reduce((s, f) => s + f.v0, 0) / fits.length; k = fits.reduce((s, f) => s + f.k, 0) / fits.length;
+        }
+        const MIL = Math.PI / (milSystem / 2), TMAX = 1.55;
+        const run = (thMil) => dragIntegrate(v0, k, thMil * MIL, virtualDist, levelTof * 1.5, false);
+        const yAt = (thMil) => { const r = run(thMil); return r ? r.Y : -Infinity; };
+        // ทิศที่ทำให้ Y สูงขึ้น: กิ่งต่ำ = เพิ่มมุม, กิ่งสูง = ลดมุม
+        const up = high ? -1 : 1;
         const solve = (h) => {
-            let a = levelElevMil, ya = yAt(a), step = ya < h ? 10 : -10, b = a;
-            for (let i = 0; i < 160; i++) { b = a + step; const yb = yAt(b); if ((ya - h) * (yb - h) <= 0) break; a = b; ya = yb; if (b * MIL > 1.4 || b * MIL < -0.7) return null; }
-            let lo = Math.min(a, b), hi = Math.max(a, b);
-            if ((yAt(lo) - h) * (yAt(hi) - h) > 0) return null;
-            for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (yAt(m) < h) lo = m; else hi = m; }
-            return (lo + hi) / 2;
+            let a = levelElevMil, ya = yAt(a), b = a;
+            const step = (ya < h ? up : -up) * 10;
+            for (let i = 0; i < 200; i++) {
+                b = a + step; const yb = yAt(b);
+                if ((ya - h) * (yb - h) <= 0) break;
+                a = b; ya = yb; if (b * MIL > TMAX || b * MIL < -0.7) return null;
+            }
+            let lo = a, hi = b, flo = yAt(lo) - h;
+            if (flo * (yAt(hi) - h) > 0) return null;
+            for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2, fm = yAt(m) - h; if (flo * fm <= 0) hi = m; else { lo = m; flo = fm; } }
+            const th = (lo + hi) / 2, r = run(th);
+            return r ? { th, T: r.T } : null;
         };
-        const th0 = solve(0), thH = solve(dz);
-        if (th0 === null || thH === null) return null;
-        const delta = thH - th0;
+        const s0 = solve(0), sH = solve(dz);
+        if (!s0 || !sH) return null;
+        const delta = sH.th - s0.th;
         // กันค่าผิดปกติ → ใช้สูตรสำรอง
         const sight = Math.atan(dz / virtualDist) / MIL;
-        if (!isFinite(delta) || Math.sign(delta) !== Math.sign(dz) || Math.abs(delta) > Math.abs(sight) * 5 + 30) return null;
-        return delta;
+        if (!isFinite(delta) || Math.sign(delta) !== (high ? -1 : 1) * Math.sign(dz) || Math.abs(delta) > Math.abs(sight) * 5 + 30) return null;
+        return { dElev: delta, tof: sH.T };
     }
 
     // เส้นวิถีแสดงผล (2D/3D/แผนที่) จากแบบจำลองแรงต้าน; Air Fuze Timer ใช้ approxTrajectoryPoints
@@ -1231,7 +1220,7 @@ const ArtilleryPhysics = (() => {
         return null;
     }
 
-    return { getInterpolatedData, calculateAltAtLast100m, getDragSimulatedPoints, approxTrajectoryPoints, simulateDragTrajectory, trajHeightAboveTargetAt, solveWind, lowAngleHeightCorrectionMil };
+    return { getInterpolatedData, calculateAltAtLast100m, getDragSimulatedPoints, approxTrajectoryPoints, simulateDragTrajectory, trajHeightAboveTargetAt, solveWind, heightCorrection, registerCharge };
 })();
 
 const getInterpolatedData = ArtilleryPhysics.getInterpolatedData;
@@ -1270,10 +1259,65 @@ function applyFuzeAngleLock(isHighAngleOnly) {
     syncFuzeAngleSwitchUI();
 }
 
+// ── WEAPON LIBRARY: สร้างจาก WEAPONS + BALLISTIC_TABLES ของ ballistic_data.js ──
+const weaponLibrary = (() => {
+    const lib = {};
+    const tableOf = (key) => {
+        const t = BALLISTIC_TABLES[key];
+        if (!t || !t.highAngle && !t.lowAngle) { console.warn("ไม่พบตารางยิง:", key); return null; }
+        const k = t.ammo && t.ammo.mass > 0 ? t.ammo.airDrag / t.ammo.mass : null;
+        for (const mode of ['highAngle', 'lowAngle']) for (const c in (t[mode] || {})) {
+            if (k !== null && t.charges && t.charges[c]) ArtilleryPhysics.registerCharge(t[mode][c], t.charges[c].v0, k);
+        }
+        return t;
+    };
+    const buildAmmo = (ammoDefs, isMortar) => {
+        const out = {}; let gun = null, mods = new Set();
+        for (const aId in ammoDefs) {
+            const t = tableOf(ammoDefs[aId].table); if (!t) continue;
+            const entry = { name: ammoDefs[aId].name, table: t };
+            if (!isMortar && t.charges) {
+                entry.chargeNames = {};
+                for (const c in t.charges) if (t.charges[c].name) entry.chargeNames[c] = t.charges[c].name.trim();
+            }
+            out[aId] = entry; gun = gun || t.gun; if (t.source && t.source.mod) mods.add(t.source.mod);
+        }
+        return { ammo: out, gun, mods: [...mods] };
+    };
+    for (const wId in WEAPONS) {
+        const w = WEAPONS[wId], isMortar = w.type === "mortar";
+        let gun = null, mods = [];
+        const entry = { name: w.name, type: w.type };
+        if (w.profiles) {
+            entry.profiles = {};
+            for (const pId in w.profiles) {
+                const b = buildAmmo(w.profiles[pId].ammo, isMortar);
+                if (!Object.keys(b.ammo).length) continue;
+                entry.profiles[pId] = { name: w.profiles[pId].name, limits: b.gun.limits, ammo: b.ammo };
+                gun = gun || b.gun;
+            }
+            if (!Object.keys(entry.profiles).length) continue;
+        } else {
+            const b = buildAmmo(w.ammo, isMortar);
+            if (!Object.keys(b.ammo).length) continue;
+            entry.ammo = b.ammo; entry.limits = b.gun.limits; gun = b.gun; mods = b.mods;
+        }
+        entry.milSystem = gun.milSystem || 6400;
+        entry.label = w.name + (mods.length === 1 && mods[0] !== "Arma Reforger" ? " — " + mods[0] : "");
+        lib[wId] = entry;
+    }
+    return lib;
+})();
+function populateWeaponSelect() {
+    const sel = DOM["weaponSelect"];
+    sel.innerHTML = Object.keys(weaponLibrary).map(id => `<option value="${id}">${weaponLibrary[id].label}</option>`).join('');
+    sel.value = currentWeaponId;
+}
+
 // ── STATE ──
-let currentWeaponId = 'm777'; let currentWeapon = weaponLibrary[currentWeaponId];
+let currentWeaponId = weaponLibrary.howitzer_m777a2 ? 'howitzer_m777a2' : Object.keys(weaponLibrary)[0]; let currentWeapon = weaponLibrary[currentWeaponId];
 let currentLimits = currentWeapon.limits; let currentAmmoList = currentWeapon.ammo;
-let currentAmmoId = 'he'; let currentAmmo = currentAmmoList[currentAmmoId];
+let currentAmmoId = Object.keys(currentAmmoList)[0]; let currentAmmo = currentAmmoList[currentAmmoId];
 let memoryToDeleteIndex = -1; let memoryToEditIndex = -1; 
 let foPosition = null; let foImpactPoint = null;
 let aimOffsetX = 0; let aimOffsetY = 0; let offsetHistory = [];
@@ -2103,7 +2147,7 @@ function restoreSelectedMap() {
     } catch (e) {}
 }
 
-window.addEventListener('load', function() { changeWeapon(); setTimeout(function() { updateAutoZUI('none'); MapLabels.updateUI(currentMapKey()); autoLoadFromLocalStorage(); restoreSelectedMap(); }, 200); });
+window.addEventListener('load', function() { populateWeaponSelect(); changeWeapon(); setTimeout(function() { updateAutoZUI('none'); MapLabels.updateUI(currentMapKey()); autoLoadFromLocalStorage(); restoreSelectedMap(); }, 200); });
 function autoLoadFromLocalStorage() {
     // ไม่ auto-load เป้าจาก Memory (จะทับพิกัดล่าสุดจาก Fire History)
     try {
@@ -2493,20 +2537,16 @@ function findBestCharge(dist, dz = 0, windSpeed = 0, windDirDeg = 0, aimBearingD
     let keys = Object.keys(tableSource).sort((a, b) => parseInt(a.replace(/[^0-9]/g, '')) - parseInt(b.replace(/[^0-9]/g, '')));
     const limitMin = currentLimits ? currentLimits.minElev : 0; const limitMax = currentLimits ? currentLimits.maxElev : 6400;
     const milSystem = currentWeapon.milSystem || 6400; const halfMil = milSystem / 2;
-    const driftCoeff = currentWeapon.windDriftCoeff || 0.3725; const rangeCoeff = currentWeapon.windRangeCoeff || 0.40;
+    const tableWind = currentAmmo.table.wind || {};
+    const driftCoeff = tableWind.windDriftCoeff || 0.3725; const rangeCoeff = tableWind.windRangeCoeff || 0.40;
 
     function evalCharge(table) {
         const w = solveWind(table, dist, aimBearingDeg, windSpeed, windDirDeg, milSystem, driftCoeff, rangeCoeff);
         const finalInterpDataHigh = w.interp; const aimDistH = w.aimDist;
         if (!finalInterpDataHigh || finalInterpDataHigh.clamped) return null;
 
-        let elev;
-        if (finalInterpDataHigh.hasDeltaData) {
-            elev = finalInterpDataHigh.elev - (dz / 100) * finalInterpDataHigh.dElevPer100m;
-        } else {
-            const angleOfSite = Math.atan(dz / aimDistH) * (halfMil / Math.PI);
-            elev = finalInterpDataHigh.elev - angleOfSite;
-        }
+        const hc = ArtilleryPhysics.heightCorrection(table, w.virtualDist, finalInterpDataHigh.elev, finalInterpDataHigh.tof, dz, milSystem, true);
+        const elev = finalInterpDataHigh.elev + (hc ? hc.dElev : -Math.atan(dz / aimDistH) * (halfMil / Math.PI));
         return { elev, peakAlt: finalInterpDataHigh.hasPeakAlt ? finalInterpDataHigh.peakAlt : Infinity };
     }
 
@@ -2546,7 +2586,8 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
     const airburstH = parseFloat(DOM["airburstHeight"].value) || 0;
 
     const isMortar = currentWeapon.type === "mortar"; const milSystem = currentWeapon.milSystem || 6400; const halfMil = milSystem / 2;
-    const driftCoeff = currentWeapon.windDriftCoeff || 0.3725; const rangeCoeff = currentWeapon.windRangeCoeff || 0.40;
+    const tableWind = currentAmmo.table.wind || {};
+    const driftCoeff = tableWind.windDriftCoeff || 0.3725; const rangeCoeff = tableWind.windRangeCoeff || 0.40;
 
     const dxReal = targetX - gunX; const dyReal = targetY - gunY; const actualGridDistanceReal = Math.sqrt(dxReal*dxReal + dyReal*dyReal); 
     const dz = targetZ - gunZ;
@@ -2604,14 +2645,9 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
         let baseTof = finalInterpDataHigh.tof; let g_const = 9.81; 
         const angleOfSiteMilHigh = Math.atan(dz / aimDistH) * (halfMil / Math.PI); 
 
-        // High Angle: elev − (dz/100)·D ELEV
-        if (finalInterpDataHigh.hasDeltaData) {
-            let elevCorrection = (dz / 100) * finalInterpDataHigh.dElevPer100m;
-            finalElevHigh = finalInterpDataHigh.elev - elevCorrection;
-        } else {
-            // ไม่มีข้อมูล D ELEV → ใช้ atan(dz/ระยะ)
-            finalElevHigh = finalInterpDataHigh.elev - angleOfSiteMilHigh;
-        }
+        // High Angle: ชดเชยความสูงเป้าด้วยแบบจำลองแรงต้าน — คำนวณไม่ได้ → elev − atan(dz/ระยะ), ToF แบบพาราโบลา
+        const hcHigh = ArtilleryPhysics.heightCorrection(tableHigh, windHigh.virtualDist, finalInterpDataHigh.elev, baseTof, dz, milSystem, true);
+        finalElevHigh = finalInterpDataHigh.elev + (hcHigh ? hcHigh.dElev : -angleOfSiteMilHigh);
         finalAziHigh = (aimBearingMil + deflHighMil + milSystem) % milSystem; finalAziHighToPass = finalAziHigh;
 
         // ToF = เวลากระทบเป้า (ไม่ใช่ fuze time)
@@ -2698,18 +2734,14 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
             if (finalInterpDataLow && finalInterpDataLow.clamped) { continue; }
 
             if (finalInterpDataLow) {
-                // คำนวณไม่ได้ → ใช้ atan(dz/ระยะ)
+                // คำนวณไม่ได้ → ใช้ atan(dz/ระยะ) และ ToF แบบพาราโบลา
                 const angleOfSiteMilLow = Math.atan(dz / aimDistL) * (halfMil / Math.PI);
-                const dragCorrLow = ArtilleryPhysics.lowAngleHeightCorrectionMil(tableLow, windLow.virtualDist, finalInterpDataLow.elev, finalInterpDataLow.tof, dz, milSystem);
-                finalElevLowMil = finalInterpDataLow.elev + (dragCorrLow !== null ? dragCorrLow : angleOfSiteMilLow);
-                
-                // ToF Low: + (dz/100)·D ToF จากตาราง (เป้าสูงกว่า → ToF นานขึ้น)
+                const hcLow = ArtilleryPhysics.heightCorrection(tableLow, windLow.virtualDist, finalInterpDataLow.elev, finalInterpDataLow.tof, dz, milSystem, false);
+                finalElevLowMil = finalInterpDataLow.elev + (hcLow ? hcLow.dElev : angleOfSiteMilLow);
+
                 let baseTofL = finalInterpDataLow.tof;
-                if (finalInterpDataLow.hasDeltaData) {
-                    let tofChange = (dz / 100) * finalInterpDataLow.dTofPer100m;
-                    tofLowToPass_temp = baseTofL + tofChange;
-                } else {
-                    // ไม่มีข้อมูล D ToF → ใช้สูตรพาราโบลา
+                if (hcLow) { tofLowToPass_temp = hcLow.tof; }
+                else {
                     let tofRootTermL = (baseTofL * baseTofL) - (8 * dz / 9.81);
                     tofLowToPass_temp = (tofRootTermL >= 0) ? (baseTofL + Math.sqrt(tofRootTermL)) / 2 : baseTofL;
                 }
@@ -4279,7 +4311,7 @@ function loadHistory(index) {
     const h = historyLog[index];
     if (!h) return;
 
-    if (h.weaponId && h.weaponId !== currentWeaponId) {
+    if (h.weaponId && h.weaponId !== currentWeaponId && weaponLibrary[h.weaponId]) {
         DOM["weaponSelect"].value = h.weaponId;
         changeWeapon();
     }

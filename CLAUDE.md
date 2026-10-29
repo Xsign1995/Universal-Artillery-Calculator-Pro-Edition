@@ -3,7 +3,7 @@
 เว็บเครื่องคำนวณปืนใหญ่ / ปืนครกสำหรับ **Arma Reforger** — Universal Artillery Calculator Pro Edition
 - เว็บ: https://xsign1995.github.io/Universal-Artillery-Calculator-Pro-Edition/ (GitHub Pages, deploy ด้วย `.github/workflows/static.yml`)
 - Repo: `Xsign1995/Universal-Artillery-Calculator-Pro-Edition` (public) · branch `main`
-- เวอร์ชันล่าสุด: **v3.5.1** (ดู `CHANGELOG.md`)
+- เวอร์ชันล่าสุด: **v3.6.0** (ดู `CHANGELOG.md`)
 - โปรเจกต์เกี่ยวข้อง: `Xsign1995/Enfusion-2D-Map-Maker` (ทำแผนที่ / tiles / heightmap / labels.json ให้เว็บนี้), `Xsign1995/Enfusion-Ballistics-Extractor` (ดึงตารางยิงจากไฟล์เกม / mod)
 
 ## กติกาการทำงานกับผู้ใช้ (Xsign1995)
@@ -24,7 +24,7 @@
 | ไฟล์ | หน้าที่ |
 |---|---|
 | `index.html` | ทั้งแอป (HTML + CSS + JS) — คำนวณ, แผนที่ 2D, กราฟวิถี 2D / 3D (Three.js 0.165 จาก jsDelivr ผ่าน importmap) |
-| `ballistic_data.js` | ตารางยิงทุกอาวุธ / กระสุน / charge — แถว `[RANG, ELEV, ToF, D ELEV/100m DR, D ToF/100m DR, Peak Alt, Angle of Impact, Cross Wind 10m/s, Long Wind 10m/s]` |
+| `ballistic_data.js` | ไฟล์เดียว format 2 จาก Enfusion Ballistics Extractor: `WEAPONS` (รายการปืน / profile / กระสุน → key ตาราง, ผู้ใช้แก้เองได้) + `BALLISTIC_TABLES` (ระหว่าง `EBX-TABLES-BEGIN/END`; ต่อกระสุน: `gun` (milSystem, limits), `ammo` (v0, airDrag, mass), `charges` (v0 ต่อ charge), `wind` (ค่าสำรอง), `highAngle` / `lowAngle` → แถว `[RANGE, ELEV, TOF, dELEV, dTOF, PEAK, FALL, XWIND, LWIND]`) — **ห้ามแก้ตารางตรง** (Extractor เขียนทับ) · `index.html` สร้าง `weaponLibrary` จาก WEAPONS ตอนโหลด และเติม `<select id="weaponSelect">` เอง |
 | `maps/<Map>/` | tiles Zoomify ของแผนที่ที่เก็บใน repo เอง (Yunakivka, Novobakhmutivka) |
 | `maps/<map>_height.js` | heightmap ฝังเป็น PNG data URL (R = ไบต์สูง, G = ไบต์ต่ำ, เมตร = ค่า × scale + offset) → `window.LOCAL_HEIGHTMAPS` |
 | `maps/<map>_labels.js` | ป้ายชื่อ / จุด / สัญลักษณ์จาก labels.json ของ Map Maker → `window.LOCAL_MAP_LABELS` |
@@ -50,17 +50,17 @@
 
 ## สูตรคำนวณที่ยืนยันแล้ว (ห้ามคิดใหม่จากศูนย์ — ผ่านการยิงทดสอบในเกมหลายรอบ)
 - Low Angle มุมเงย: ชดเชยความสูงด้วยแบบจำลองแรงต้านอากาศ (v3.2.5) — **ไม่ใช้** dElevPer100m (ยิงจริงตกสั้น ~100 / ~300 m) · เคยลองย้อนเป็นสูตร trig atan(dz/range) แล้วกลับมาใช้แบบจำลองแรงต้าน หลังยิงเป็นกลุ่มแล้วกลุ่มกระสุนอยู่รอบเป้า (ยิงนัดเดียวหลอกได้เพราะ range dispersion)
-- High Angle มุมเงย: ใช้ D ELEV จากตาราง (ทิศ SUBTRACT, กลับกับแบบเดิมของ Low) — เทียบโปรแกรมของเพื่อนได้ 1185.1 vs 1185 · ToF = `(baseTof + sqrt(baseTof² − 8·dz/g)) / 2` (ตรงกับ armacalc.pages.dev) — ToF แสดงทศนิยม 1 ตำแหน่ง คลาด 0.1 s กระสุนอาจถึงพื้นก่อนชนวนทำงาน
-- คอลัมน์ "D ELEV / D ToF PER 100M DR" = ต่อความต่างความสูงเป้า 100 m (DR = difference) ไม่ใช่ระยะ
+- High Angle มุมเงย: (v3.6.0) ชดเชยความสูงด้วยแบบจำลองแรงต้านเหมือน Low (`heightCorrection(..., high=true)` — กิ่งมุมสูง Y ลดลงเมื่อมุมเพิ่ม) แทน D ELEV เดิม · เทียบกับแบบเดิม: Low ตรง ±1 mil, High คลาดไม่เกิน ~5 mil (2B14 −9 vs −13 ต่อ 50 m) · ToF High ยังใช้ `(baseTof + sqrt(baseTof² − 8·dz/g)) / 2` (ตรงกับ armacalc.pages.dev; ฟิสิกส์ต่างราว 0.3 s ที่ ToF 35 s) — ToF แสดงทศนิยม 1 ตำแหน่ง คลาด 0.1 s กระสุนอาจถึงพื้นก่อนชนวนทำงาน · เป้าสูงเกินระยะที่ charge ยิงถึง → `heightCorrection` คืน null → ใช้ atan(dz/ระยะ)
+- คอลัมน์ dELEV / dTOF ในตารางชุดใหม่ = ต่างเมื่อระยะ +50 m (ไม่ใช่ต่อความสูงเป้า 100 m แบบตารางเดิม) — โค้ดไม่ใช้ · ฟิสิกส์: `a = −g·ŷ − (AirDrag/Mass)·|v|·v`, v0 ต่อ charge จาก `charges[c].v0` (ลงทะเบียนผ่าน `registerCharge`, ตรงกับแถวตารางทุกแถว คลาดแค่การปัดมุม) · 2A36 = 6000 mil ตามข้อมูลใหม่
 - กราฟวิถี 2D / 3D, Alt @100m, จุด Air Fuze บนแผนที่ ใช้แบบจำลองแรงต้านอากาศ (v3.2.4 — แทน Bézier เดิม) · Air Fuze Timer ใช้สูตรเดิมที่ยืนยันในเกมแล้ว
 - Air Fuze: `effectiveDz` (dz + airburstH) ใช้ **เฉพาะ** หาจุดตัดชนวนใน `getDragSimulatedPoints` ห้ามใช้กับ Elevation / ToF / PeakAlt (ใช้ dz จริง) · ผู้ใช้เลื่อนจุดเล็งให้ Air Fuze Point บนแผนที่ทับเป้าจริง (ไม่งั้นระเบิดก่อนถึงเป้า)
 - ยังไม่ได้ยืนยันซ้ำ: เคส High Angle ~8000 m, dz < 0 (เคยแค่ "ตกใกล้" กับสูตรเก่า)
 
 ## ข้อมูลอาวุธ / ตาราง
-- อาวุธ: M777 (PandaMods: M107, M982 Excalibur — ยิงผ่าน FDC Tablet), M777A1 (M107, M795), 2A36 Giatsint-B (30F59, 30F29), M252 81mm (Vanilla / Adult Mortars), 2B14 Podnos 82mm (Vanilla / Adult Mortars), 2B9 Vasilek 82mm
-- 2B9 Vasilek ลงทะเบียนเป็น `type: "howitzer"` (ไม่ใช่ "mortar") เพื่อให้มี Low Angle — โค้ดข้าม Low Angle ถ้าเป็น mortar (`!isMortar && lowAngle`) · ระบบ 6000 mil, ค่าลมเท่า 2B14 · O-832DU HE (High 2500–3900 m, Low 100–3900 m), D-832DU Smoke (Low อย่างเดียว 100–2800 m)
+- อาวุธ (ตามไฟล์ข้อมูลใหม่): 2B14 / M252 (profile Original + Adult Mortars), 2A36 Giatsint-B (CIE; 3OF29, 3OF59), M777A1 (CIE; M107, M795, M982A1), M777 Howitzer (Static, PandaMods; M107, M982 Excalibur — ยิงผ่าน FDC Tablet) · **2B9 Vasilek ถูกนำออก** (ไม่มีในตารางชุดใหม่ — ตารางเดิมอยู่ใน git history ก่อน v3.6.0; ถ้าจะเอากลับต้องทำเป็นตาราง `manual` ใน ballistic_data.js)
+- โค้ดข้าม Low Angle ถ้าเป็น mortar (`!isMortar && lowAngle`) · ปืนครกมีแต่ highAngle (c0–c4 = Ring)
 - ตาราง CIE บาง charge mod ทำไม่เสร็จ มีแถวเดียว (เช่น M777A1 M107 High c5) — ปกติ ไม่ใช่บั๊ก
-- แผน: เปลี่ยนให้อ่าน `ballistic_data.js` แบบไฟล์เดียวรูปแบบใหม่ (`WEAPONS` + `BALLISTIC_TABLES`) ที่ Enfusion Ballistics Extractor สร้าง โดยตรง — ไม่ทำชั้นแปลงให้เข้ากับ `weaponLibrary` เดิม · เทียบตารางให้ใช้ `ballistic_data.js` จาก GitHub ของ repo นี้ก่อน (ตัวที่ใช้งานจริง)
+- Fire History เก็บ weaponId / ammoId — รายการเก่า (id รุ่นก่อน v3.6.0) โหลดพิกัดได้แต่ไม่สลับอาวุธ (มี guard ใน `loadHistory`)
 
 ## ฟีเจอร์หลัก (ย่อ)
 - ปืนหลายกระบอก (สูงสุด 5), รูปแบบยิงจุดเดียว / หน้ากระดาน (sheaf), ปุ่ม Copy to Chat แยกต่อกระบอก (แชทในเกมไม่รับข้อความยาว / ขึ้นบรรทัด)

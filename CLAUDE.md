@@ -3,7 +3,7 @@
 เว็บเครื่องคำนวณปืนใหญ่ / ปืนครกสำหรับ **Arma Reforger** — Universal Artillery Calculator Pro Edition
 - เว็บ: https://xsign1995.github.io/Universal-Artillery-Calculator-Pro-Edition/ (GitHub Pages, deploy ด้วย `.github/workflows/static.yml`)
 - Repo: `Xsign1995/Universal-Artillery-Calculator-Pro-Edition` (public) · branch `main`
-- เวอร์ชันล่าสุด: **v3.6.4** (ดู `CHANGELOG.md`)
+- เวอร์ชันล่าสุด: **v3.6.5** (ดู `CHANGELOG.md`)
 - โปรเจกต์เกี่ยวข้อง: `Xsign1995/Enfusion-2D-Map-Maker` (ทำแผนที่ / tiles / heightmap / labels.json ให้เว็บนี้), `Xsign1995/Enfusion-Ballistics-Extractor` (ดึงตารางยิงจากไฟล์เกม / mod)
 
 ## กติกาการทำงานกับผู้ใช้ (Xsign1995)
@@ -34,7 +34,7 @@
 - `MapBackground` (tiles): `ALLOWED_MAPS` ต้องตรงกับ `<option>` ใน `#mapBgSelect` เสมอ · `LOCAL_TILE_MAPS` = แผนที่ใน `maps/` (มี `v` = เวอร์ชัน tile)
 - `MapLabels`, `HeightMap` (Auto Z), `buildTerrain3D()` (พื้น 3D นูน), `loadScriptOnce()`
 - `parseArmaGridValue()`: 3 หลัก = ช่อง 100 m (+50), 4 หลัก = 10 m (+5), 5 หลัก = 1 m, มีทศนิยม = ไม่บวกกลางช่อง · `snapTo10mGrid()`
-- localStorage: `m777_selected_map`, `m777_map_markers` (แยกตามแผนที่), `m777_memory`, `m777_auto_z`, `m777_map_labels` ฯลฯ — ห่อ try/catch
+- localStorage: `m777_selected_map`, `m777_selected_weapon` (อาวุธ / profile / กระสุนล่าสุด — `restoreWeaponSelection()` ตอนโหลด; อาวุธเริ่มต้น = `m777_howitzer` ของ PandaMods), `m777_map_markers` (แยกตามแผนที่), `m777_memory`, `m777_auto_z`, `m777_map_labels` ฯลฯ — ห่อ try/catch
 
 ## แผนที่
 - แผนที่ส่วนใหญ่ (37 แผนที่รวมทั้งหมด) ดึง tiles จาก `https://armamaptiles.github.io/ArmaMapsTiles/<Map>/` (repo คนอื่น — เขียนไม่ได้)

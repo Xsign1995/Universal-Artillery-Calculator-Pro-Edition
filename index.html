@@ -1317,7 +1317,7 @@ function populateWeaponSelect() {
 }
 
 // ── STATE ──
-let currentWeaponId = weaponLibrary.howitzer_m777a2 ? 'howitzer_m777a2' : Object.keys(weaponLibrary)[0]; let currentWeapon = weaponLibrary[currentWeaponId];
+let currentWeaponId = weaponLibrary.m777_howitzer ? 'm777_howitzer' : Object.keys(weaponLibrary)[0]; let currentWeapon = weaponLibrary[currentWeaponId];
 let currentLimits = currentWeapon.limits; let currentAmmoList = currentWeapon.ammo;
 let currentAmmoId = Object.keys(currentAmmoList)[0]; let currentAmmo = currentAmmoList[currentAmmoId];
 let memoryToDeleteIndex = -1; let memoryToEditIndex = -1; 
@@ -2214,7 +2214,7 @@ function restoreSelectedMap() {
     } catch (e) {}
 }
 
-window.addEventListener('load', function() { populateWeaponSelect(); changeWeapon(); setTimeout(function() { updateAutoZUI('none'); MapLabels.updateUI(currentMapKey()); autoLoadFromLocalStorage(); restoreSelectedMap(); }, 200); });
+window.addEventListener('load', function() { populateWeaponSelect(); restoreWeaponSelection(); setTimeout(function() { updateAutoZUI('none'); MapLabels.updateUI(currentMapKey()); autoLoadFromLocalStorage(); restoreSelectedMap(); }, 200); });
 function autoLoadFromLocalStorage() {
     // ไม่ auto-load เป้าจาก Memory (จะทับพิกัดล่าสุดจาก Fire History)
     try {
@@ -2222,6 +2222,35 @@ function autoLoadFromLocalStorage() {
         if (localData) { savedTargets = JSON.parse(localData); renderMemoryList(); }
     } catch (e) {}
     renderHistoryList();
+}
+
+// ── จำปืน / profile / กระสุนที่ใช้ล่าสุด ──
+let restoringWeaponSelection = false;
+function saveWeaponSelection() {
+    if (restoringWeaponSelection) return;
+    try {
+        localStorage.setItem('m777_selected_weapon', JSON.stringify({
+            weapon: currentWeaponId,
+            profile: currentWeapon.profiles ? DOM["profileSelect"].value : null,
+            ammo: DOM["ammoSelect"].value
+        }));
+    } catch (e) {}
+}
+function restoreWeaponSelection() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem('m777_selected_weapon') || 'null'); } catch (e) {}
+    restoringWeaponSelection = true;
+    try {
+        if (saved && weaponLibrary[saved.weapon]) DOM["weaponSelect"].value = saved.weapon;
+        changeWeapon();
+        if (saved && saved.weapon === currentWeaponId) {
+            if (saved.profile && currentWeapon.profiles && currentWeapon.profiles[saved.profile]) {
+                DOM["profileSelect"].value = saved.profile; changeProfile();
+            }
+            if (saved.ammo && currentAmmoList[saved.ammo]) { DOM["ammoSelect"].value = saved.ammo; changeAmmo(); }
+        }
+    } finally { restoringWeaponSelection = false; }
+    saveWeaponSelection();
 }
 
 function changeWeapon() {
@@ -2237,6 +2266,7 @@ function changeWeapon() {
         profileSelect.value = firstProfile; 
     } else { profileSection.style.display = "none"; }
     changeProfile();
+    saveWeaponSelection();
 }
 
 function changeProfile() {
@@ -2264,6 +2294,7 @@ function changeProfile() {
     const ammoSelect = DOM["ammoSelect"]; ammoSelect.innerHTML = "";
     for (const aId in currentAmmoList) { ammoSelect.innerHTML += `<option value="${aId}">${currentAmmoList[aId].name}</option>`; }
     changeAmmo();
+    saveWeaponSelection();
 }
 
 function getChargeDisplayName(cId, isMortar, uppercase) {
@@ -2306,6 +2337,7 @@ function changeAmmo() {
     cHigh.innerHTML = buildOptions(tableSourceForHigh);
     cLow.innerHTML = buildOptions(tableSourceForLow);
     if (tableSourceForLow[prevLow]) cLow.value = prevLow; if (tableSourceForHigh[prevHigh]) cHigh.value = prevHigh;
+    saveWeaponSelection();
     calculate();
 }
 

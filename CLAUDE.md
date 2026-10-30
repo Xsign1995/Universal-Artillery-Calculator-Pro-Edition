@@ -59,7 +59,7 @@
 ## ข้อมูลอาวุธ / ตาราง
 - อาวุธ (ตามไฟล์ข้อมูลใหม่): 2B14 / M252 (profile Original + Adult Mortars), 2A36 Giatsint-B (CIE; 3OF29, 3OF59), M777A1 (CIE; M107, M795, M982A1), M777 Howitzer (Static, PandaMods; M107, M982 Excalibur — ยิงผ่าน FDC Tablet) · **2B9 Vasilek ถูกนำออก** (ไม่มีในตารางชุดใหม่ — ตารางเดิมอยู่ใน git history ก่อน v3.6.0; ถ้าจะเอากลับต้องทำเป็นตาราง `manual` ใน ballistic_data.js)
 - โค้ดข้าม Low Angle ถ้าเป็น mortar (`!isMortar && lowAngle`) · ปืนครกมีแต่ highAngle (c0–c4 = Ring)
-- ตาราง CIE บาง charge mod ทำไม่เสร็จ มีแถวเดียว (เช่น M777A1 M107 High c5) — ปกติ ไม่ใช่บั๊ก
+- ตารางชุด v3.6.0 ครบทุก charge (ตรวจแล้ว: ไม่มี charge ไหนเหลือ ≤2 แถว) — High Angle ของ charge ต่ำมีแถวน้อยตามธรรมชาติ (ช่วงระยะแคบ) ไม่ใช่ข้อมูลขาด
 - Fire History เก็บ weaponId / ammoId — รายการเก่า (id รุ่นก่อน v3.6.0) โหลดพิกัดได้แต่ไม่สลับอาวุธ (มี guard ใน `loadHistory`)
 
 ## ฟีเจอร์หลัก (ย่อ)

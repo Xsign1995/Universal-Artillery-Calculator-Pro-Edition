@@ -3,7 +3,7 @@
 เว็บเครื่องคำนวณปืนใหญ่ / ปืนครกสำหรับ **Arma Reforger** — Universal Artillery Calculator Pro Edition
 - เว็บ: https://xsign1995.github.io/Universal-Artillery-Calculator-Pro-Edition/ (GitHub Pages, deploy ด้วย `.github/workflows/static.yml`)
 - Repo: `Xsign1995/Universal-Artillery-Calculator-Pro-Edition` (public) · branch `main`
-- เวอร์ชันล่าสุด: **v3.6.3** (ดู `CHANGELOG.md`)
+- เวอร์ชันล่าสุด: **v3.6.4** (ดู `CHANGELOG.md`)
 - โปรเจกต์เกี่ยวข้อง: `Xsign1995/Enfusion-2D-Map-Maker` (ทำแผนที่ / tiles / heightmap / labels.json ให้เว็บนี้), `Xsign1995/Enfusion-Ballistics-Extractor` (ดึงตารางยิงจากไฟล์เกม / mod)
 
 ## กติกาการทำงานกับผู้ใช้ (Xsign1995)

@@ -1549,7 +1549,7 @@ const MapBackground = (() => {
     // แผนที่ tile (Zoomify) ที่เก็บใน repo แทน ArmaMapsTiles
     // v = เวอร์ชันของ tile — เปลี่ยนทุกครั้งที่อัปเดตแผนที่ ไม่งั้นเบราว์เซอร์ใช้ tile เก่าใน cache ปนกับของใหม่
     const LOCAL_TILE_MAPS = {
-        "Yunakivka": { base: "maps/Yunakivka", width: 10240, height: 10240, v: "3.6.1" },
+        "Yunakivka": { base: "maps/Yunakivka", width: 10240, height: 10240, v: "3.6.4" },
         "Novobakhmutivka": { base: "maps/Novobakhmutivka", width: 6912, height: 6912, v: "3.6.1" },
         "Arland": { base: "maps/Arland", width: 4096, height: 4096, v: "3.6.1" },
         "Everon": { base: "maps/Everon", width: 12800, height: 12800, v: "3.6.1" },
@@ -1868,7 +1868,7 @@ function loadScriptOnce(src) {
 // ── MAP LABELS (ป้ายชื่อ / สัญลักษณ์จาก EnfusionMapMaker labels.json) ──
 const MapLabels = (() => {
     const SCRIPTS = {
-        "Yunakivka": "maps/yunakivka_labels.js?v=3.6.1",
+        "Yunakivka": "maps/yunakivka_labels.js?v=3.6.4",
         "Novobakhmutivka": "maps/novobakhmutivka_labels.js?v=3.6.1",
         "Arland": "maps/arland_labels.js?v=3.6.1",
         "Everon": "maps/everon_labels.js?v=3.6.1",
@@ -2037,7 +2037,7 @@ function toggleMapLabels() {
 // <Map>_height.png (16 บิต) + .json ในโฟลเดอร์แผนที่ — อ่านด้วย fetch (file:// ใช้สำเนาบน GitHub Pages ซึ่งมี CORS)
 const HeightMap = (() => {
     const FILES = {
-        "Yunakivka": { path: "maps/Yunakivka/Yunakivka_height", v: "3.6.1" },
+        "Yunakivka": { path: "maps/Yunakivka/Yunakivka_height", v: "3.6.4" },
         "Novobakhmutivka": { path: "maps/Novobakhmutivka/Novobakhmutivka_height", v: "3.6.1" },
         "Arland": { path: "maps/Arland/Arland_height", v: "3.6.1" },
         "Everon": { path: "maps/Everon/Everon_height", v: "3.6.1" },

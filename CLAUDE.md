@@ -3,7 +3,7 @@
 เว็บเครื่องคำนวณปืนใหญ่ / ปืนครกสำหรับ **Arma Reforger** — Universal Artillery Calculator Pro Edition
 - เว็บ: https://xsign1995.github.io/Universal-Artillery-Calculator-Pro-Edition/ (GitHub Pages, deploy ด้วย `.github/workflows/static.yml`)
 - Repo: `Xsign1995/Universal-Artillery-Calculator-Pro-Edition` (public) · branch `main`
-- เวอร์ชันล่าสุด: **v3.6.1** (ดู `CHANGELOG.md`)
+- เวอร์ชันล่าสุด: **v3.6.2** (ดู `CHANGELOG.md`)
 - โปรเจกต์เกี่ยวข้อง: `Xsign1995/Enfusion-2D-Map-Maker` (ทำแผนที่ / tiles / heightmap / labels.json ให้เว็บนี้), `Xsign1995/Enfusion-Ballistics-Extractor` (ดึงตารางยิงจากไฟล์เกม / mod)
 
 ## กติกาการทำงานกับผู้ใช้ (Xsign1995)
@@ -56,7 +56,7 @@
 - ยังไม่ได้ยืนยันซ้ำ: เคส High Angle ~8000 m, dz < 0 (เคยแค่ "ตกใกล้" กับสูตรเก่า)
 
 ## ข้อมูลอาวุธ / ตาราง
-- อาวุธ (ตามไฟล์ข้อมูลใหม่): 2B14 / M252 (profile Original + Adult Mortars), 2A36 Giatsint-B (CIE; 3OF29, 3OF59), M777A1 (CIE; M107, M795, M982A1), M777 Howitzer (Static, PandaMods; M107, M982 Excalibur — ยิงผ่าน FDC Tablet) · **2B9 Vasilek ถูกนำออก** (ไม่มีในตารางชุดใหม่ — ตารางเดิมอยู่ใน git history ก่อน v3.6.0; ถ้าจะเอากลับต้องทำเป็นตาราง `manual` ใน ballistic_data.js)
+- อาวุธ (ตามไฟล์ข้อมูลใหม่): 2B14 / M252 (profile Original + Adult Mortars), 2A36 Giatsint-B (CIE; 3OF29, 3OF59), M777A1 (CIE; M107, M795, M982A1), M777 Howitzer Artillery (PandaMods — label ต่อท้ายด้วยผู้สร้างเพราะชื่อเท่าชื่อ mod; M107, M982 Excalibur — ยิงผ่าน FDC Tablet) · **2B9 Vasilek ถูกนำออก** (ไม่มีในตารางชุดใหม่ — ตารางเดิมอยู่ใน git history ก่อน v3.6.0; ถ้าจะเอากลับต้องทำเป็นตาราง `manual` ใน ballistic_data.js)
 - โค้ดข้าม Low Angle ถ้าเป็น mortar (`!isMortar && lowAngle`) · ปืนครกมีแต่ highAngle (c0–c4 = Ring)
 - ตารางชุด v3.6.0 ครบทุก charge (ตรวจแล้ว: ไม่มี charge ไหนเหลือ ≤2 แถว) — High Angle ของ charge ต่ำมีแถวน้อยตามธรรมชาติ (ช่วงระยะแคบ) ไม่ใช่ข้อมูลขาด
 - Fire History เก็บ weaponId / ammoId — รายการเก่า (id รุ่นก่อน v3.6.0) โหลดพิกัดได้แต่ไม่สลับอาวุธ (มี guard ใน `loadHistory`)

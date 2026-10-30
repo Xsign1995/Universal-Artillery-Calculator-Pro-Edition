@@ -1,6 +1,6 @@
 # 🎯 Universal Artillery Calculator — Pro Edition
 
-**เวอร์ชันปัจจุบัน: v3.6.1 · รองรับ Arma Reforger 1.8** · [ดู Changelog](CHANGELOG.md)
+**เวอร์ชันปัจจุบัน: v3.6.2 · รองรับ Arma Reforger 1.8** · [ดู Changelog](CHANGELOG.md)
 
 เครื่องคำนวณการยิงปืนใหญ่และปืนครกสำหรับ **Arma Reforger** ทำงานบนเว็บเบราว์เซอร์ล้วน ไม่ต้องติดตั้งอะไร
 คำนวณ Elevation / Azimuth / Time of Flight พร้อมชดเชยลม ความสูง และแสดงผลบนแผนที่จริง
@@ -16,7 +16,7 @@
 | อาวุธ | ขนาด | ระบบ MIL | กระสุน |
 |---|---|---|---|
 | M777A1 Howitzer — US (CIE Artillery) | 155mm | 6400 | M107 HE, M795 HE, M982A1 Excalibur |
-| M777 Howitzer (Static) — US (PandaMods) | 155mm | 6400 | M107 HE, M982 Excalibur (นำวิถี) |
+| M777 Howitzer Artillery — PandaMods | 155mm | 6400 | M107 HE, M982 Excalibur (นำวิถี) |
 | 2A36 Giatsint-B — Soviet (CIE Artillery) | 152mm | 6000 | 3OF29 "Bekas", 3OF59 "Khrebet" |
 | M252 Mortar — US | 81mm | 6400 | M821 HE, M853A1 Illumination, M819 Smoke, M879 Training |
 | 2B14 Podnos — Soviet | 82mm | 6000 | O-832DU HE, S-832S Illumination, D-832DU Smoke |

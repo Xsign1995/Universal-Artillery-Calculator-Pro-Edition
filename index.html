@@ -1272,7 +1272,7 @@ const weaponLibrary = (() => {
         return t;
     };
     const buildAmmo = (ammoDefs, isMortar) => {
-        const out = {}; let gun = null, mods = new Set();
+        const out = {}; let gun = null, mods = new Set(), authors = new Set();
         for (const aId in ammoDefs) {
             const t = tableOf(ammoDefs[aId].table); if (!t) continue;
             const entry = { name: ammoDefs[aId].name, table: t };
@@ -1280,13 +1280,13 @@ const weaponLibrary = (() => {
                 entry.chargeNames = {};
                 for (const c in t.charges) if (t.charges[c].name) entry.chargeNames[c] = t.charges[c].name.trim();
             }
-            out[aId] = entry; gun = gun || t.gun; if (t.source && t.source.mod) mods.add(t.source.mod);
+            out[aId] = entry; gun = gun || t.gun; if (t.source && t.source.mod) { mods.add(t.source.mod); if (t.source.author) authors.add(t.source.author); }
         }
-        return { ammo: out, gun, mods: [...mods] };
+        return { ammo: out, gun, mods: [...mods], authors: [...authors] };
     };
     for (const wId in WEAPONS) {
         const w = WEAPONS[wId], isMortar = w.type === "mortar";
-        let gun = null, mods = [];
+        let gun = null, mods = [], authors = [];
         const entry = { name: w.name, type: w.type };
         if (w.profiles) {
             entry.profiles = {};
@@ -1300,10 +1300,12 @@ const weaponLibrary = (() => {
         } else {
             const b = buildAmmo(w.ammo, isMortar);
             if (!Object.keys(b.ammo).length) continue;
-            entry.ammo = b.ammo; entry.limits = b.gun.limits; gun = b.gun; mods = b.mods;
+            entry.ammo = b.ammo; entry.limits = b.gun.limits; gun = b.gun; mods = b.mods; authors = b.authors;
         }
         entry.milSystem = gun.milSystem || 6400;
-        entry.label = w.name + (mods.length === 1 && mods[0] !== "Arma Reforger" ? " — " + mods[0] : "");
+        // ชื่ออาวุธเท่ากับชื่อ mod อยู่แล้ว → ต่อท้ายด้วยผู้สร้าง mod แทน
+        const tag = mods.length !== 1 || mods[0] === "Arma Reforger" ? "" : (mods[0] === w.name && authors.length === 1 ? authors[0] : mods[0]);
+        entry.label = w.name + (tag ? " — " + tag : "");
         lib[wId] = entry;
     }
     return lib;

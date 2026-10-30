@@ -62,7 +62,7 @@ const WEAPONS = {
         }
     },
     "m777_howitzer": {
-        name: "M777 Howitzer (Static)", type: "howitzer",
+        name: "M777 Howitzer Artillery", type: "howitzer",
         ammo: {
             "m107_shell_155mm_he": { name: "M107 Shell 155MM HE", table: "m777_howitzer_artillery/m777_howitzer/m107_shell_155mm_he" },
             "m982_excalibur": { name: "M982 Excalibur", table: "m777_howitzer_artillery/m777_howitzer/shell_155mm_m982_excalibur" }

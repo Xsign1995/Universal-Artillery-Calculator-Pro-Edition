@@ -1,0 +1,16 @@
+{
+ "width": 2049,
+ "height": 2049,
+ "cell_m": 2.0,
+ "world_m": 4096.0,
+ "scale": 0.03125,
+ "offset": -204.78125,
+ "min_m": -163.0,
+ "max_m": 148.375,
+ "origin_m": [
+  0.0,
+  0.0
+ ],
+ "orientation": "row 0 = north (max Z), column 0 = west; pixel (c, r) = X origin_x + c*cell_m, Z origin_z + (rows-1-r)*cell_m",
+ "format": "PNG 16-bit raw: meters = value * scale + offset"
+}

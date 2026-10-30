@@ -1527,6 +1527,7 @@ let isPanning = false; let startPanX, startPanY; let isRedrawing = false;
 let is3DMode = false; let currentCalcData = null; window.trajectoryAnimId = null;
 
 // ── MAP BACKGROUND (armamaptiles.github.io + maps/) ──
+const SITE_BASE = "https://xsign1995.github.io/Universal-Artillery-Calculator-Pro-Edition/";
 const MapBackground = (() => {
     const TILE_BASE = "https://armamaptiles.github.io/ArmaMapsTiles";
     const TILESIZE = 256;
@@ -1546,12 +1547,15 @@ const MapBackground = (() => {
     // แผนที่ tile (Zoomify) ที่เก็บใน repo แทน ArmaMapsTiles
     // v = เวอร์ชันของ tile — เปลี่ยนทุกครั้งที่อัปเดตแผนที่ ไม่งั้นเบราว์เซอร์ใช้ tile เก่าใน cache ปนกับของใหม่
     const LOCAL_TILE_MAPS = {
-        "Yunakivka": { base: "maps/Yunakivka", width: 10240, height: 10240, v: "3.4" },
-        "Novobakhmutivka": { base: "maps/Novobakhmutivka", width: 6912, height: 6912, v: "3.4" },
+        "Yunakivka": { base: "maps/Yunakivka", width: 10240, height: 10240, v: "3.6.1" },
+        "Novobakhmutivka": { base: "maps/Novobakhmutivka", width: 6912, height: 6912, v: "3.6.1" },
+        "Arland": { base: "maps/Arland", width: 4096, height: 4096, v: "3.6.1" },
+        "Everon": { base: "maps/Everon", width: 12800, height: 12800, v: "3.6.1" },
+        "Kolguyev": { base: "maps/Kolguyev", width: 12800, height: 12800, v: "3.6.1" },
     };
     const tileQuery = (mapName) => LOCAL_TILE_MAPS[mapName] ? `?v=${LOCAL_TILE_MAPS[mapName].v}` : "";
     // เปิดผ่าน file://: โหลด tile จาก GitHub Pages ก่อน (มี CORS → มุมมอง 3D ใช้ภาพได้) ไม่มีเน็ตค่อยใช้ไฟล์ในเครื่อง
-    const ONLINE_BASE = "https://xsign1995.github.io/Universal-Artillery-Calculator-Pro-Edition/";
+    const ONLINE_BASE = SITE_BASE;
     const localTileSource = {};
     const tileBase = (mapName) => LOCAL_TILE_MAPS[mapName]
         ? (localTileSource[mapName] || LOCAL_TILE_MAPS[mapName].base)
@@ -1862,8 +1866,11 @@ function loadScriptOnce(src) {
 // ── MAP LABELS (ป้ายชื่อ / สัญลักษณ์จาก EnfusionMapMaker labels.json) ──
 const MapLabels = (() => {
     const SCRIPTS = {
-        "Yunakivka": "maps/yunakivka_labels.js?v=3.4",
-        "Novobakhmutivka": "maps/novobakhmutivka_labels.js?v=3.4",
+        "Yunakivka": "maps/yunakivka_labels.js?v=3.6.1",
+        "Novobakhmutivka": "maps/novobakhmutivka_labels.js?v=3.6.1",
+        "Arland": "maps/arland_labels.js?v=3.6.1",
+        "Everon": "maps/everon_labels.js?v=3.6.1",
+        "Kolguyev": "maps/kolguyev_labels.js?v=3.6.1",
     };
     // ตัวอักษรของไอคอนแบบ letter (ตรงกับ SYMBOL_ICONS ใน EnfusionMapMaker)
     const LETTERS = {
@@ -2003,40 +2010,81 @@ function toggleMapLabels() {
 }
 
 // ── HEIGHTMAP (Auto Z) ──
-// maps/*_height.js: PNG ฝังเป็น data URL (R = ไบต์สูง, G = ไบต์ต่ำ) เพื่อให้อ่านพิกเซลได้แม้เปิดผ่าน file://
+// <Map>_height.png (16 บิต) + .json ในโฟลเดอร์แผนที่ — อ่านด้วย fetch (file:// ใช้สำเนาบน GitHub Pages ซึ่งมี CORS)
 const HeightMap = (() => {
-    const SCRIPTS = {
-        "Yunakivka": "maps/yunakivka_height.js?v=3.4",
-        "Novobakhmutivka": "maps/novobakhmutivka_height.js?v=3.4",
+    const FILES = {
+        "Yunakivka": { path: "maps/Yunakivka/Yunakivka_height", v: "3.6.1" },
+        "Novobakhmutivka": { path: "maps/Novobakhmutivka/Novobakhmutivka_height", v: "3.6.1" },
+        "Arland": { path: "maps/Arland/Arland_height", v: "3.6.1" },
+        "Everon": { path: "maps/Everon/Everon_height", v: "3.6.1" },
+        "Kolguyev": { path: "maps/Kolguyev/Kolguyev_height", v: "3.6.1" },
     };
-    const STRIP = 512; // ถอดภาพทีละแถบ — iOS จำกัดขนาด canvas
     const data = {};
     const pending = {};
 
-    const has = (mapName) => !!SCRIPTS[mapName];
+    const has = (mapName) => !!FILES[mapName];
     const isReady = (mapName) => !!data[mapName];
 
-    function decode(info) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => {
-                const w = info.width, h = info.height;
-                const values = new Uint16Array(w * h);
-                const cv = document.createElement('canvas');
-                cv.width = w; cv.height = STRIP;
-                const ctx = cv.getContext('2d', { willReadFrequently: true });
-                for (let y0 = 0; y0 < h; y0 += STRIP) {
-                    const sh = Math.min(STRIP, h - y0);
-                    ctx.clearRect(0, 0, w, STRIP);
-                    ctx.drawImage(img, 0, y0, w, sh, 0, 0, w, sh);
-                    const px = ctx.getImageData(0, 0, w, sh).data;
-                    for (let i = 0, o = y0 * w, n = w * sh; i < n; i++, o++) values[o] = (px[i * 4] << 8) | px[i * 4 + 1];
+    async function inflate(bytes) {
+        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+        return new Uint8Array(await new Response(stream).arrayBuffer());
+    }
+
+    // PNG เทา 16 บิต ไม่ interlace → Uint16Array (เรียงแถวจากเหนือไปใต้)
+    async function decodePng16(buf) {
+        const u8 = new Uint8Array(buf), dv = new DataView(buf);
+        let pos = 8, w = 0, h = 0;
+        const parts = [];
+        while (pos + 8 <= u8.length) {
+            const len = dv.getUint32(pos), type = String.fromCharCode(u8[pos + 4], u8[pos + 5], u8[pos + 6], u8[pos + 7]);
+            if (type === 'IHDR') {
+                w = dv.getUint32(pos + 8); h = dv.getUint32(pos + 12);
+                if (u8[pos + 16] !== 16 || u8[pos + 17] !== 0 || u8[pos + 20] !== 0) throw new Error("ไฟล์ความสูงต้องเป็น PNG เทา 16 บิต");
+            } else if (type === 'IDAT') parts.push(u8.subarray(pos + 8, pos + 8 + len));
+            else if (type === 'IEND') break;
+            pos += 12 + len;
+        }
+        const comp = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+        for (let i = 0, o = 0; i < parts.length; o += parts[i++].length) comp.set(parts[i], o);
+        const raw = await inflate(comp);
+        const rb = w * 2, values = new Uint16Array(w * h);
+        const cur = new Uint8Array(rb);
+        let prev = new Uint8Array(rb);
+        for (let y = 0; y < h; y++) {
+            const f = raw[y * (rb + 1)], src = y * (rb + 1) + 1;
+            for (let i = 0; i < rb; i++) {
+                const x = raw[src + i];
+                const a = i >= 2 ? cur[i - 2] : 0, b = prev[i], c = i >= 2 ? prev[i - 2] : 0;
+                let v;
+                if (f === 0) v = x;
+                else if (f === 1) v = x + a;
+                else if (f === 2) v = x + b;
+                else if (f === 3) v = x + ((a + b) >> 1);
+                else {
+                    const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+                    v = x + (pa <= pb && pa <= pc ? a : (pb <= pc ? b : c));
                 }
-                resolve(values);
-            };
-            img.onerror = () => reject(new Error("ถอดข้อมูลความสูงไม่สำเร็จ"));
-            img.src = info.src;
-        });
+                cur[i] = v & 255;
+            }
+            const o = y * w;
+            for (let i = 0; i < w; i++) values[o + i] = (cur[i * 2] << 8) | cur[i * 2 + 1];
+            prev = cur.slice();
+        }
+        return values;
+    }
+
+    async function loadFiles(mapName) {
+        const f = FILES[mapName];
+        const base = (location.protocol === "file:" ? SITE_BASE : "") + f.path;
+        const q = `?v=${f.v}`;
+        const [jr, pr] = await Promise.all([fetch(base + ".json" + q), fetch(base + ".png" + q)]);
+        if (!jr.ok || !pr.ok) throw new Error(`โหลดไฟล์ความสูงไม่สำเร็จ (${jr.status}/${pr.status})`);
+        const j = await jr.json();
+        const info = {
+            width: j.width, height: j.height, cell_m: j.cell_m, scale: j.scale, offset: j.offset,
+            originX: (j.origin_m || [0, 0])[0], originZ: (j.origin_m || [0, 0])[1],
+        };
+        return { info, values: await decodePng16(await pr.arrayBuffer()) };
     }
 
     function load(mapName) {
@@ -2044,12 +2092,7 @@ const HeightMap = (() => {
         if (data[mapName]) return Promise.resolve(true);
         if (!pending[mapName]) {
             pending[mapName] = (async () => {
-                window.LOCAL_HEIGHTMAPS = window.LOCAL_HEIGHTMAPS || {};
-                if (!window.LOCAL_HEIGHTMAPS[mapName]) await loadScriptOnce(SCRIPTS[mapName]);
-                const info = window.LOCAL_HEIGHTMAPS[mapName];
-                const values = await decode(info);
-                delete info.src;
-                data[mapName] = { info, values };
+                data[mapName] = await loadFiles(mapName);
                 return true;
             })().catch(err => {
                 console.error("โหลดข้อมูลความสูงไม่สำเร็จ:", err);

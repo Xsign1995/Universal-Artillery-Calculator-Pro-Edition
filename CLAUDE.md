@@ -3,7 +3,7 @@
 เว็บเครื่องคำนวณปืนใหญ่ / ปืนครกสำหรับ **Arma Reforger** — Universal Artillery Calculator Pro Edition
 - เว็บ: https://xsign1995.github.io/Universal-Artillery-Calculator-Pro-Edition/ (GitHub Pages, deploy ด้วย `.github/workflows/static.yml`)
 - Repo: `Xsign1995/Universal-Artillery-Calculator-Pro-Edition` (public) · branch `main`
-- เวอร์ชันล่าสุด: **v3.6.0** (ดู `CHANGELOG.md`)
+- เวอร์ชันล่าสุด: **v3.6.1** (ดู `CHANGELOG.md`)
 - โปรเจกต์เกี่ยวข้อง: `Xsign1995/Enfusion-2D-Map-Maker` (ทำแผนที่ / tiles / heightmap / labels.json ให้เว็บนี้), `Xsign1995/Enfusion-Ballistics-Extractor` (ดึงตารางยิงจากไฟล์เกม / mod)
 
 ## กติกาการทำงานกับผู้ใช้ (Xsign1995)
@@ -25,8 +25,7 @@
 |---|---|
 | `index.html` | ทั้งแอป (HTML + CSS + JS) — คำนวณ, แผนที่ 2D, กราฟวิถี 2D / 3D (Three.js 0.165 จาก jsDelivr ผ่าน importmap) |
 | `ballistic_data.js` | ไฟล์เดียว format 2 จาก Enfusion Ballistics Extractor: `WEAPONS` (รายการปืน / profile / กระสุน → key ตาราง, ผู้ใช้แก้เองได้) + `BALLISTIC_TABLES` (ระหว่าง `EBX-TABLES-BEGIN/END`; ต่อกระสุน: `gun` (milSystem, limits), `ammo` (v0, airDrag, mass), `charges` (v0 ต่อ charge), `wind` (ค่าสำรอง), `highAngle` / `lowAngle` → แถว `[RANGE, ELEV, TOF, dELEV, dTOF, PEAK, FALL, XWIND, LWIND]`) — **ห้ามแก้ตารางตรง** (Extractor เขียนทับ) · `index.html` สร้าง `weaponLibrary` จาก WEAPONS ตอนโหลด และเติม `<select id="weaponSelect">` เอง |
-| `maps/<Map>/` | tiles Zoomify ของแผนที่ที่เก็บใน repo เอง (Yunakivka, Novobakhmutivka) |
-| `maps/<map>_height.js` | heightmap ฝังเป็น PNG data URL (R = ไบต์สูง, G = ไบต์ต่ำ, เมตร = ค่า × scale + offset) → `window.LOCAL_HEIGHTMAPS` |
+| `maps/<Map>/` | tiles Zoomify ของแผนที่ที่เก็บใน repo เอง (Yunakivka, Novobakhmutivka, Arland, Everon, Kolguyev) · ชุดใหม่มี `<Map>_height.png` (16 บิต) + `.json` อยู่ในโฟลเดอร์เดียวกัน |
 | `maps/<map>_labels.js` | ป้ายชื่อ / จุด / สัญลักษณ์จาก labels.json ของ Map Maker → `window.LOCAL_MAP_LABELS` |
 
 ส่วนสำคัญใน `index.html`:
@@ -39,11 +38,11 @@
 
 ## แผนที่
 - แผนที่ส่วนใหญ่ (37 แผนที่รวมทั้งหมด) ดึง tiles จาก `https://armamaptiles.github.io/ArmaMapsTiles/<Map>/` (repo คนอื่น — เขียนไม่ได้)
-- Yunakivka, Novobakhmutivka เก็บใน `maps/` (ทำจาก Enfusion Map Maker ของผู้ใช้)
+- Yunakivka, Novobakhmutivka, Arland, Everon, Kolguyev เก็บใน `maps/` (ทำจาก Enfusion Map Maker ของผู้ใช้; 3 แผนที่หลังเป็นแผนที่เริ่มต้นของเกม — เพิ่ม v3.6.1, heightmap แบบ `FILES`)
   - เปิดผ่าน `file://`: โหลด tile จาก GitHub Pages ของ repo นี้ก่อน (`ONLINE_BASE`, มี CORS → 3D ใช้เป็น texture ได้) ไม่มีเน็ตค่อยใช้ไฟล์ในเครื่อง (2D ได้, 3D เป็นสีตามความสูง)
   - **อัปเดต tiles / height / labels ของแผนที่ใน `maps/` ต้องเปลี่ยนเลข `v` ใน `LOCAL_TILE_MAPS` และ `?v=` ใน SCRIPTS ของ `MapLabels` / `HeightMap`** ไม่งั้นเบราว์เซอร์ใช้ไฟล์เก่าใน cache ปนกับของใหม่ (เคยเกิดกับ Yunakivka)
 - เพิ่มแผนที่ใหม่ใน `maps/`: copy โฟลเดอร์ tiles (ลบ labels.json ออก) → เพิ่มใน `LOCAL_TILE_MAPS` (+ width/height จาก ImageProperties.xml) → `ALLOWED_MAPS` + `<option>`
-- heightmap จาก Map Maker (`<Map>_height.png` 16 บิต + `.json`: cell_m, scale, offset, origin_m) → แปลงเป็น `maps/<map>_height.js` (PNG RGB: R = value>>8, G = value&255, ฝัง base64) แล้วเพิ่มใน `HeightMap` SCRIPTS · ตรวจตำแหน่งให้ตรงภาพแผนที่ก่อน (origin บาง mod ไม่ใช่ 0 เช่น Yunakivka x −28.7 m)
+- heightmap (ทุกแผนที่ใน `maps/`, v3.6.1): copy `<Map>_height.png` (16 บิต) + `.json` (cell_m, scale, offset, origin_m) ไว้ใน `maps/<Map>/` แล้วเพิ่มใน `FILES` ของ `HeightMap` (path + `v`) — `index.html` อ่านด้วย `fetch` + ถอด PNG 16 บิตเอง (`decodePng16`, `DecompressionStream`) · เปิดผ่าน `file://` ใช้สำเนาบน GitHub Pages (`SITE_BASE`) จึงต้องต่อเน็ต ไม่มีเน็ต = ไม่มี Auto Z / พื้น 3D · อัปเดตไฟล์ความสูงต้องเปลี่ยน `v` ใน `FILES` · ตรวจ origin ให้ตรงภาพแผนที่ (บาง mod ไม่ใช่ 0 เช่น Yunakivka x −28.7 m)
 - labels.json → `maps/<map>_labels.js` (เก็บ style, names, points, symbols — ไม่เอา px/py) · ตัวอักษรไอคอนแบบ letter อยู่ในตาราง `LETTERS` (ตรงกับ `SYMBOL_ICONS` ใน Map Maker) · ป้าย "made by xJESUSx" ของ Novobakhmutivka ผู้ใช้ให้ลบออก (บังมุม)
 - เครดิต: Novobakhmutivka — xJESUSx · Yunakivka — Rumor / SPEARHEAD
 - Map Maker v1.46 ลดระดับแม่น้ำ / คลองใน heightmap ได้ (ผู้ใช้พบว่าผิวน้ำในเกมต่ำกว่าตลิ่ง) — heightmap ใน repo ตอนนี้ยังเป็นชุดก่อนลดระดับ รอผู้ใช้ export ใหม่

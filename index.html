@@ -1896,6 +1896,20 @@ const MapLabels = (() => {
             .catch(err => console.error("โหลดป้ายชื่อแผนที่ไม่สำเร็จ:", err));
     }
 
+    // ไอคอนจากไฟล์เกม (labels.json ของ Map Maker รุ่นใหม่แนบมาเป็น data URI) — โหลดครั้งแรกแล้ววาดแผนที่ใหม่
+    function gameIcon(L, type) {
+        const src = L.icons && L.icons[type];
+        if (!src) return null;
+        L._img = L._img || {};
+        let im = L._img[type];
+        if (!im) {
+            im = L._img[type] = new Image();
+            im.onload = () => { try { redrawMapOnly(); } catch (e) {} };
+            im.src = src;
+        }
+        return im.complete && im.naturalWidth ? im : null;
+    }
+
     function haloText(ctx, text, x, y, fill, halo, lw) {
         ctx.lineJoin = 'round'; ctx.lineWidth = lw; ctx.strokeStyle = halo; ctx.strokeText(text, x, y);
         ctx.fillStyle = fill; ctx.fillText(text, x, y);
@@ -1951,10 +1965,18 @@ const MapLabels = (() => {
 
         if (zoom >= SYMBOL_MIN_ZOOM && L.symbols.length) {
             const halo = (st.symbols && st.symbols.halo) || '#ffffff';
-            const r = zoom >= 0.5 ? 8 : 6.5;
+            // ขนาดไอคอนตามโปรแกรม: size x clamp(sqrt(px ต่อเมตร), 0.45, 2) / 2
+            const r = Math.max(4, ((st.symbols && st.symbols.size) || 22) * Math.min(2, Math.max(0.45, Math.sqrt(zoom))) / 2);
             L.symbols.forEach(sym => {
                 const X = toX(sym.x), Y = toY(sym.z);
-                if (inView(X, Y, r + 2)) drawIcon(ctx, X, Y, r, sym, halo);
+                if (!inView(X, Y, r + 2)) return;
+                const img = gameIcon(L, sym.type);
+                if (img) { const k = 2 * r / (L.icon_px || 64), dw = img.width * k, dh = img.height * k; ctx.drawImage(img, X - dw / 2, Y - dh / 2, dw, dh); }
+                else drawIcon(ctx, X, Y, r, sym, halo);
+                if (st.symbols && st.symbols.show_text && sym.type_label) {      // ป้ายชื่อประเภทข้างไอคอน (ตามที่ตั้งไว้ในโปรแกรม)
+                    ctx.font = `bold ${Math.round(Math.max(8, r * 0.9))}px ${FONT}`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+                    haloText(ctx, sym.type_label, X + r + 3, Y, '#141414', halo, Math.max(1, Math.floor(r / 6)) * 2);
+                }
             });
         }
 

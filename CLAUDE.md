@@ -3,7 +3,7 @@
 เว็บเครื่องคำนวณปืนใหญ่ / ปืนครกสำหรับ **Arma Reforger** — Universal Artillery Calculator Pro Edition
 - เว็บ: https://xsign1995.github.io/Universal-Artillery-Calculator-Pro-Edition/ (GitHub Pages, deploy ด้วย `.github/workflows/static.yml`)
 - Repo: `Xsign1995/Universal-Artillery-Calculator-Pro-Edition` (public) · branch `main`
-- เวอร์ชันล่าสุด: **v3.6.5** (ดู `CHANGELOG.md`)
+- เวอร์ชันล่าสุด: **v3.7.0** (ดู `CHANGELOG.md`)
 - โปรเจกต์เกี่ยวข้อง: `Xsign1995/Enfusion-2D-Map-Maker` (ทำแผนที่ / tiles / heightmap / labels.json ให้เว็บนี้), `Xsign1995/Enfusion-Ballistics-Extractor` (ดึงตารางยิงจากไฟล์เกม / mod)
 
 ## กติกาการทำงานกับผู้ใช้ (Xsign1995)
@@ -34,6 +34,7 @@
 - `MapBackground` (tiles): `ALLOWED_MAPS` ต้องตรงกับ `<option>` ใน `#mapBgSelect` เสมอ · `LOCAL_TILE_MAPS` = แผนที่ใน `maps/` (มี `v` = เวอร์ชัน tile)
 - `MapLabels`, `HeightMap` (Auto Z), `buildTerrain3D()` (พื้น 3D นูน), `loadScriptOnce()`
 - `parseArmaGridValue()`: 3 หลัก = ช่อง 100 m (+50), 4 หลัก = 10 m (+5), 5 หลัก = 1 m, มีทศนิยม = ไม่บวกกลางช่อง · `snapTo10mGrid()`
+- ความคมชัด: `setupHiDPICanvas()` ปรับ backing store ตามขนาดแสดงผล × devicePixelRatio (แผนที่ 2D / กราฟวิถี 2D) · Three.js ต้อง `renderer.setPixelRatio(min(dpr, 2))` ทุกครั้งที่สร้าง / ปรับขนาด (ถ้าไม่ตั้งจะเบลอบนจอ HiDPI) · ห้ามใส่เลเยอร์ fixed เต็มจอ / `mix-blend-mode` ทับหน้า
 - localStorage: `m777_selected_map`, `m777_selected_weapon` (อาวุธ / profile / กระสุนล่าสุด — `restoreWeaponSelection()` ตอนโหลด; อาวุธเริ่มต้น = `m777_howitzer` ของ PandaMods), `m777_map_markers` (แยกตามแผนที่), `m777_memory`, `m777_auto_z`, `m777_map_labels` ฯลฯ — ห่อ try/catch
 
 ## แผนที่
@@ -66,6 +67,7 @@
 - แผนที่ 2D: ทุกกระบอกบนแผนที่, จุดมาร์ค (คลิกขวา 2 ครั้ง / กดค้างบนมือถือ), ป้ายชื่อ (ช่องติ๊ก Labels), ⛰️ Auto Z (เติม Z เมื่อใส่ X/Y, เลือกจุดบนแผนที่, ดึงเป้าจาก FO — ไม่เขียนทับค่า Z จาก Fire History / Target Memory)
 - 3D: พื้นนูนตามความสูงจริงสเกล 1:1 กับวิถี (เฉพาะแผนที่ที่มี heightmap) — เส้นกริดพาดตามพื้น
 - Fire History (บันทึกทุกครั้งที่คำนวณ), Target Memory, FO Spotter, 📡 Counter-Battery, Range Offset, Air Fuze, Min Peak Height, ลม (เวลาอัปเดตรีเซ็ตเฉพาะตอนกด Calculate)
+- กราฟวิถี 2D (`drawTrajectory`, v3.7.0): พื้นดินจากแนวปืน→เป้า (`HeightMap.sample`, ต้องมี heightmap), ตรวจวิถีชนพื้น (ข้าม 40 ม.แรก / 25 ม.สุดท้าย), ซูม / เลื่อน / hover เก็บใน `trajScene` · วิถี 3D โค้งตามลมด้วยเส้นโค้งสะสม `driftFrac` (ไม่ใช่เส้นตรง) · แผนที่ / กราฟกว้างสูงสุด 900 px
 - มือถือ / iPad: กดค้าง 500 ms = เมนู, layout แก้ด้วย `min-width: 0` ที่ grid children (หน้ากว้างเกินจอประมาณ 15 px ที่ 390 px มีอยู่เดิม)
 - สีหลัก: navy `#0f172a`, เขียว `#22c55e`, ฟ้า `#38bdf8`, เหลือง `#eab308`
 

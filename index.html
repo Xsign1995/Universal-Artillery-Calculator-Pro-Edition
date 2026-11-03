@@ -67,22 +67,6 @@
             position: relative;
         }
 
-        body::before {
-            content: "";
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            background: repeating-linear-gradient(
-                to bottom,
-                rgba(255,255,255,0.012) 0px,
-                rgba(255,255,255,0.012) 1px,
-                transparent 1px,
-                transparent 3px
-            );
-            z-index: 1000;
-            mix-blend-mode: overlay;
-        }
-
         .container { display: grid; grid-template-columns: minmax(750px, 1.6fr) minmax(600px, 1fr) 300px; gap: 18px; max-width: 1800px; width: 100%; position: relative; z-index: 1; }
         @media (max-width: 1250px) { .container { grid-template-columns: 1fr; } .map-panel { grid-column: span 1; } }
         @media (max-width: 480px) { .main-calc-layout { grid-template-columns: 1fr !important; } body { padding: 12px 8px 40px; } }
@@ -248,7 +232,7 @@
         .history-empty { grid-column: 1 / -1; text-align: center; color: #64748b; font-size: 13px; padding: 20px; }
 
         canvas { background: #020507; border-radius: 2px; display: block; width: 100%; height: auto; border: 1px solid var(--line); margin-bottom: 15px; }
-        .map-wrapper { position: relative; margin-bottom: 15px; max-width: 600px; margin-left: auto; margin-right: auto; }
+        .map-wrapper { position: relative; margin-bottom: 15px; max-width: 900px; margin-left: auto; margin-right: auto; }
 
         .map-context-menu { position: absolute; z-index: 50; background: rgba(6,10,13, 0.98); border: 1px solid var(--line-bright); border-radius: 3px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); padding: 6px; display: flex; flex-direction: column; gap: 4px; min-width: fit-content; }
         .map-context-btn { margin: 0; padding: 8px 15px; font-size: 13px; text-align: center; border-radius: 2px; background: transparent; color: var(--ink); font-weight: 600; font-family: var(--font-body); cursor: pointer; border: none; text-transform: none; letter-spacing: normal; }
@@ -291,9 +275,9 @@
 
         #graph { aspect-ratio: 1 / 1; cursor: grab; }
         #graph:active { cursor: grabbing; }
-        #trajectoryGraph { aspect-ratio: 16 / 9; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto; }
+        #trajectoryGraph { aspect-ratio: 16 / 9; width: 100%; max-width: 900px; margin-left: auto; margin-right: auto; }
         .graph-title { color: var(--ink-dim); font-family: var(--font-mono); font-size: 12px; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
-        #trajectory3D { aspect-ratio: 16 / 9; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto; background: #020507; border-radius: 2px; border: 1px solid var(--line); overflow: hidden; display: none; }
+        #trajectory3D { aspect-ratio: 16 / 9; width: 100%; max-width: 900px; margin-left: auto; margin-right: auto; background: #020507; border-radius: 2px; border: 1px solid var(--line); overflow: hidden; display: none; }
         .toggle-3d-btn { background: #0e151b; border: 1px solid var(--violet); color: var(--violet); padding: 4px 10px; margin: 0; font-size: 10px; width: auto; border-radius: 2px; text-transform: uppercase; letter-spacing: 0.5px; font-family: var(--font-mono); }
         .toggle-3d-btn.active { background: var(--violet); color: #1a0f2e; box-shadow: 0 0 12px rgba(185, 133, 255, 0.5); }
         .toggle-3d-btn:hover { filter: brightness(1.2); }
@@ -849,17 +833,19 @@ const DOM = (() => {
 
 function getGridScale() { return 1; }
 
-// HiDPI: ขยาย backing store ตาม devicePixelRatio แต่วาดด้วยพิกัดลอจิคัลเดิม
-function setupHiDPICanvas(canvas, logicalW, logicalH, maxDpr = Infinity) {
-    const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
-    const targetW = Math.round(logicalW * dpr);
-    const targetH = Math.round(logicalH * dpr);
+// HiDPI: ขยาย backing store ให้ไม่ต่ำกว่าพิกเซลจริงบนจอ (ขนาดแสดงผล × devicePixelRatio) แต่วาดด้วยพิกัดลอจิคัลเดิม
+function setupHiDPICanvas(canvas, logicalW, logicalH, maxScale = 3) {
+    const dpr = window.devicePixelRatio || 1;
+    const need = ((canvas.clientWidth || 0) * dpr) / logicalW;
+    const scale = Math.min(maxScale, Math.max(1, dpr, need));
+    const targetW = Math.round(logicalW * scale);
+    const targetH = Math.round(logicalH * scale);
     if (canvas.width !== targetW || canvas.height !== targetH) {
         canvas.width = targetW;
         canvas.height = targetH;
     }
     const ctx = canvas.getContext("2d");
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
     return ctx;
 }
 
@@ -1752,11 +1738,18 @@ const MapBackground = (() => {
         return pickBaseZoomLevel(meta.levels, meta.maxZoom);
     }
 
+    // พิกเซลจริงของ canvas ต่อพิกเซลลอจิคัล (จอ 2K / HiDPI ใช้ระดับ tile ที่ละเอียดขึ้นตาม)
+    function renderScale() {
+        const c = typeof mapCanvas !== 'undefined' ? mapCanvas : null;
+        return c && c.width ? c.width / 700 : 1;
+    }
+
     function desiredZoomLevel(meta) {
         let best = 0;
+        const zoom = mapZoom * renderScale();
         for (let z = 0; z <= meta.maxZoom; z++) {
             const pxPerMeter = meta.levels[z].width / meta.width;
-            if (pxPerMeter <= mapZoom * 1.15) best = z;
+            if (pxPerMeter <= zoom * 1.15) best = z;
         }
         return best;
     }
@@ -3133,12 +3126,11 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
             }
         }
 
-        ctx.fillStyle = "rgba(15, 23, 42, 0.25)"; ctx.fillRect(0, 0, w, h);
     }
 
     const drawGrid = (step, color, width) => { ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); for(let gx = Math.floor(viewMinX / step) * step; gx <= viewMaxX; gx += step) { let px = toCanvasX(gx); ctx.moveTo(px, 0); ctx.lineTo(px, h); } for(let gy = Math.floor(viewMinY / step) * step; gy <= viewMaxY; gy += step) { let py = toCanvasY(gy); ctx.moveTo(0, py); ctx.lineTo(w, py); } ctx.stroke(); };
     if (!bgMap) { if (mapZoom > 0.5) drawGrid(10, "#d1cbb8", 1); drawGrid(100, "#b3ab94", 1.5); drawGrid(1000, "#1e293b", 2.0); }
-    else { if (mapZoom > 0.5) drawGrid(10, "rgba(255,255,255,0.06)", 1); drawGrid(100, "rgba(255,255,255,0.12)", 1.5); drawGrid(1000, "rgba(255,255,255,0.25)", 2.0); }
+    else { if (mapZoom > 0.5) drawGrid(10, "rgba(255,255,255,0.06)", 1); if (mapZoom >= 0.18) drawGrid(100, "rgba(255,255,255,0.12)", 1.5); drawGrid(1000, "rgba(255,255,255,0.25)", 2.0); }
 
     if (bgMap) MapLabels.draw(ctx, currentMapKey(), toCanvasX, toCanvasY, w, h, mapZoom);
     drawGridEdgeLabels(ctx, w, h, viewMinX, viewMaxX, viewMinY, viewMaxY, toCanvasX, toCanvasY, mapZoom, bgMap);
@@ -3276,151 +3268,381 @@ function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
     }
 }
 
+// ── Trajectory Profile (2D): พื้นดินจริงตามแนวปืน→เป้า, ซูม/เลื่อน, hover ──
+let trajScene = null;
+let trajLastArgs = null;
+
+function trajNiceStep(range, target) {
+    const raw = Math.max(range, 1) / target;
+    const p = Math.pow(10, Math.floor(Math.log10(raw)));
+    const f = raw / p;
+    return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
+}
+
 function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
     const canvas = DOM["trajectoryGraph"];
     const w = 960, h = 540;
-    const ctx = setupHiDPICanvas(canvas, w, h, 1);
-    
+    const ctx = setupHiDPICanvas(canvas, w, h, 2);
+
     if (window.trajectoryAnimId) { cancelAnimationFrame(window.trajectoryAnimId); window.trajectoryAnimId = null; }
+    trajScene = null;
+    trajLastArgs = [dist, dz, trajLow, trajHigh, milSystem];
     if (!dist || dist <= 0) { ctx.clearRect(0, 0, w, h); return; }
 
-    const hLow = trajLow ? trajLow.peakAlt : 0;
-    const hHigh = trajHigh ? trajHigh.peakAlt : 0;
+    const maxD = dist * 1.15;
+    const cd = (typeof currentCalcData !== 'undefined') ? currentCalcData : null;
+    const mapKey = currentMapKey();
 
-    const rawMinY = Math.min(0, dz);
-    
-    let rawMaxY = 0;
-    if (trajLow && !trajHigh) {
-        rawMaxY = Math.max(hLow, dz, 0);
-    } else {
-        rawMaxY = Math.max(hLow, hHigh, dz, 0);
+    // ความสูงพื้นตามแนวปืน→เป้า (เทียบระดับปืน) — ต้องมี heightmap ของแผนที่
+    let terrainReady = !!(cd && mapKey && HeightMap.isReady(mapKey));
+    if (cd && mapKey && !terrainReady && HeightMap.has(mapKey)) {
+        const args = trajLastArgs;
+        Promise.resolve(HeightMap.load(mapKey)).then(() => {
+            if (trajLastArgs === args && HeightMap.isReady(mapKey)) drawTrajectory(...args);
+        }).catch(() => {});
+    }
+    const terrainAt = (x) => {
+        if (!terrainReady) return null;
+        const t = x / dist;
+        const v = HeightMap.sample(mapKey, cd.gunX + cd.dx * t, cd.gunY + cd.dy * t);
+        return v == null ? null : v - cd.gunZ;
+    };
+    const terrainPts = [];
+    if (terrainReady) {
+        const n = 200;
+        for (let i = 0; i <= n; i++) { const x = maxD * i / n, y = terrainAt(x); if (y != null) terrainPts.push({ x, y }); }
+        if (terrainPts.length < 2) terrainReady = false;
     }
 
-    const marginY = Math.max((rawMaxY - rawMinY) * 0.15, 60); 
-    const minY = rawMinY - (marginY * 0.3); 
-    
-    const maxY = Math.max(rawMaxY + marginY, 150);
-    const rangeY = Math.max(maxY - minY, 150);
-    const maxD = dist * 1.15; 
-    
-    const paddingLeft = 60; const paddingRight = 60; const paddingTop = 45; const paddingBottom = 40;
-    const scaleX = (w - paddingLeft - paddingRight) / maxD;
-    const scaleY = (h - paddingTop - paddingBottom) / rangeY;
-    const toX = (x) => paddingLeft + (x * scaleX);
-    const toY = (y) => h - paddingBottom - ((y - minY) * scaleY);
-
-    const drawAxes = () => {
-        ctx.clearRect(0, 0, w, h);
-        ctx.strokeStyle = "#1e293b"; ctx.lineWidth = 1;
-        let xStep = (dist > 5000) ? 1000 : (dist < 1000 ? 100 : 500);
-        for(let i = 0; i <= maxD; i += xStep) {
-            ctx.beginPath(); ctx.moveTo(toX(i), paddingTop); ctx.lineTo(toX(i), h - paddingBottom); ctx.stroke();
-            ctx.fillStyle = "#94a3b8"; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center"; ctx.fillText(i + "m", toX(i), h - paddingBottom + 18);
-        }
-        let yStep = (rangeY > 2000) ? 1000 : (rangeY < 500 ? 100 : 500);
-        for(let i = Math.floor(minY / yStep) * yStep; i <= Math.ceil(maxY / yStep) * yStep; i += yStep) {
-            if(toY(i) > h - paddingBottom + 10 || toY(i) < paddingTop - 10) continue;
-            ctx.beginPath(); ctx.moveTo(paddingLeft, toY(i)); ctx.lineTo(w - paddingRight, toY(i)); ctx.stroke();
-            ctx.fillStyle = "#94a3b8"; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "right"; ctx.fillText(i + "m", paddingLeft - 8, toY(i) + 4);
-        }
-        ctx.strokeStyle = "#475569"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(paddingLeft, toY(0)); ctx.lineTo(toX(maxD), toY(0)); ctx.stroke();
-        
-        ctx.fillStyle = "#ef4444"; ctx.beginPath(); ctx.arc(toX(dist), toY(dz), 6, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "white"; ctx.font = "12px sans-serif"; ctx.textAlign = "left"; ctx.fillText("TARGET", toX(dist) + 10, toY(dz) + 4);
-        ctx.fillStyle = "#22c55e"; ctx.beginPath(); ctx.arc(toX(0), toY(0), 6, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "white"; ctx.font = "12px sans-serif"; ctx.textAlign = "right"; ctx.fillText("GUN", toX(0) - 12, toY(0) + 4);
-    };
-
-    let pointsLow = trajLow ? getDragSimulatedPoints(trajLow, dist, dz).pts : null;
-    let pointsHigh = trajHigh ? getDragSimulatedPoints(trajHigh, dist, dz).pts : null;
-
-    const maxTof = Math.max(trajLow ? trajLow.tof : 0, trajHigh ? trajHigh.tof : 0);
-    const animDuration = Math.max(1000, Math.min(2500, maxTof * 40)); 
-    const startTime = performance.now();
-
-    const drawCurveProgress = (traj, points, isHigh, progress) => {
-        if (!traj || !points || points.length === 0) return;
-        ctx.beginPath(); ctx.strokeStyle = traj.color; ctx.lineWidth = 3; 
-        ctx.moveTo(toX(points[0].x), toY(points[0].y));
-        
-        let limitIndex = Math.floor((points.length - 1) * progress);
-        
-        if (limitIndex > 0) {
-            for (let i = 1; i < limitIndex; i++) {
-                let pt = points[i];
-                let nextPt = points[i + 1] || pt; 
-                let xc = (toX(pt.x) + toX(nextPt.x)) / 2;
-                let yc = (toY(pt.y) + toY(nextPt.y)) / 2;
-                ctx.quadraticCurveTo(toX(pt.x), toY(pt.y), xc, yc);
-            }
-            ctx.lineTo(toX(points[limitIndex].x), toY(points[limitIndex].y));
-        }
-        ctx.stroke();
-
-        if (progress >= 1) { 
-            let maxIndex = 0;
-            let maxYVal = -Infinity;
-            for (let i = 0; i < points.length; i++) {
-                if (points[i].y > maxYVal) {
-                    maxYVal = points[i].y;
-                    maxIndex = i;
+    // ชุดข้อมูลวิถี (LOW / HIGH)
+    const series = [];
+    const addSeries = (traj, name) => {
+        if (!traj) return;
+        const sim = getDragSimulatedPoints(traj, dist, dz);
+        if (!sim || !sim.pts) return;
+        const pts = sim.pts;
+        let peak = pts[0];
+        pts.forEach(p => { if (p.y > peak.y) peak = p; });
+        const s = { traj, name, pts, peak, hit: null, minClr: null };
+        if (terrainReady) {
+            // ตรวจชนพื้น: ข้ามช่วงใกล้ปืนและช่วงตกลงเป้า 25 ม.
+            const x0 = Math.min(40, dist * 0.05), x1 = dist - 25;
+            for (let i = 1; i < pts.length && !s.hit; i++) {
+                const a = pts[i - 1], b = pts[i];
+                for (let k = 0; k < 4; k++) {
+                    const f = k / 4, x = a.x + (b.x - a.x) * f, y = a.y + (b.y - a.y) * f;
+                    if (x < x0 || x > x1) continue;
+                    const g = terrainAt(x);
+                    if (g == null) continue;
+                    const clr = y - g;
+                    if (s.minClr == null || clr < s.minClr.v) s.minClr = { v: clr, x, y };
+                    if (clr < 0) { s.hit = { x, y }; break; }
                 }
             }
-            let maxPt = points[maxIndex];
+        }
+        series.push(s);
+    };
+    addSeries(trajLow, 'LOW');
+    addSeries(trajHigh, 'HIGH');
+    if (series.length === 0) { ctx.clearRect(0, 0, w, h); return; }
 
-            ctx.fillStyle = traj.color; ctx.beginPath(); ctx.arc(toX(maxPt.x), toY(maxPt.y), 5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = "white"; ctx.font = "bold 16px sans-serif"; ctx.textAlign = "center";
-            // แสดงค่าสูงสุดของเส้นที่วาดจริง ให้ตรงกับจุด marker
-            ctx.fillText(`Max: ${maxYVal.toFixed(0)}m`, toX(maxPt.x), toY(maxPt.y) - 12);
+    const yAtSeries = (s, x) => {
+        const p = s.pts;
+        for (let i = 1; i < p.length; i++) if (p[i].x >= x) {
+            const a = p[i - 1], b = p[i], f = b.x > a.x ? (x - a.x) / (b.x - a.x) : 0;
+            return { y: a.y + (b.y - a.y) * f, t: (a.t_norm + (b.t_norm - a.t_norm) * f) * s.traj.tof };
+        }
+        return null;
+    };
 
-            if (traj.alt100m !== null) {
-                let x100 = dist - 100;
-                let y100 = dz + traj.alt100m;
-                ctx.fillStyle = "#a855f7"; ctx.beginPath(); ctx.arc(toX(x100), toY(y100), 4, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = "#e9d5ff"; ctx.font = "14px sans-serif"; ctx.textAlign = "right";
-                ctx.fillText(`Alt @100m: ${traj.alt100m.toFixed(1)}m`, toX(x100) - 8, toY(y100));
+    // ── legend (บนกราฟ) ──
+    const fuzeSrc = series.find(s => s.traj.fuzeY !== undefined);
+    const legendRows = series.length + (fuzeSrc ? 1 : 0);
+    const pl = 64, pr = 36, pb = 40, pt = 14 + legendRows * 20 + 8;
+    const plotW = w - pl - pr, plotH = h - pt - pb;
+
+    let vx0 = 0, vx1 = maxD;
+    let minY = 0, maxY = 1;
+    const fitY = () => {
+        let lo = Math.min(0, dz), hi = Math.max(0, dz);
+        const acc = (p) => { if (p.x >= vx0 && p.x <= vx1) { if (p.y < lo) lo = p.y; if (p.y > hi) hi = p.y; } };
+        series.forEach(s => s.pts.forEach(acc));
+        terrainPts.forEach(acc);
+        const span = Math.max(hi - lo, 100);
+        minY = lo - span * 0.08;
+        maxY = hi + span * 0.15;
+        if (maxY - minY < 150) maxY = minY + 150;
+    };
+    fitY();
+
+    const toX = (x) => pl + (x - vx0) / (vx1 - vx0) * plotW;
+    const toY = (y) => pt + plotH - (y - minY) / (maxY - minY) * plotH;
+    const inPlotX = (x) => x >= vx0 && x <= vx1;
+
+    const pill = (text, x, y, color, align, font) => {
+        ctx.font = font || "bold 13px sans-serif";
+        const tw = ctx.measureText(text).width;
+        const bx = align === 'right' ? x - tw : align === 'left' ? x : x - tw / 2;
+        ctx.fillStyle = "rgba(2,5,7,0.78)"; ctx.fillRect(bx - 4, y - 12, tw + 8, 17);
+        ctx.fillStyle = color; ctx.textAlign = "left"; ctx.fillText(text, bx, y);
+    };
+
+    let hoverX = null;
+    const prog = series.map(() => 0);
+    let animDone = false;
+
+    const drawCurve = (s, progress) => {
+        const pts = s.pts;
+        ctx.beginPath(); ctx.strokeStyle = s.traj.color; ctx.lineWidth = 3; ctx.lineJoin = "round";
+        ctx.moveTo(toX(pts[0].x), toY(pts[0].y));
+        const limit = Math.floor((pts.length - 1) * progress);
+        if (limit > 0) {
+            for (let i = 1; i < limit; i++) {
+                const p = pts[i], q = pts[i + 1] || p;
+                ctx.quadraticCurveTo(toX(p.x), toY(p.y), (toX(p.x) + toX(q.x)) / 2, (toY(p.y) + toY(q.y)) / 2);
             }
+            ctx.lineTo(toX(pts[limit].x), toY(pts[limit].y));
+        }
+        ctx.stroke();
+    };
 
-            if (traj.fuzeX !== undefined && traj.fuzeY !== undefined) {
-                let bX = toX(traj.fuzeX);
-                let bY = toY(traj.fuzeY);
+    const render = () => {
+        ctx.clearRect(0, 0, w, h);
+        ctx.textBaseline = "alphabetic";
+
+        // legend
+        let ly = 24;
+        series.forEach(s => {
+            const t = s.traj;
+            ctx.strokeStyle = t.color; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(pl, ly - 4); ctx.lineTo(pl + 26, ly - 4); ctx.stroke();
+            ctx.font = "bold 13px 'JetBrains Mono', monospace"; ctx.textAlign = "left"; ctx.fillStyle = "#e2e8f0";
+            let txt = `${s.name} ANGLE  ToF ${t.tof.toFixed(1)}s  Max ${s.peak.y.toFixed(0)}m  ∠${(t.angleImpact || 0).toFixed(0)}°`;
+            ctx.fillText(txt, pl + 34, ly);
+            let xx = pl + 34 + ctx.measureText(txt).width + 12;
+            if (terrainReady) {
+                if (s.hit) { ctx.fillStyle = "#ef4444"; ctx.fillText(`⚠ HITS TERRAIN @ ${s.hit.x.toFixed(0)}m`, xx, ly); }
+                else if (s.minClr) { ctx.fillStyle = s.minClr.v < 15 ? "#eab308" : "#22c55e"; ctx.fillText(`Clear ${s.minClr.v.toFixed(0)}m`, xx, ly); }
+            }
+            ly += 20;
+        });
+        if (fuzeSrc) {
+            const parts = [];
+            if (trajLow && trajLow.fuzeTime != null) parts.push(`LO ${trajLow.fuzeTime.toFixed(1)}s`);
+            if (trajHigh && trajHigh.fuzeTime != null) parts.push(`HI ${trajHigh.fuzeTime.toFixed(1)}s`);
+            ctx.fillStyle = "#ef4444"; ctx.font = "bold 13px 'JetBrains Mono', monospace"; ctx.textAlign = "left";
+            ctx.fillText(`💥 AIR FUZE +${(fuzeSrc.traj.fuzeY - dz).toFixed(0)}m above target (✕)   ${parts.join("  ·  ")}`, pl, ly);
+        }
+
+        // grid + แกน
+        const xStep = trajNiceStep(vx1 - vx0, 8), yStep = trajNiceStep(maxY - minY, 6);
+        ctx.font = "bold 11px sans-serif";
+        ctx.strokeStyle = "#1e293b"; ctx.lineWidth = 1; ctx.fillStyle = "#94a3b8";
+        for (let i = Math.ceil(vx0 / xStep) * xStep; i <= vx1 + 1e-6; i += xStep) {
+            ctx.beginPath(); ctx.moveTo(toX(i), pt); ctx.lineTo(toX(i), pt + plotH); ctx.stroke();
+            ctx.textAlign = "center"; ctx.fillText(i + "m", toX(i), pt + plotH + 16);
+        }
+        for (let i = Math.ceil(minY / yStep) * yStep; i <= maxY + 1e-6; i += yStep) {
+            ctx.beginPath(); ctx.moveTo(pl, toY(i)); ctx.lineTo(pl + plotW, toY(i)); ctx.stroke();
+            ctx.textAlign = "right"; ctx.fillText(i + "m", pl - 8, toY(i) + 4);
+        }
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(pl, pt - 2, plotW, plotH + 4); ctx.clip();
+
+        // พื้นดิน
+        if (terrainReady) {
+            const bottom = pt + plotH + 2;
+            let run = [];
+            const flush = () => {
+                if (run.length > 1) {
+                    ctx.beginPath(); ctx.moveTo(toX(run[0].x), bottom);
+                    run.forEach(p => ctx.lineTo(toX(p.x), toY(p.y)));
+                    ctx.lineTo(toX(run[run.length - 1].x), bottom); ctx.closePath();
+                    ctx.fillStyle = "rgba(92,70,40,0.55)"; ctx.fill();
+                    ctx.beginPath(); run.forEach((p, i) => i ? ctx.lineTo(toX(p.x), toY(p.y)) : ctx.moveTo(toX(p.x), toY(p.y)));
+                    ctx.strokeStyle = "#b8975f"; ctx.lineWidth = 2; ctx.stroke();
+                }
+                run = [];
+            };
+            terrainPts.forEach(p => run.push(p));
+            flush();
+        }
+        // ระดับปืน
+        ctx.setLineDash([6, 5]); ctx.strokeStyle = "#475569"; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(pl, toY(0)); ctx.lineTo(pl + plotW, toY(0)); ctx.stroke(); ctx.setLineDash([]);
+
+        series.forEach((s, i) => drawCurve(s, prog[i]));
+        ctx.restore();
+
+        // GUN / TARGET
+        if (inPlotX(0)) {
+            ctx.fillStyle = "#22c55e"; ctx.beginPath(); ctx.arc(toX(0), toY(0), 6, 0, Math.PI * 2); ctx.fill();
+            pill("GUN", toX(0) + 10, toY(0) + 22, "#86efac", 'left', "bold 12px sans-serif");
+        }
+        if (inPlotX(dist)) {
+            ctx.fillStyle = "#ef4444"; ctx.beginPath(); ctx.arc(toX(dist), toY(dz), 6, 0, Math.PI * 2); ctx.fill();
+            pill("TARGET", toX(dist) + 10, toY(dz) + 4, "#ffffff", 'left', "bold 12px sans-serif");
+        }
+
+        // รายละเอียดเมื่อวาดครบ
+        let altRow = 0;
+        series.forEach((s, i) => {
+            if (prog[i] < 1) return;
+            const t = s.traj;
+            if (inPlotX(s.peak.x)) {
+                ctx.fillStyle = t.color; ctx.beginPath(); ctx.arc(toX(s.peak.x), toY(s.peak.y), 5, 0, Math.PI * 2); ctx.fill();
+                const above = toY(s.peak.y) - 16 > pt + 6;
+                pill(`Max ${s.peak.y.toFixed(0)}m`, toX(s.peak.x), above ? toY(s.peak.y) - 12 : toY(s.peak.y) + 24, "#ffffff", 'center', "bold 13px sans-serif");
+            }
+            if (t.alt100m !== null && t.alt100m !== undefined) {
+                const x100 = dist - 100, y100 = dz + t.alt100m;
+                if (inPlotX(x100)) {
+                    ctx.fillStyle = "#a855f7"; ctx.beginPath(); ctx.arc(toX(x100), toY(y100), 4, 0, Math.PI * 2); ctx.fill();
+                    pill(`${s.name} @100m: ${t.alt100m.toFixed(1)}m`, toX(x100) - 8, toY(y100) - 8 - altRow * 19, "#e9d5ff", 'right', "13px sans-serif");
+                    altRow++;
+                }
+            }
+            if (t.fuzeX !== undefined && t.fuzeY !== undefined && inPlotX(t.fuzeX)) {
+                const bX = toX(t.fuzeX), bY = toY(t.fuzeY);
+                const gY = terrainAt(t.fuzeX);
+                ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(239,68,68,0.8)"; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.moveTo(bX, bY); ctx.lineTo(bX, toY(gY != null ? gY : dz)); ctx.stroke(); ctx.setLineDash([]);
                 ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.moveTo(bX - 6, bY - 6); ctx.lineTo(bX + 6, bY + 6);
-                ctx.moveTo(bX + 6, bY - 6); ctx.lineTo(bX - 6, bY + 6);
-                ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(bX - 6, bY - 6); ctx.lineTo(bX + 6, bY + 6); ctx.moveTo(bX + 6, bY - 6); ctx.lineTo(bX - 6, bY + 6); ctx.stroke();
+                pill(`+${(t.fuzeY - dz).toFixed(0)}m`, bX + 10, bY - 8, "#fca5a5", 'left', "bold 12px sans-serif");
             }
+            if (s.hit && inPlotX(s.hit.x)) {
+                const hx = toX(s.hit.x), hy = toY(s.hit.y);
+                ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.arc(hx, hy, 9, 0, Math.PI * 2); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(hx - 6, hy - 6); ctx.lineTo(hx + 6, hy + 6); ctx.moveTo(hx + 6, hy - 6); ctx.lineTo(hx - 6, hy + 6); ctx.stroke();
+            }
+        });
+
+        // hint
+        ctx.font = "10px sans-serif"; ctx.fillStyle = "#475569"; ctx.textAlign = "left";
+        ctx.fillText(terrainReady ? "Heights relative to gun · terrain along gun→target" : "Heights relative to gun · no terrain data for this map", pl, h - 6);
+        ctx.textAlign = "right"; ctx.fillText("wheel = zoom · drag = pan · double-click = reset", w - pr, h - 6);
+
+        // hover
+        if (hoverX != null && hoverX >= pl && hoverX <= pl + plotW) {
+            const x = vx0 + (hoverX - pl) / plotW * (vx1 - vx0);
+            ctx.strokeStyle = "rgba(226,232,240,0.5)"; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+            ctx.beginPath(); ctx.moveTo(hoverX, pt); ctx.lineTo(hoverX, pt + plotH); ctx.stroke(); ctx.setLineDash([]);
+            const lines = [{ t: `Dist ${x.toFixed(0)} m`, c: "#e2e8f0" }];
+            const g = terrainAt(x);
+            if (g != null) {
+                lines.push({ t: `Ground ${g >= 0 ? "+" : ""}${g.toFixed(0)} m`, c: "#d4b483" });
+                ctx.fillStyle = "#b8975f"; ctx.beginPath(); ctx.arc(hoverX, toY(g), 4, 0, Math.PI * 2); ctx.fill();
+            }
+            series.forEach(s => {
+                const r = yAtSeries(s, x);
+                if (!r) return;
+                ctx.fillStyle = s.traj.color; ctx.beginPath(); ctx.arc(hoverX, toY(r.y), 4.5, 0, Math.PI * 2); ctx.fill();
+                lines.push({ t: `${s.name}  h ${r.y >= 0 ? "+" : ""}${r.y.toFixed(0)}m${g != null ? `  clr ${(r.y - g).toFixed(0)}m` : ""}  t ${r.t.toFixed(1)}s`, c: s.traj.color });
+            });
+            ctx.font = "bold 12px 'JetBrains Mono', monospace";
+            const bw = Math.max(...lines.map(l => ctx.measureText(l.t).width)) + 16, bh = lines.length * 18 + 10;
+            let bx = hoverX + 14; if (bx + bw > w - 4) bx = hoverX - bw - 14;
+            const by = pt + 8;
+            ctx.fillStyle = "rgba(6,10,13,0.92)"; ctx.fillRect(bx, by, bw, bh);
+            ctx.strokeStyle = "#334155"; ctx.lineWidth = 1; ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+            ctx.textAlign = "left";
+            lines.forEach((l, i) => { ctx.fillStyle = l.c; ctx.fillText(l.t, bx + 8, by + 18 + i * 18); });
         }
     };
 
-    const drawFuzeSummary = () => {
-        const parts = [];
-        if (trajLow && trajLow.fuzeTime != null) parts.push(`LO ${trajLow.fuzeTime.toFixed(1)}s`);
-        if (trajHigh && trajHigh.fuzeTime != null) parts.push(`HI ${trajHigh.fuzeTime.toFixed(1)}s`);
-        if (parts.length === 0) return;
-        const t = trajLow && trajLow.fuzeY !== undefined ? trajLow : trajHigh;
-        ctx.save(); ctx.fillStyle = "#ef4444"; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "left";
-        ctx.fillText(`💥 AIR FUZE ${(t.fuzeY - dz).toFixed(0)}m (✕)   ${parts.join("  ·  ")}`, paddingLeft + 8, 24);
-        ctx.restore();
+    // animation
+    const maxTof = Math.max(...series.map(s => s.traj.tof));
+    const animDuration = Math.max(1000, Math.min(2500, maxTof * 40));
+    const startTime = performance.now();
+    const stopAnim = () => {
+        if (window.trajectoryAnimId) { cancelAnimationFrame(window.trajectoryAnimId); window.trajectoryAnimId = null; }
+        if (!animDone) { animDone = true; prog.fill(1); }
+    };
+    const frame = (now) => {
+        const el = now - startTime;
+        series.forEach((s, i) => { prog[i] = Math.min(el / ((s.traj.tof / maxTof) * animDuration), 1); });
+        render();
+        if (prog.some(p => p < 1)) window.trajectoryAnimId = requestAnimationFrame(frame);
+        else { window.trajectoryAnimId = null; animDone = true; }
     };
 
-    const animateFrame = (now) => {
-        let elapsed = now - startTime;
-        let pLow = trajLow ? Math.min(elapsed / ((trajLow.tof / maxTof) * animDuration), 1) : 1;
-        let pHigh = trajHigh ? Math.min(elapsed / ((trajHigh.tof / maxTof) * animDuration), 1) : 1;
-        
-        drawAxes();
-        if (trajLow) drawCurveProgress(trajLow, pointsLow, false, pLow);
-        if (trajHigh) drawCurveProgress(trajHigh, pointsHigh, true, pHigh);
-        if (pLow >= 1 && pHigh >= 1) drawFuzeSummary();
-
-        if (pLow < 1 || pHigh < 1) { window.trajectoryAnimId = requestAnimationFrame(animateFrame); } 
+    const clampView = () => {
+        const minSpan = Math.min(100, maxD);
+        let span = Math.min(Math.max(vx1 - vx0, minSpan), maxD);
+        if (vx0 < 0) vx0 = 0;
+        if (vx0 + span > maxD) vx0 = maxD - span;
+        vx1 = vx0 + span;
     };
-    window.trajectoryAnimId = requestAnimationFrame(animateFrame);
+    trajScene = {
+        pl, plotW,
+        stopAnim: () => { stopAnim(); },
+        setHover: (mx) => { hoverX = mx; stopAnim(); render(); },
+        zoom: (mx, factor) => {
+            stopAnim();
+            const cx = vx0 + (Math.min(Math.max(mx, pl), pl + plotW) - pl) / plotW * (vx1 - vx0);
+            vx0 = cx - (cx - vx0) * factor; vx1 = cx + (vx1 - cx) * factor;
+            clampView(); fitY(); render();
+        },
+        pan: (dxLogical) => {
+            const d = dxLogical / plotW * (vx1 - vx0);
+            vx0 -= d; vx1 -= d; clampView(); fitY(); render();
+        },
+        reset: () => { vx0 = 0; vx1 = maxD; fitY(); render(); },
+        zoomed: () => vx1 - vx0 < maxD - 1,
+    };
+    window.trajectoryAnimId = requestAnimationFrame(frame);
 }
 
+(function initTrajectoryInteraction() {
+    const cv = DOM["trajectoryGraph"];
+    if (!cv) return;
+    cv.style.touchAction = 'pan-y';
+    let drag = null;
+    const px = (e) => { const r = cv.getBoundingClientRect(); return (e.clientX - r.left) * 960 / r.width; };
+    cv.addEventListener('pointerdown', (e) => {
+        if (!trajScene) return;
+        trajScene.stopAnim();
+        drag = { x: px(e) };
+        try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    cv.addEventListener('pointermove', (e) => {
+        if (!trajScene) return;
+        const x = px(e);
+        if (drag && trajScene.zoomed() && e.pointerType === 'mouse' && (e.buttons & 1)) { trajScene.pan(x - drag.x); drag.x = x; }
+        trajScene.setHover(x);
+    });
+    const up = () => { drag = null; };
+    cv.addEventListener('pointerup', up);
+    cv.addEventListener('pointercancel', up);
+    cv.addEventListener('pointerleave', (e) => { if (trajScene && e.pointerType === 'mouse') trajScene.setHover(null); });
+    cv.addEventListener('wheel', (e) => {
+        if (!trajScene) return;
+        e.preventDefault();
+        trajScene.zoom(px(e), e.deltaY > 0 ? 1.25 : 0.8);
+    }, { passive: false });
+    cv.addEventListener('dblclick', () => { if (trajScene) trajScene.reset(); });
+})();
+
 let scene, camera, renderer, controls;
-let animationFrameId = null; let dynamicCurves = []; 
+let animationFrameId = null; let dynamicCurves = []; let anim3D = { items: [] };
+function tickAnim3D() {
+    if (!anim3D.items.length) return;
+    const el = performance.now() - anim3D.start;
+    let allDone = true;
+    anim3D.items.forEach(it => {
+        if (it.done) return;
+        const p = Math.min(el / ((it.tof / anim3D.maxTof) * anim3D.dur), 1);
+        const k = Math.max(1, Math.round((it.pts.length - 1) * p) + 1);
+        it.line.geometry.setDrawRange(0, k);
+        it.shell.position.copy(it.pts[k - 1]);
+        if (p >= 1) { it.done = true; it.shell.visible = false; it.late.forEach(o => { o.visible = true; }); } else allDone = false;
+    });
+    if (allDone) anim3D.items = [];
+}
+
 let gunMesh3D, targetMesh3D, poleMesh3D, gunLabel3D, targetLabel3D;
 let groundPlane3D = null; let groundPlaneMapName = null;
 let dynamicLabels3D = [];
@@ -3596,6 +3818,7 @@ function updateGroundPlane3D(gunX, gunY) {
 function animate3D() {
     if (!is3DMode) return; 
     animationFrameId = requestAnimationFrame(animate3D);
+    tickAnim3D();
     if (controls) controls.update(); if (renderer && scene && camera) renderer.render(scene, camera);
 }
 
@@ -3604,7 +3827,7 @@ function toggleViewMode() {
     const container3D = DOM['trajectory3D']; const graph2D = DOM['trajectoryGraph'];
     if (is3DMode) {
         graph2D.style.display = 'none'; container3D.style.display = 'block'; btn.innerText = 'SWITCH TO 2D VIEW'; btn.classList.add('active');
-        if (!renderer) init3D(); else { camera.aspect = container3D.clientWidth / container3D.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(container3D.clientWidth, container3D.clientHeight); }
+        if (!renderer) init3D(); else { camera.aspect = container3D.clientWidth / container3D.clientHeight; camera.updateProjectionMatrix(); renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setSize(container3D.clientWidth, container3D.clientHeight); }
         update3DScene(); animate3D(); 
     } else {
         graph2D.style.display = 'block'; container3D.style.display = 'none'; btn.innerText = 'SWITCH TO 3D VIEW'; btn.classList.remove('active');
@@ -3616,11 +3839,11 @@ function init3D() {
     const container = DOM['trajectory3D'];
     scene = new THREE.Scene(); scene.background = new THREE.Color('#020617');
     camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 5, 100000);
-    renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true }); renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true }); renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
     controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = 0.05;
     scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-    window.addEventListener('resize', () => { if (!is3DMode) return; camera.aspect = container.clientWidth / container.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(container.clientWidth, container.clientHeight); });
+    window.addEventListener('resize', () => { if (!is3DMode) return; camera.aspect = container.clientWidth / container.clientHeight; camera.updateProjectionMatrix(); renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setSize(container.clientWidth, container.clientHeight); });
 }
 
 let tacticalGridGroup3D = null;
@@ -3726,9 +3949,11 @@ function update3DScene() {
         const deflRad = deflMil * (Math.PI / halfMil);
         const totalDriftMeters = (windSpeed > 0) ? dist * Math.tan(deflRad) : 0;
         const perpX = Math.cos(aimRad), perpY = -Math.sin(aimRad);
-        const windDeflectXY = (bx) => {
-            const frac = dist > 0 ? (bx / dist) : 0;
-            const drift = frac * totalDriftMeters;
+        // ลมเริ่มดันกระสุนตอนเร็วลดลง → ระยะเบี่ยงสะสมแบบโค้ง (เริ่มช้า ปลายเร็ว) ไม่ใช่เส้นตรง
+        const TAU = 0.35, driftNorm = 1 - TAU * (1 - Math.exp(-1 / TAU));
+        const driftFrac = (tn) => (tn - TAU * (1 - Math.exp(-tn / TAU))) / driftNorm;
+        const windDeflectXY = (bx, tn) => {
+            const drift = driftFrac(tn) * totalDriftMeters;
             return { x: bx * Math.sin(aimRad) - drift * perpX, y: bx * Math.cos(aimRad) - drift * perpY };
         };
 
@@ -3739,7 +3964,7 @@ function update3DScene() {
         for(let i=0; i<simPts.length; i++) {
             let bx = simPts[i].x;
             let by = simPts[i].y;
-            const { x: endX, y: endY } = windDeflectXY(bx);
+            const { x: endX, y: endY } = windDeflectXY(bx, simPts[i].t_norm);
             
             if (by > maxH) { maxH = by; maxHIndex = i; }
             points.push(new THREE.Vector3(endX, by, -endY)); 
@@ -3753,6 +3978,7 @@ function update3DScene() {
         const lineMesh = new THREE.Line(new THREE.BufferGeometry().setFromPoints(smoothPoints), new THREE.LineBasicMaterial({ color: colorCode, linewidth: 2 }));
         lineMesh.renderOrder = 1;
         scene.add(lineMesh); dynamicCurves.push(lineMesh);
+        const lateFrom = [dynamicCurves.length, dynamicLabels3D.length];
         
         const dropMat = new THREE.LineBasicMaterial({ color: colorCode, opacity: 0.15, transparent: true });
         for(let i=10; i<smoothPoints.length; i+=10) {
@@ -3769,7 +3995,7 @@ function update3DScene() {
             const targetRangeFrac = (dist - 100) / dist;
             const idx100 = Math.min(simPts.length - 1, Math.round(targetRangeFrac * (simPts.length - 1)));
             const bx100 = simPts[idx100].x;
-            const { x: x100, y: y100 } = windDeflectXY(bx100);
+            const { x: x100, y: y100 } = windDeflectXY(bx100, simPts[idx100].t_norm);
             const z100 = dz + trajInfo.alt100m;
             const alt100Point = new THREE.Vector3(x100, z100, -y100);
 
@@ -3787,7 +4013,7 @@ function update3DScene() {
             const fuzeFrac = trajInfo.fuzeX / dist;
             const idxFuze = Math.min(simPts.length - 1, Math.round(fuzeFrac * (simPts.length - 1)));
             const bxFuze = simPts[idxFuze].x;
-            const { x: xFuze, y: yFuze } = windDeflectXY(bxFuze);
+            const { x: xFuze, y: yFuze } = windDeflectXY(bxFuze, simPts[idxFuze].t_norm);
             const fuzePoint = new THREE.Vector3(xFuze, trajInfo.fuzeY, -yFuze);
 
             const matX = new THREE.LineBasicMaterial({ color: 0xef4444, linewidth: 3 });
@@ -3804,11 +4030,21 @@ function update3DScene() {
             addLabel(createDataLabelSprite([`💥 FUZE: ${(trajInfo.fuzeY - dz).toFixed(0)}m`], "#fca5a5"), new THREE.Vector3(fuzePoint.x, fuzePoint.y + labelScale * 0.4, fuzePoint.z), labelScale * 0.32);
         }
 
+        // อนิเมชันกระสุนบิน: เส้นค่อยๆ ยาวตาม ToF, รายละเอียด (ป้าย / จุด) โผล่ตอนถึงเป้า
+        const late = dynamicCurves.slice(lateFrom[0]).concat(dynamicLabels3D.slice(lateFrom[1]));
+        late.forEach(o => { o.visible = false; });
+        const shell = new THREE.Mesh(new THREE.SphereGeometry(markerScale * 0.6, 12, 12), new THREE.MeshBasicMaterial({ color: colorCode }));
+        shell.renderOrder = 2; scene.add(shell); dynamicCurves.push(shell);
+        lineMesh.geometry.setDrawRange(0, 0);
+        anim3D.items.push({ line: lineMesh, pts: smoothPoints, tof: trajInfo.tof, late, shell });
+
         return maxH;
     };
 
+    anim3D = { start: performance.now(), items: [] };
     let maxH_Low = buildCurve3D(low); const maxH_High = buildCurve3D(high); 
     const overAllMaxH = Math.max(maxH_Low || 0, maxH_High || 0, Math.abs(dz), 500);
+    { const mt = Math.max(1, ...anim3D.items.map(i => i.tof)); anim3D.dur = Math.max(1000, Math.min(2500, mt * 40)); anim3D.maxTof = mt; }
     controls.target.set(dx/2, dz/2, -dy/2); 
     camera.position.set(dx/2 + dist*0.8, overAllMaxH * 0.8, -dy/2 + dist*0.8); controls.update();
 }

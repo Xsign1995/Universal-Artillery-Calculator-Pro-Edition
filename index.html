@@ -834,10 +834,11 @@ const DOM = (() => {
 function getGridScale() { return 1; }
 
 // HiDPI: ขยาย backing store ให้ไม่ต่ำกว่าพิกเซลจริงบนจอ (ขนาดแสดงผล × devicePixelRatio) แต่วาดด้วยพิกัดลอจิคัลเดิม
-function setupHiDPICanvas(canvas, logicalW, logicalH, maxScale = 3) {
+// minScale 2 = วาดละเอียดเป็นสองเท่าเสมอ แม้จอ dpr 1 / สเกลเศษ (เช่น 1.14) ให้เบราว์เซอร์ย่อลงแล้วคมกว่า
+function setupHiDPICanvas(canvas, logicalW, logicalH, maxScale = 3, minScale = 1) {
     const dpr = window.devicePixelRatio || 1;
     const need = ((canvas.clientWidth || 0) * dpr) / logicalW;
-    const scale = Math.min(maxScale, Math.max(1, dpr, need));
+    const scale = Math.min(maxScale, Math.max(minScale, dpr, need));
     const targetW = Math.round(logicalW * scale);
     const targetH = Math.round(logicalH * scale);
     if (canvas.width !== targetW || canvas.height !== targetH) {
@@ -3034,7 +3035,7 @@ function drawGridEdgeLabels(ctx, w, h, viewMinX, viewMaxX, viewMinY, viewMaxY, t
 
 function drawGraph(x1, y1, x2, y2, windSpeed, windDirDeg, multiGunInfo) {
     const w = 700, h = 700;
-    const ctx = setupHiDPICanvas(mapCanvas, w, h);
+    const ctx = setupHiDPICanvas(mapCanvas, w, h, 3, 2);
     const bgMap = MapBackground.getCurrent();
     if (!bgMap) { ctx.fillStyle = "#e6e1cd"; ctx.fillRect(0, 0, w, h); }
     const padding = 60;
@@ -3282,7 +3283,7 @@ function trajNiceStep(range, target) {
 function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
     const canvas = DOM["trajectoryGraph"];
     const w = 960, h = 540;
-    const ctx = setupHiDPICanvas(canvas, w, h, 2);
+    const ctx = setupHiDPICanvas(canvas, w, h, 2, 2);
 
     if (window.trajectoryAnimId) { cancelAnimationFrame(window.trajectoryAnimId); window.trajectoryAnimId = null; }
     trajScene = null;

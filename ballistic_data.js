@@ -6546,9 +6546,9 @@ const BALLISTIC_TABLES = {
             ]
         }
     },
-    // ---------- 82mm O-832DU HE — Fire — 2B9 Vasilek (2B9 Vasilek 1.6.1) ----------
+    // ---------- 82mm O-832DU HE — Fire — 2B9 Vasilek (Tactical Flava 1.6.1) ----------
     "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_he_o832du_2b9_fire": {
-        source: {"mod": "2B9 Vasilek", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
+        source: {"mod": "Tactical Flava", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
         gun: {"name": "2B9 Vasilek", "prefab": "Prefabs/Weapons/Core/Turret_2B9.et", "type": "howitzer", "milSystem": 6000, "elevDeg": [-1.0, 68.0], "limits": {"minElev": -17, "maxElev": 1133}},
         ammo: {"name": "82mm O-832DU HE — Fire", "prefab": "Prefabs/Weapons/Ammo/2B9/TF_Ammo_Shell_82mm_HE_O832DU_2B9_Fire.et", "v0": 76.0, "airDrag": 0.000615, "mass": 3.1, "gameTable": "Configs/Weapons/Ammo/O832DU_Shell_82mm_HE.conf"},
         chargeOrigin: "ring",
@@ -6727,9 +6727,9 @@ const BALLISTIC_TABLES = {
             ]
         }
     },
-    // ---------- 82mm O-832DU HE — DFire — 2B9 Vasilek (2B9 Vasilek 1.6.1) ----------
+    // ---------- 82mm O-832DU HE — DFire — 2B9 Vasilek (Tactical Flava 1.6.1) ----------
     "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_he_o832du_2b9_dfire": {
-        source: {"mod": "2B9 Vasilek", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
+        source: {"mod": "Tactical Flava", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
         gun: {"name": "2B9 Vasilek", "prefab": "Prefabs/Weapons/Core/Turret_2B9.et", "type": "howitzer", "milSystem": 6000, "elevDeg": [-1.0, 68.0], "limits": {"minElev": -17, "maxElev": 1133}},
         ammo: {"name": "82mm O-832DU HE — DFire", "prefab": "Prefabs/Weapons/Ammo/2B9/TF_Ammo_Shell_82mm_HE_O832DU_2B9_DFire.et", "v0": 76.0, "airDrag": 0.000615, "mass": 3.1, "gameTable": "Configs/Weapons/AIBallisticTables/2B9/O832DU_Shell_82mm_HE_DFire.conf"},
         chargeOrigin: "ring",
@@ -6908,9 +6908,9 @@ const BALLISTIC_TABLES = {
             ]
         }
     },
-    // ---------- 82mm O-832DU HE — NonRPL — 2B9 Vasilek (2B9 Vasilek 1.6.1) ----------
+    // ---------- 82mm O-832DU HE — NonRPL — 2B9 Vasilek (Tactical Flava 1.6.1) ----------
     "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_he_o832du_2b9_nonrpl": {
-        source: {"mod": "2B9 Vasilek", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
+        source: {"mod": "Tactical Flava", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
         gun: {"name": "2B9 Vasilek", "prefab": "Prefabs/Weapons/Core/Turret_2B9.et", "type": "howitzer", "milSystem": 6000, "elevDeg": [-1.0, 68.0], "limits": {"minElev": -17, "maxElev": 1133}},
         ammo: {"name": "82mm O-832DU HE — NonRPL", "prefab": "Prefabs/Weapons/Ammo/2B9/TF_Ammo_Shell_82mm_HE_O832DU_2B9_NonRPL.et", "v0": 76.0, "airDrag": 0.000615, "mass": 3.1, "gameTable": "Configs/Weapons/AIBallisticTables/2B9/O832DU_Shell_82mm_HE_MFire.conf"},
         chargeOrigin: "ring",
@@ -7089,9 +7089,9 @@ const BALLISTIC_TABLES = {
             ]
         }
     },
-    // ---------- 82mm D-832DU Smoke — Fire — 2B9 Vasilek (2B9 Vasilek 1.6.1) ----------
+    // ---------- 82mm D-832DU Smoke — Fire — 2B9 Vasilek (Tactical Flava 1.6.1) ----------
     "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_smoke_d832du_2b9_fire": {
-        source: {"mod": "2B9 Vasilek", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
+        source: {"mod": "Tactical Flava", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
         gun: {"name": "2B9 Vasilek", "prefab": "Prefabs/Weapons/Core/Turret_2B9.et", "type": "howitzer", "milSystem": 6000, "elevDeg": [-1.0, 68.0], "limits": {"minElev": -17, "maxElev": 1133}},
         ammo: {"name": "82mm D-832DU Smoke — Fire", "prefab": "Prefabs/Weapons/Ammo/2B9/TF_Ammo_Shell_82mm_Smoke_D832DU_2B9_Fire.et", "v0": 71.0, "airDrag": 0.000655, "mass": 3.48, "gameTable": "Configs/Weapons/Ammo/D832DU_Shell_82mm_Smoke.conf"},
         chargeOrigin: "ring",
@@ -7205,9 +7205,9 @@ const BALLISTIC_TABLES = {
             ]
         }
     },
-    // ---------- 82mm D-832DU Smoke — DFire — 2B9 Vasilek (2B9 Vasilek 1.6.1) ----------
+    // ---------- 82mm D-832DU Smoke — DFire — 2B9 Vasilek (Tactical Flava 1.6.1) ----------
     "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_smoke_d832du_2b9_dfire": {
-        source: {"mod": "2B9 Vasilek", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
+        source: {"mod": "Tactical Flava", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
         gun: {"name": "2B9 Vasilek", "prefab": "Prefabs/Weapons/Core/Turret_2B9.et", "type": "howitzer", "milSystem": 6000, "elevDeg": [-1.0, 68.0], "limits": {"minElev": -17, "maxElev": 1133}},
         ammo: {"name": "82mm D-832DU Smoke — DFire", "prefab": "Prefabs/Weapons/Ammo/2B9/TF_Ammo_Shell_82mm_Smoke_D832DU_2B9_DFire.et", "v0": 71.0, "airDrag": 0.000655, "mass": 3.48, "gameTable": "Configs/Weapons/AIBallisticTables/2B9/D832DU_Shell_82mm_Smoke_DFire.conf"},
         chargeOrigin: "ring",
@@ -7321,9 +7321,9 @@ const BALLISTIC_TABLES = {
             ]
         }
     },
-    // ---------- 82mm D-832DU Smoke — NonRPL — 2B9 Vasilek (2B9 Vasilek 1.6.1) ----------
+    // ---------- 82mm D-832DU Smoke — NonRPL — 2B9 Vasilek (Tactical Flava 1.6.1) ----------
     "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_smoke_d832du_2b9_nonrpl": {
-        source: {"mod": "2B9 Vasilek", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
+        source: {"mod": "Tactical Flava", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
         gun: {"name": "2B9 Vasilek", "prefab": "Prefabs/Weapons/Core/Turret_2B9.et", "type": "howitzer", "milSystem": 6000, "elevDeg": [-1.0, 68.0], "limits": {"minElev": -17, "maxElev": 1133}},
         ammo: {"name": "82mm D-832DU Smoke — NonRPL", "prefab": "Prefabs/Weapons/Ammo/2B9/TF_Ammo_Shell_82mm_Smoke_D832DU_2B9_NonRPL.et", "v0": 71.0, "airDrag": 0.000655, "mass": 3.48, "gameTable": "Configs/Weapons/AIBallisticTables/2B9/D832DU_Shell_82mm_Smoke_MFire.conf"},
         chargeOrigin: "ring",

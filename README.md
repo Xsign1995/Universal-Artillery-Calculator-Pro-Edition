@@ -23,6 +23,7 @@
 
 - ปืนครก M252 / 2B14 มี 2 โปรไฟล์ตาราง: **Original (Vanilla)** และ **Adult Mortars (Mod)**
 - เลือก Charge / Ring เองได้ หรือใช้ **⚡ Auto Select** ให้โปรแกรมเลือกให้อัตโนมัติ
+- จำอาวุธ โปรไฟล์ และกระสุนที่เลือกล่าสุด (ค่าเริ่มต้น: M777 Howitzer Artillery — PandaMods)
 
 ### 📐 การคำนวณ
 - คำนวณทั้ง **Low Angle** และ **High Angle** พร้อมกัน
@@ -33,14 +34,15 @@
 - รองรับพิกัด **Arma Reforger Grid** แบบ 3 / 4 / 5 หลัก (Auto Grid) และแสดงผลเป็น MILs หรือ Degree
 
 ### 🗺️ แผนที่และการแสดงผล
-- **Tactical Top-Down Map** ใช้ภาพแผนที่จริงจาก ArmaMapTiles รองรับ **37 แผนที่** (Everon, Arland, Kolguyev, Chernarus, Takistan ฯลฯ)
+- **Tactical Top-Down Map** รองรับ **37 แผนที่** (Everon, Arland, Kolguyev, Chernarus, Takistan ฯลฯ) — 5 แผนที่ (Everon, Arland, Kolguyev, Yunakivka, Novobakhmutivka) เก็บใน repo นี้เองพร้อมป้ายชื่อและข้อมูลความสูง ส่วนที่เหลือใช้ภาพจาก ArmaMapTiles
 - ดับเบิลคลิกบนแผนที่เพื่อ **Set Target / Set Gun Position**
-- **🏷️ ป้ายชื่อสถานที่และสัญลักษณ์** บนแผนที่ (Yunakivka, Novobakhmutivka) ซ่อน/แสดงได้ด้วยช่องติ๊ก Labels
-- **⛰️ Auto Z** — ดึงค่าความสูงจากตำแหน่งบนแผนที่ให้อัตโนมัติ (Yunakivka, Novobakhmutivka)
+- **🏷️ ป้ายชื่อสถานที่และสัญลักษณ์** บนแผนที่ 5 แผนที่ข้างต้น ซ่อน/แสดงได้ด้วยช่องติ๊ก Labels
+- **⛰️ Auto Z** — ดึงค่าความสูงจากตำแหน่งบนแผนที่ให้อัตโนมัติ (5 แผนที่ข้างต้น)
 - **จุดมาร์คแผนที่** (คลิกขวา 2 ครั้ง) ตั้งชื่อ แก้ไข ลบได้ บันทึกแยกตามแผนที่
 - รองรับมือถือ / iPad: **แตะค้าง (Long-press)** แทนดับเบิลคลิก/คลิกขวา
-- กราฟวิถีกระสุน 2D และ **มุมมอง 3D** (จำลองแรงต้านอากาศให้ตรงกับตารางยิงในเกม)
-- **3D พื้นนูนตามความสูงจริง** บนแผนที่ที่มีข้อมูลความสูง (Yunakivka, Novobakhmutivka)
+- **Trajectory Profile 2D** — แสดงพื้นดินจริงตามแนวปืนไปเป้า เตือนเมื่อวิถีชนเนิน, ป้าย Low / High พร้อม ToF ความสูงสูงสุด มุมตก, จุด Air Fuze, ซูมด้วยล้อเมาส์ / ลากเลื่อน / ดับเบิลคลิกรีเซ็ต และเลื่อนเมาส์ดูค่าที่จุดใดก็ได้
+- **มุมมอง 3D** — จำลองแรงต้านอากาศให้ตรงกับตารางยิงในเกม มีอนิเมชันกระสุนบิน และเส้นวิถีโค้งตามแรงลม
+- **3D พื้นนูนตามความสูงจริง** บนแผนที่ที่มีข้อมูลความสูง (5 แผนที่ข้างต้น)
 
 ### 🧰 เครื่องมือภาคสนาม
 - **🔭 FO Spotter** — รับระยะ/ทิศจากผู้ตรวจการณ์ หาจุดตกจริง แล้ว **ปรับชดเชย** อัตโนมัติ
@@ -58,7 +60,7 @@
 **ออนไลน์:** เปิดลิงก์ GitHub Pages ด้านบน
 
 **ออฟไลน์:** ดาวน์โหลด `index.html`, `ballistic_data.js` และโฟลเดอร์ `maps/` ไว้ในโฟลเดอร์เดียวกัน แล้วดับเบิลคลิกเปิด `index.html`
-(การคำนวณใช้งานได้แบบออฟไลน์ ส่วนภาพแผนที่ (ยกเว้นแผนที่ใน `maps/`) และ 3D ต้องต่ออินเทอร์เน็ต)
+(การคำนวณใช้งานได้แบบออฟไลน์ ส่วนภาพแผนที่ (ยกเว้นแผนที่ใน `maps/`) และ 3D ต้องต่ออินเทอร์เน็ต · Auto Z และพื้น 3D ของแผนที่ใน `maps/` เมื่อเปิดจากไฟล์ในเครื่องจะดึงข้อมูลความสูงจากเว็บ จึงต้องต่อเน็ตด้วย)
 
 1. เลือกอาวุธ กระสุน และ Charge (หรือ Auto Select)
 2. ใส่พิกัดปืนและเป้าหมาย (X / Y / Z) หรือดับเบิลคลิกบนแผนที่
@@ -75,10 +77,10 @@
 
 ## 🙏 Credits
 
-- ภาพแผนที่: [ArmaMapTiles](https://armamaptiles.github.io/)
+- ภาพแผนที่: [ArmaMapTiles](https://armamaptiles.github.io/) · แผนที่ Everon, Arland, Kolguyev (แผนที่เริ่มต้นของเกม) ทำด้วย Enfusion Map Maker
 - แผนที่ Novobakhmutivka: ผู้สร้าง xJESUSx
 - แผนที่ Yunakivka: ผู้สร้าง Rumor / SPEARHEAD
-- ตารางยิง: ถอดจากตำรา (Firing Table) ในเกม Arma Reforger และม็อด PandaMods, CIE Artillery, Adult Mortars
+- ตารางยิง: ดึงค่าวิถีกระสุนจากไฟล์เกม Arma Reforger และม็อด PandaMods, CIE Artillery, Adult Mortars ด้วยโปรแกรม [Enfusion Ballistics Extractor](https://github.com/Xsign1995/Enfusion-Ballistics-Extractor)
 - ตาราง M982 Excalibur: สร้างจากข้อมูลวิถีกระสุนในม็อด M777 Howitzer Artillery ของ PandaMods (APL-SA)
 
 > โปรเจกต์นี้เป็นเครื่องมือที่แฟนเกมทำขึ้นเอง ไม่มีส่วนเกี่ยวข้องกับ Bohemia Interactive

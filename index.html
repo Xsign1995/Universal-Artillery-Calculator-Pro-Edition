@@ -1291,7 +1291,12 @@ const weaponLibrary = (() => {
         }
         entry.milSystem = gun.milSystem || 6400;
         // ชื่ออาวุธเท่ากับชื่อ mod อยู่แล้ว → ต่อท้ายด้วยผู้สร้าง mod แทน
-        const tag = mods.length !== 1 || mods[0] === "Arma Reforger" ? "" : (mods[0] === w.name && authors.length === 1 ? authors[0] : mods[0]);
+        const author = authors.length === 1 ? authors[0] : "";
+        let tag = "";
+        if (mods.length === 1 && mods[0] !== "Arma Reforger") {
+            if (mods[0] === w.name) tag = author;
+            else tag = mods[0] + (author && !mods[0].includes(author) ? " (" + author + ")" : "");
+        }
         entry.label = w.name + (tag ? " — " + tag : "");
         lib[wId] = entry;
     }
@@ -2314,7 +2319,7 @@ function changeAmmo() {
     const autoOption = `<option value="auto">⚡ Auto Select (อัตโนมัติ)</option>`;
 
     // สร้าง dropdown Charge ของ Low/High แยกกัน (บางกระสุนมีแต่ lowAngle เช่น 2A36)
-    let tableSourceForHigh = currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
+    let tableSourceForHigh = hasNoHighAngle(currentAmmo.table) ? {} : currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
     let tableSourceForLow = currentAmmo.table.lowAngle ? currentAmmo.table.lowAngle : currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
 
     function buildOptions(tableSource) {
@@ -2624,6 +2629,7 @@ function applyFOCorrection() {
     resetFOState(); mapMode = 'target'; calculate();
 }
 
+function hasNoHighAngle(t) { return !!t && !t.highAngle && !!t.lowAngle; }
 function findBestCharge(dist, dz = 0, windSpeed = 0, windDirDeg = 0, aimBearingDeg = 0, minClearance = 0) {
     let tableSource = currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
     // เรียงตามเลข charge (c2 < c10)
@@ -2723,12 +2729,13 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
 
     // ── HIGH ANGLE ──
     let chargeCodeHigh = DOM["chargeVelHigh"].value;
-    if (chargeCodeHigh === 'auto') chargeCodeHigh = findBestCharge(aimGridDistance, dz, windSpeed, windDirDeg, aimBearingDeg, minClearance);
-    let tableSourceHigh = currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
-    if (!tableSourceHigh[chargeCodeHigh]) chargeCodeHigh = Object.keys(tableSourceHigh)[0];
+    if (chargeCodeHigh === 'auto' && !hasNoHighAngle(currentAmmo.table)) chargeCodeHigh = findBestCharge(aimGridDistance, dz, windSpeed, windDirDeg, aimBearingDeg, minClearance);
+    const noHighAngle = hasNoHighAngle(currentAmmo.table);
+    let tableSourceHigh = noHighAngle ? {} : currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
+    if (!noHighAngle && !tableSourceHigh[chargeCodeHigh]) chargeCodeHigh = Object.keys(tableSourceHigh)[0];
     const tableHigh = tableSourceHigh[chargeCodeHigh];
     
-    const windHigh = solveWind(tableHigh, aimGridDistance, aimBearingDeg, windSpeed, windDirDeg, milSystem, driftCoeff, rangeCoeff);
+    const windHigh = noHighAngle ? { interp: null, aimDist: aimGridDistance, aimBearingDeg: aimBearingDeg, deflMil: 0, virtualDist: aimGridDistance } : solveWind(tableHigh, aimGridDistance, aimBearingDeg, windSpeed, windDirDeg, milSystem, driftCoeff, rangeCoeff);
     let finalInterpDataHigh = windHigh.interp; const aimDistH = windHigh.aimDist; const aimBearingDegH = windHigh.aimBearingDeg; const deflHighMil = windHigh.deflMil;
     let finalElevHigh = 0; let finalAziHigh = 0;
 
@@ -2800,6 +2807,8 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
         } else {
             htmlHigh += `<div style="color: #eab308; font-size: 13px; font-weight: bold; margin-bottom: 8px; margin-top: 12px;">↗️ HIGH ANGLE TARGET</div><div class="load-instruction-box"><span class="load-label">⚙️ LOAD AMMO:</span><span class="load-value">${chargeDisplayHigh}</span></div><div class="stat" style="flex-direction: column; align-items: stretch; border-left-color: #eab308;"><div style="display: flex; justify-content: space-between; align-items: center;"><span>Elevation (ตั้งมุมเงย):</span> <b style="font-size: 16px; ${isElevHighError ? 'color:#ef4444;' : ''}">${finalElevHigh.toFixed(0)} MILs</b></div>${elevWarningHigh}</div><div class="stat" style="border-left-color: #eab308;"><span>Aim Azimuth (ตั้งทิศทาง):</span> <b style="font-size: 16px;">${finalAziHigh.toFixed(0)}</b></div><div style="text-align: right; font-size: 11px; color: ${windColorHigh}; margin-bottom: 6px;">${windTextHigh}</div>${tofStatHigh}${fuzeStatHigh}${offsetNotice}`;
         }
+    } else if (noHighAngle) {
+        htmlHigh += `<div style="color: #94a3b8; font-size: 13px; font-weight: bold; margin-bottom: 8px; margin-top: 12px;">↗️ HIGH ANGLE TARGET</div><div class="stat">ไม่มีตารางมุมสูงสำหรับกระสุนนี้</div>`;
     } else {
         let userSelectedHigh = DOM["chargeVelHigh"].value;
         let chargeDisplayHigh = userSelectedHigh === 'auto' ? "AUTO CHARGE" : getChargeDisplayName(chargeCodeHigh, isMortar, true);

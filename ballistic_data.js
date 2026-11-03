@@ -1,7 +1,13 @@
-// ballistic_data.js — Universal Artillery Calculator · format 2 · สร้างโดย Enfusion Ballistics Extractor v0.4.1
+// ballistic_data.js — Universal Artillery Calculator · สร้างโดย Enfusion Ballistics Extractor v0.5.9
 // ส่วนที่ 1: ตั้งค่าปืน WEAPONS (แก้เองได้)  ส่วนที่ 2: ตารางยิง (Extractor เขียนทับเฉพาะระหว่าง EBX-TABLES-BEGIN / END)
 
+// WEAPONS — รายการที่แสดงในเมนู (แก้เองได้ Extractor ไม่ทับรายการเดิม เพิ่มเฉพาะปืนใหม่)
+//   name   = ชื่อปืนในเมนู (เครื่องคำนวณต่อท้าย " — <mod> (<ผู้สร้าง>)" ให้เอง)
+//   type   = "mortar" (ปืนครก c0–c4 มุมสูงอย่างเดียว) หรือ "howitzer" (ปืนใหญ่ / จรวด / ปืนอื่นที่มีมุมต่ำ)
+//   profiles = ปืนเดียวที่มีหลายชุดตาราง (ตัวเกม / mod) · ammo = รายการกระสุน
+//   ammo.<key>.name = ชื่อกระสุนในเมนู · table = key ใน BALLISTIC_TABLES (ห้ามแก้)
 const WEAPONS = {
+    // ── 2B14 - Mortar ──
     "mortar_2b14": {
         name: "2B14 - Mortar", type: "mortar",
         profiles: {
@@ -23,6 +29,7 @@ const WEAPONS = {
             }
         }
     },
+    // ── M252 - Mortar ──
     "mortar_m252": {
         name: "M252 - Mortar", type: "mortar",
         profiles: {
@@ -46,6 +53,7 @@ const WEAPONS = {
             }
         }
     },
+    // ── 2A36 Giacint-B (CIE Artillery) ──
     "howitzer_2a36": {
         name: "2A36 Giacint-B", type: "howitzer",
         ammo: {
@@ -53,6 +61,7 @@ const WEAPONS = {
             "he_of59": { name: "Shell 3OF59 “Khrebet”", table: "cie_artillery/howitzer_2a36/ammo_shell_152mm_he_of59" }
         }
     },
+    // ── M777A1 (CIE Artillery) ──
     "howitzer_m777a2": {
         name: "M777A1", type: "howitzer",
         ammo: {
@@ -61,11 +70,31 @@ const WEAPONS = {
             "m982a1": { name: "Shell M982A1 Excalibur", table: "cie_artillery/howitzer_m777a2/ammo_shell_155mm_m982a1" }
         }
     },
+    // ── M777 Howitzer Artillery (PandaMods) ──
     "m777_howitzer": {
         name: "M777 Howitzer Artillery", type: "howitzer",
         ammo: {
             "m107_shell_155mm_he": { name: "M107 Shell 155MM HE", table: "m777_howitzer_artillery/m777_howitzer/m107_shell_155mm_he" },
             "m982_excalibur": { name: "M982 Excalibur", table: "m777_howitzer_artillery/m777_howitzer/shell_155mm_m982_excalibur" }
+        }
+    },
+    // ── BM-21 Grad (OSP-BM21) ──
+    "bm21_grad_turret_standard": {
+        name: "BM-21 Grad", type: "howitzer",
+        ammo: {
+            "ammo_rocket_bm21_9m22u": { name: "122mm 9M22U HE Rocket", table: "osp_bm21/bm21_grad_turret_standard/ammo_rocket_bm21_9m22u" }
+        }
+    },
+    // ── 2B9 Vasilek (Tactical Flava) ──
+    "turret_2b9": {
+        name: "2B9 Vasilek", type: "howitzer",
+        ammo: {
+            "tf_ammo_shell_82mm_he_o832du_2b9_fire": { name: "82mm O-832DU HE — Fire", table: "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_he_o832du_2b9_fire" },
+            "tf_ammo_shell_82mm_he_o832du_2b9_dfire": { name: "82mm O-832DU HE — DFire", table: "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_he_o832du_2b9_dfire" },
+            "tf_ammo_shell_82mm_he_o832du_2b9_nonrpl": { name: "82mm O-832DU HE — NonRPL", table: "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_he_o832du_2b9_nonrpl" },
+            "tf_ammo_shell_82mm_smoke_d832du_2b9_fire": { name: "82mm D-832DU Smoke — Fire", table: "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_smoke_d832du_2b9_fire" },
+            "tf_ammo_shell_82mm_smoke_d832du_2b9_dfire": { name: "82mm D-832DU Smoke — DFire", table: "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_smoke_d832du_2b9_dfire" },
+            "tf_ammo_shell_82mm_smoke_d832du_2b9_nonrpl": { name: "82mm D-832DU Smoke — NonRPL", table: "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_smoke_d832du_2b9_nonrpl" }
         }
     }
 };
@@ -84,7 +113,7 @@ const BALLISTIC_TABLES = {
         charges: {"c0": {"name": "Charge 0", "coef": 1.0, "v0": 76.0}, "c1": {"name": "Charge 1", "coef": 1.321, "v0": 100.4}, "c2": {"name": "Charge 2", "coef": 1.736, "v0": 131.9}, "c3": {"name": "Charge 3", "coef": 2.087, "v0": 158.6}, "c4": {"name": "Charge 4", "coef": 2.455, "v0": 186.6}},
         wind: {"windDriftCoeff": 0.2064, "windRangeCoeff": 0.2622},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c0": 0.1, "c1": 0.2, "c2": 0.3, "c3": 0.4, "c4": 0.4},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c0: [
                 [100, 1411, 15.0, 45, 0.1, 276, 85.0, 82, 9],
@@ -165,7 +194,7 @@ const BALLISTIC_TABLES = {
         charges: {"c0": {"name": "Charge 0", "coef": 1.0, "v0": 71.0}, "c1": {"name": "Charge 1", "coef": 1.339, "v0": 95.1}, "c2": {"name": "Charge 2", "coef": 1.748, "v0": 124.1}, "c3": {"name": "Charge 3", "coef": 2.086, "v0": 148.1}},
         wind: {"windDriftCoeff": 0.147, "windRangeCoeff": 0.1914},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c0": 0.1, "c1": 0.2, "c2": 0.3, "c3": 0.4},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c0: [
                 [100, 1400, 14.1, 52, 0.1, 243, 84.3, 65, 7],
@@ -222,7 +251,7 @@ const BALLISTIC_TABLES = {
         charges: {"c1": {"name": "Charge 1", "coef": 0.698, "v0": 88.6}, "c2": {"name": "Charge 2", "coef": 1.111, "v0": 141.1}, "c3": {"name": "Charge 3", "coef": 1.512, "v0": 192.0}, "c4": {"name": "Charge 4", "coef": 2.154, "v0": 273.6}},
         wind: {"windDriftCoeff": 0.4954, "windRangeCoeff": 0.5568},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c1": 0.2, "c2": 0.1, "c3": 0.7, "c4": 2.6},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c1: [
                 [200, 1341, 16.3, 43, 0.1, 325, 82.1, 132, 31],
@@ -290,7 +319,7 @@ const BALLISTIC_TABLES = {
         charges: {"c0": {"name": "Charge 0", "coef": 1.0, "v0": 66.0}, "c1": {"name": "Charge 1", "coef": 1.531, "v0": 101.0}, "c2": {"name": "Charge 2", "coef": 2.085, "v0": 137.6}, "c3": {"name": "Charge 3", "coef": 2.541, "v0": 167.7}, "c4": {"name": "Charge 4", "coef": 2.977, "v0": 196.5}},
         wind: {"windDriftCoeff": 0.1515, "windRangeCoeff": 0.1972},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c0": 0.1, "c1": 0.2, "c2": 0.3, "c3": 0.4, "c4": 0.5},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c0: [
                 [100, 1480, 13.2, 62, 0.1, 214, 83.4, 36, 4],
@@ -382,7 +411,7 @@ const BALLISTIC_TABLES = {
         charges: {"c1": {"name": "Charge 1", "coef": 0.666, "v0": 91.2}, "c2": {"name": "Charge 2", "coef": 0.959, "v0": 131.4}, "c3": {"name": "Charge 3", "coef": 1.184, "v0": 162.2}, "c4": {"name": "Charge 4", "coef": 1.387, "v0": 190.0}},
         wind: {"windDriftCoeff": 0.2101, "windRangeCoeff": 0.2669},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c1": 0.2, "c2": 0.3, "c3": 0.4, "c4": 0.4},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c1: [
                 [200, 1464, 17.8, 35, 0.1, 387, 82.9, 69, 15],
@@ -457,7 +486,7 @@ const BALLISTIC_TABLES = {
         charges: {"c1": {"name": "Charge 1", "coef": 0.638, "v0": 97.0}, "c2": {"name": "Charge 2", "coef": 1.0, "v0": 152.0}, "c3": {"name": "Charge 3", "coef": 1.281, "v0": 194.7}, "c4": {"name": "Charge 4", "coef": 1.596, "v0": 242.6}},
         wind: {"windDriftCoeff": 0.3982, "windRangeCoeff": 0.4679},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c1": 0.3, "c2": 0.2, "c3": 0.3, "c4": 1.1},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c1: [
                 [200, 1464, 18.1, 36, 0.1, 403, 83.5, 137, 29],
@@ -532,7 +561,7 @@ const BALLISTIC_TABLES = {
         charges: {"c0": {"name": "Charge 0", "coef": 1.0, "v0": 66.0}, "c1": {"name": "Charge 1", "coef": 1.573, "v0": 103.8}, "c2": {"name": "Charge 2", "coef": 2.082, "v0": 137.4}, "c3": {"name": "Charge 3", "coef": 2.532, "v0": 167.1}, "c4": {"name": "Charge 4", "coef": 2.932, "v0": 193.5}},
         wind: {"windDriftCoeff": 0.1444, "windRangeCoeff": 0.1892},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c0": 0.1, "c1": 0.2, "c2": 0.3, "c3": 0.4, "c4": 0.5},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c0: [
                 [100, 1480, 13.2, 62, 0.1, 214, 83.4, 34, 4],
@@ -625,7 +654,7 @@ const BALLISTIC_TABLES = {
         charges: {"c0": {"name": "Charge 0", "coef": 1.0, "v0": 76.0}, "c1": {"name": "Charge 1", "coef": 1.795, "v0": 136.4}, "c2": {"name": "Charge 2", "coef": 2.443, "v0": 185.7}, "c3": {"name": "Charge 3", "coef": 3.042, "v0": 231.2}, "c4": {"name": "Charge 4", "coef": 3.731, "v0": 283.6}},
         wind: {"windDriftCoeff": 0.3386, "windRangeCoeff": 0.4079},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c0": 1.9, "c1": 3.7, "c2": 5.4, "c3": 7.1, "c4": 9.2},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c0: [
                 [100, 1411, 15.0, 45, 0.1, 276, 85.0, 82, 9],
@@ -743,7 +772,7 @@ const BALLISTIC_TABLES = {
         charges: {"c0": {"name": "Charge 0", "coef": 1.0, "v0": 71.0}, "c1": {"name": "Charge 1", "coef": 1.806, "v0": 128.2}, "c2": {"name": "Charge 2", "coef": 2.423, "v0": 172.0}, "c3": {"name": "Charge 3", "coef": 2.975, "v0": 211.2}},
         wind: {"windDriftCoeff": 0.2431, "windRangeCoeff": 0.3035},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c0": 1.7, "c1": 3.4, "c2": null, "c3": null},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c0: [
                 [100, 1400, 14.1, 52, 0.1, 243, 84.3, 65, 7],
@@ -821,7 +850,7 @@ const BALLISTIC_TABLES = {
         charges: {"c1": {"name": "Charge 1", "coef": 1.0, "v0": 127.0}, "c2": {"name": "Charge 2", "coef": 1.809, "v0": 229.7}, "c3": {"name": "Charge 3", "coef": 2.86, "v0": 363.2}, "c4": {"name": "Charge 4", "coef": 5.181, "v0": 658.0}},
         wind: {"windDriftCoeff": 0.7285, "windRangeCoeff": 0.7585},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c1": 3.8, "c2": 8.0, "c3": 13.5, "c4": 25.4},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c1: [
                 [200, 1406, 21.9, 24, 0.1, 588, 85.9, 286, 62],
@@ -922,7 +951,7 @@ const BALLISTIC_TABLES = {
         charges: {"c0": {"name": "Charge 0", "coef": 1.0, "v0": 66.0}, "c1": {"name": "Charge 1", "coef": 2.267, "v0": 149.6}, "c2": {"name": "Charge 2", "coef": 3.206, "v0": 211.6}, "c3": {"name": "Charge 3", "coef": 4.063, "v0": 268.2}, "c4": {"name": "Charge 4", "coef": 4.969, "v0": 328.0}},
         wind: {"windDriftCoeff": 0.2954, "windRangeCoeff": 0.3629},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c0": 1.6, "c1": 3.9, "c2": 5.9, "c3": 8.0, "c4": 10.3},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c0: [
                 [100, 1480, 13.2, 62, 0.1, 214, 83.4, 36, 4],
@@ -1081,7 +1110,7 @@ const BALLISTIC_TABLES = {
         charges: {"c1": {"name": "Charge 1", "coef": 1.0, "v0": 137.0}, "c2": {"name": "Charge 2", "coef": 1.534, "v0": 210.2}, "c3": {"name": "Charge 3", "coef": 2.018, "v0": 276.5}, "c4": {"name": "Charge 4", "coef": 2.521, "v0": 345.4}},
         wind: {"windDriftCoeff": 0.4, "windRangeCoeff": 0.4713},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c1": 3.7, "c2": 6.3, "c3": 8.9, "c4": 11.7},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c1: [
                 [300, 1498, 25.7, 17, 0.0, 809, 85.1, 128, 40],
@@ -1213,7 +1242,7 @@ const BALLISTIC_TABLES = {
         charges: {"c1": {"name": "Charge 1", "coef": 1.0, "v0": 152.0}, "c2": {"name": "Charge 2", "coef": 1.93, "v0": 293.4}, "c3": {"name": "Charge 3", "coef": 3.16, "v0": 480.3}, "c4": {"name": "Charge 4", "coef": 4.611, "v0": 700.9}},
         wind: {"windDriftCoeff": 0.7118, "windRangeCoeff": 0.7505},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c1": 4.6, "c2": 10.3, "c3": 18.1, "c4": 27.0},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c1: [
                 [300, 1494, 26.1, 18, 0.1, 837, 85.7, 245, 75],
@@ -1349,7 +1378,7 @@ const BALLISTIC_TABLES = {
         charges: {"c0": {"name": "Charge 0", "coef": 1.0, "v0": 66.0}, "c1": {"name": "Charge 1", "coef": 2.329, "v0": 153.7}, "c2": {"name": "Charge 2", "coef": 3.187, "v0": 210.3}, "c3": {"name": "Charge 3", "coef": 4.03, "v0": 266.0}, "c4": {"name": "Charge 4", "coef": 4.841, "v0": 319.5}},
         wind: {"windDriftCoeff": 0.282, "windRangeCoeff": 0.3484},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c0": 1.6, "c1": 4.0, "c2": 5.9, "c3": 7.9, "c4": 9.9},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c0: [
                 [100, 1480, 13.2, 62, 0.1, 214, 83.4, 34, 4],
@@ -1499,16 +1528,16 @@ const BALLISTIC_TABLES = {
             ]
         }
     },
-    // ---------- Shell 3OF29 “Bekas” — 2A36 Giacint-B (CIE Artillery 1.1.47) ----------
+    // ---------- Shell 3OF29 “Bekas” — 2A36 Giacint-B (CIE Artillery 1.1.48) ----------
     "cie_artillery/howitzer_2a36/ammo_shell_152mm_he_of29": {
-        source: {"mod": "CIE Artillery", "version": "1.1.47", "author": "Ligthman", "kind": "mod"},
+        source: {"mod": "CIE Artillery", "version": "1.1.48", "author": "Ligthman", "kind": "mod"},
         gun: {"name": "2A36 Giacint-B", "prefab": "Prefabs/Howitzer/Howitzer_2A36.et", "type": "howitzer", "milSystem": 6000, "elevDeg": [-4.0, 57.0], "limits": {"minElev": -67, "maxElev": 950}},
         ammo: {"name": "Shell 3OF29 “Bekas”", "prefab": "Prefabs/Weapons/Ammo/Ammo_Shell_152mm_HE_OF29.et", "v0": 250.0, "airDrag": 0.0020651, "mass": 46.0, "gameTable": "Configs/Weapons/Ammo/OF29_Shell_152mm_HE.conf"},
         chargeOrigin: "gun-options",
         charges: {"c1": {"name": "Reduced variable charge 4Zh79", "coef": 0.92, "v0": 230.0}, "c2": {"name": "Reduced variable charge 4Zh79 (second)", "coef": 1.3, "v0": 325.0}, "c3": {"name": "Reduced variable charge 4Zh60 (first)", "coef": 1.6, "v0": 400.0}, "c4": {"name": "Reduced variable charge 4Zh48 (second)", "coef": 1.8, "v0": 450.0}, "c5": {"name": "Reduced variable charge 4Zh60 (second)", "coef": 2.0, "v0": 500.0}, "c6": {"name": "Reduced variable charge 4Zh48 (first)", "coef": 2.3, "v0": 575.0}, "c7": {"name": "Reduced variable charge 4Zh48 (full)", "coef": 2.5, "v0": 625.0}, "c8": {"name": "Reduced variable charge 4Zh60 ", "coef": 2.6, "v0": 650.0}, "c9": {"name": "Full charge 4Zh47", "coef": 2.9, "v0": 725.0}},
         wind: {"windDriftCoeff": 0.3441, "windRangeCoeff": 0.5337},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c1": 0.6, "c2": 0.8, "c3": 0.8, "c4": 0.9, "c5": 1.0, "c6": 1.2, "c7": 1.9, "c8": 2.4, "c9": 3.9},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c1: [
                 [4200, 929, 36.8, 15, 0.4, 1662, 59.7, 10, 72],
@@ -2242,16 +2271,16 @@ const BALLISTIC_TABLES = {
             ]
         }
     },
-    // ---------- Shell 3OF59 “Khrebet” — 2A36 Giacint-B (CIE Artillery 1.1.47) ----------
+    // ---------- Shell 3OF59 “Khrebet” — 2A36 Giacint-B (CIE Artillery 1.1.48) ----------
     "cie_artillery/howitzer_2a36/ammo_shell_152mm_he_of59": {
-        source: {"mod": "CIE Artillery", "version": "1.1.47", "author": "Ligthman", "kind": "mod"},
+        source: {"mod": "CIE Artillery", "version": "1.1.48", "author": "Ligthman", "kind": "mod"},
         gun: {"name": "2A36 Giacint-B", "prefab": "Prefabs/Howitzer/Howitzer_2A36.et", "type": "howitzer", "milSystem": 6000, "elevDeg": [-4.0, 57.0], "limits": {"minElev": -67, "maxElev": 950}},
         ammo: {"name": "Shell 3OF59 “Khrebet”", "prefab": "Prefabs/Weapons/Ammo/Ammo_Shell_152mm_HE_OF59.et", "v0": 300.0, "airDrag": 0.0020651, "mass": 43.5, "gameTable": "Configs/Weapons/Ammo/OF59_Shell_152mm_HE.conf"},
         chargeOrigin: "gun-options",
         charges: {"c1": {"name": "Reduced variable charge 4Zh79", "coef": 0.92, "v0": 276.0}, "c2": {"name": "Reduced variable charge 4Zh79 (second)", "coef": 1.3, "v0": 390.0}, "c3": {"name": "Reduced variable charge 4Zh60 (first)", "coef": 1.6, "v0": 480.0}, "c4": {"name": "Reduced variable charge 4Zh48 (second)", "coef": 1.8, "v0": 540.0}, "c5": {"name": "Reduced variable charge 4Zh60 (second)", "coef": 2.0, "v0": 600.0}, "c6": {"name": "Reduced variable charge 4Zh48 (first)", "coef": 2.3, "v0": 690.0}, "c7": {"name": "Reduced variable charge 4Zh48 (full)", "coef": 2.5, "v0": 750.0}, "c8": {"name": "Reduced variable charge 4Zh60 ", "coef": 2.6, "v0": 780.0}, "c9": {"name": "Full charge 4Zh47", "coef": 2.9, "v0": 870.0}},
         wind: {"windDriftCoeff": 0.4168, "windRangeCoeff": 0.6121},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c1": 0.9, "c2": 2.1, "c3": 3.6, "c4": 4.9, "c5": 6.3, "c6": 8.7, "c7": 10.4, "c8": 11.2, "c9": 14.0},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c1: [
                 [5600, 928, 43.1, 11, 0.3, 2279, 61.2, 12, 115],
@@ -3094,16 +3123,16 @@ const BALLISTIC_TABLES = {
             ]
         }
     },
-    // ---------- Shell M107 — M777A1 (CIE Artillery 1.1.47) ----------
+    // ---------- Shell M107 — M777A1 (CIE Artillery 1.1.48) ----------
     "cie_artillery/howitzer_m777a2/ammo_shell_155mm_he_m107": {
-        source: {"mod": "CIE Artillery", "version": "1.1.47", "author": "Ligthman", "kind": "mod"},
+        source: {"mod": "CIE Artillery", "version": "1.1.48", "author": "Ligthman", "kind": "mod"},
         gun: {"name": "M777A1", "prefab": "Prefabs/Howitzer/Howitzer_M777A2.et", "type": "howitzer", "milSystem": 6400, "elevDeg": [0.0, 71.5], "limits": {"minElev": 0, "maxElev": 1271}},
         ammo: {"name": "Shell M107", "prefab": "Prefabs/Weapons/Ammo/Ammo_Shell_155mm_HE_M107.et", "v0": 214.0, "airDrag": 0.0020651, "mass": 43.88, "gameTable": "Configs/Weapons/Ammo/M107_Shell_155mm_HE.conf"},
         chargeOrigin: "gun-coefs (ค่าเริ่มต้นจาก script)",
         charges: {"c1": {"name": "Charge 1", "coef": 1.0, "v0": 214.0}, "c2": {"name": "Charge 2", "coef": 1.8, "v0": 385.2}, "c3": {"name": "Charge 3", "coef": 2.4, "v0": 513.6}, "c4": {"name": "Charge 4", "coef": 3.0, "v0": 642.0}, "c5": {"name": "Charge 5", "coef": 3.45, "v0": 738.3}, "c6": {"name": "Charge 6", "coef": 3.86, "v0": 826.0}},
         wind: {"windDriftCoeff": 0.4409, "windRangeCoeff": 0.5792},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c1": 0.6, "c2": 2.0, "c3": 4.3, "c4": 7.3, "c5": 10.0, "c6": 12.6},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c1: [
                 [2400, 1270, 39.3, 8, 0.1, 1898, 73.5, 18, 55],
@@ -3789,16 +3818,16 @@ const BALLISTIC_TABLES = {
             ]
         }
     },
-    // ---------- Shell M795 — M777A1 (CIE Artillery 1.1.47) ----------
+    // ---------- Shell M795 — M777A1 (CIE Artillery 1.1.48) ----------
     "cie_artillery/howitzer_m777a2/ammo_shell_155mm_he_m795": {
-        source: {"mod": "CIE Artillery", "version": "1.1.47", "author": "Ligthman", "kind": "mod"},
+        source: {"mod": "CIE Artillery", "version": "1.1.48", "author": "Ligthman", "kind": "mod"},
         gun: {"name": "M777A1", "prefab": "Prefabs/Howitzer/Howitzer_M777A2.et", "type": "howitzer", "milSystem": 6400, "elevDeg": [0.0, 71.5], "limits": {"minElev": 0, "maxElev": 1271}},
         ammo: {"name": "Shell M795", "prefab": "Prefabs/Weapons/Ammo/Ammo_Shell_155mm_HE_M795.et", "v0": 242.0, "airDrag": 0.0020951, "mass": 43.88, "gameTable": "Configs/Weapons/Ammo/M795_Shell_155mm_HE.conf"},
         chargeOrigin: "gun-coefs (ค่าเริ่มต้นจาก script)",
         charges: {"c1": {"name": "Charge 1", "coef": 1.0, "v0": 242.0}, "c2": {"name": "Charge 2", "coef": 1.8, "v0": 435.6}, "c3": {"name": "Charge 3", "coef": 2.4, "v0": 580.8}, "c4": {"name": "Charge 4", "coef": 3.0, "v0": 726.0}, "c5": {"name": "Charge 5", "coef": 3.45, "v0": 834.9}, "c6": {"name": "Charge 6", "coef": 3.86, "v0": 934.1}},
         wind: {"windDriftCoeff": 0.4827, "windRangeCoeff": 0.6192},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c1": 0.7, "c2": 2.8, "c3": 5.8, "c4": 9.7, "c5": 12.9, "c6": 16.1},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c1: [
                 [3000, 1262, 43.8, 7, 0.1, 2352, 73.6, 19, 76],
@@ -4567,16 +4596,16 @@ const BALLISTIC_TABLES = {
             ]
         }
     },
-    // ---------- Shell M982A1 Excalibur — M777A1 (CIE Artillery 1.1.47) ----------
+    // ---------- Shell M982A1 Excalibur — M777A1 (CIE Artillery 1.1.48) ----------
     "cie_artillery/howitzer_m777a2/ammo_shell_155mm_m982a1": {
-        source: {"mod": "CIE Artillery", "version": "1.1.47", "author": "Ligthman", "kind": "mod"},
+        source: {"mod": "CIE Artillery", "version": "1.1.48", "author": "Ligthman", "kind": "mod"},
         gun: {"name": "M777A1", "prefab": "Prefabs/Howitzer/Howitzer_M777A2.et", "type": "howitzer", "milSystem": 6400, "elevDeg": [0.0, 71.5], "limits": {"minElev": 0, "maxElev": 1271}},
         ammo: {"name": "Shell M982A1 Excalibur", "prefab": "Prefabs/Weapons/Ammo/Ammo_Shell_155mm_M982A1.et", "v0": 280.0, "airDrag": 0.0021651, "mass": 48.0, "gameTable": "Configs/Weapons/Ammo/M982_Shell_155mm_HE.conf"},
         chargeOrigin: "gun-coefs (ค่าเริ่มต้นจาก script)",
         charges: {"c1": {"name": "Charge 1", "coef": 1.0, "v0": 280.0}, "c2": {"name": "Charge 2", "coef": 1.8, "v0": 504.0}, "c3": {"name": "Charge 3", "coef": 2.4, "v0": 672.0}, "c4": {"name": "Charge 4", "coef": 3.0, "v0": 840.0}, "c5": {"name": "Charge 5", "coef": 3.45, "v0": 966.0}, "c6": {"name": "Charge 6", "coef": 3.86, "v0": 1080.8}},
         wind: {"windDriftCoeff": 0.5239, "windRangeCoeff": 0.6577},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c1": 0.9, "c2": 3.9, "c3": 7.9, "c4": 12.7, "c5": 16.7, "c6": 20.5},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c1: [
                 [3800, 1266, 50.0, 5, 0.1, 3065, 74.3, 21, 103],
@@ -5448,7 +5477,7 @@ const BALLISTIC_TABLES = {
         charges: {"c1": {"name": "Charge 1", "coef": 2.4, "v0": 240.0}, "c2": {"name": "Charge 2", "coef": 3.1, "v0": 310.0}, "c3": {"name": "Charge 3", "coef": 4.4, "v0": 440.0}, "c4": {"name": "Charge 4", "coef": 5.6, "v0": 560.0}, "c5": {"name": "Charge 5", "coef": 6.84, "v0": 684.0}},
         wind: {"windDriftCoeff": 0.3824, "windRangeCoeff": 0.5171},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c1": 0.6, "c2": 0.8, "c3": 0.9, "c4": 1.4, "c5": 3.7},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c1: [
                 [2900, 1265, 43.3, 7, 0.1, 2304, 73.8, 21, 78],
@@ -5911,7 +5940,7 @@ const BALLISTIC_TABLES = {
         charges: {"c1": {"name": "Charge 1", "coef": 2.4, "v0": 240.0}, "c2": {"name": "Charge 2", "coef": 3.1, "v0": 310.0}, "c3": {"name": "Charge 3", "coef": 4.4, "v0": 440.0}, "c4": {"name": "Charge 4", "coef": 5.6, "v0": 560.0}, "c5": {"name": "Charge 5", "coef": 6.84, "v0": 684.0}},
         wind: {"windDriftCoeff": 0.3575, "windRangeCoeff": 0.4904},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
         check: {"c1": 1.2, "c2": 1.5, "c3": 2.3, "c4": 2.9, "c5": 3.5},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
-        generated: "2026-10-30 · Extractor v0.4.1",
+        generated: "2026-11-04 · Extractor v0.5.8",
         highAngle: {
             c1: [
                 [3000, 1263, 43.7, 7, 0.1, 2340, 73.4, 18, 70],
@@ -6393,6 +6422,1018 @@ const BALLISTIC_TABLES = {
                 [20200, 568, 58.4, 7, 0.6, 4259, 49.1, 12, 374],
                 [20400, 601, 60.9, 10, 0.8, 4637, 51.4, 13, 392],
                 [20600, 662, 65.5, 23, 1.7, 5357, 55.4, 14, 423]
+            ]
+        }
+    },
+    // ---------- 122mm 9M22U HE Rocket — BM-21 Grad (OSP-BM21 0.0.1) ----------
+    "osp_bm21/bm21_grad_turret_standard/ammo_rocket_bm21_9m22u": {
+        source: {"mod": "OSP-BM21", "version": "0.0.1", "author": "Dazoc", "kind": "mod"},
+        gun: {"name": "BM-21 Grad", "prefab": "Prefabs/Vehicles/Wheeled/BM21/_VehParts/Turret/Standard/RU/BM21_Grad_Turret_Standard.et", "type": "howitzer", "milSystem": 6000, "elevDeg": [0.0, 48.0], "limits": {"minElev": 0, "maxElev": 800}},
+        ammo: {"name": "122mm 9M22U HE Rocket", "prefab": "Prefabs/Weapons/Ammo/Standard/Ammo_Rocket_BM21_9M22U.et", "v0": 44.5, "airDrag": 0.0, "mass": 4.7, "gameTable": "Configs/Weapons/AIBallisticTables/AIBT_BM21_Grad_122mm_Rocket.conf"},
+        chargeOrigin: "paper-table",
+        charges: {"c1": {"name": "Rocket", "coef": 0.1, "v0": 4.5}},
+        wind: {"windDriftCoeff": 0.1113, "windRangeCoeff": 0.2689},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
+        check: {"c1": null},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
+        generated: "2026-11-04 · Extractor v0.5.8",
+        lowAngle: {
+            c1: [
+                [100, 17, 0.8, 1, 0.1, 0, 0.2, 0, 0],
+                [200, 19, 1.0, 1, 0.1, 1, 0.3, 0, 0],
+                [300, 21, 1.3, 1, 0.1, 1, 0.4, 0, 0],
+                [400, 23, 1.5, 1, 0.1, 2, 0.6, 0, 1],
+                [500, 26, 1.8, 2, 0.1, 2, 0.8, 0, 1],
+                [600, 29, 2.1, 2, 0.1, 3, 1.0, 0, 1],
+                [700, 32, 2.4, 2, 0.1, 4, 1.3, 0, 1],
+                [800, 35, 2.6, 2, 0.1, 5, 1.5, 0, 1],
+                [900, 38, 2.8, 2, 0.2, 7, 1.7, 0, 2],
+                [1000, 42, 3.1, 2, 0.1, 9, 1.9, 0, 2],
+                [1100, 45, 3.4, 1, 0.1, 11, 2.2, 0, 2],
+                [1200, 48, 3.6, 2, 0.1, 12, 2.4, 0, 2],
+                [1300, 52, 3.9, 2, 0.1, 15, 2.6, 0, 3],
+                [1400, 55, 4.2, 2, 0.2, 17, 2.8, 0, 3],
+                [1500, 58, 4.5, 2, 0.1, 20, 3.0, 0, 4],
+                [1600, 62, 4.8, 2, 0.1, 23, 3.3, 0, 4],
+                [1700, 65, 5.0, 2, 0.1, 25, 3.5, 0, 4],
+                [1800, 69, 5.3, 2, 0.1, 28, 3.7, 0, 5],
+                [1900, 72, 5.6, 2, 0.1, 32, 3.9, 0, 5],
+                [2000, 75, 5.9, 2, 0.1, 36, 4.2, 0, 6],
+                [2100, 79, 6.1, 2, 0.1, 40, 4.4, 0, 6],
+                [2200, 82, 6.4, 2, 0.1, 44, 4.6, 0, 7],
+                [2300, 86, 6.7, 2, 0.1, 48, 4.9, 0, 7],
+                [2400, 90, 7.0, 2, 0.1, 53, 5.1, 0, 8],
+                [2500, 93, 7.3, 2, 0.1, 57, 5.4, 0, 8],
+                [2600, 97, 7.6, 2, 0.1, 62, 5.6, 0, 9],
+                [2700, 100, 7.9, 2, 0.1, 66, 5.8, 0, 10],
+                [2800, 104, 8.1, 2, 0.1, 72, 6.1, 1, 10],
+                [2900, 108, 8.4, 2, 0.1, 78, 6.4, 1, 11],
+                [3000, 111, 8.7, 2, 0.2, 84, 6.6, 1, 12],
+                [3100, 115, 9.0, 2, 0.2, 90, 6.9, 1, 12],
+                [3200, 119, 9.3, 2, 0.2, 97, 7.1, 1, 13],
+                [3300, 123, 9.6, 2, 0.2, 103, 7.4, 1, 14],
+                [3400, 127, 9.9, 2, 0.2, 110, 7.7, 1, 14],
+                [3500, 130, 10.2, 2, 0.1, 117, 7.9, 1, 15],
+                [3600, 134, 10.5, 2, 0.2, 123, 8.2, 1, 16],
+                [3700, 138, 10.8, 2, 0.2, 132, 8.5, 1, 16],
+                [3800, 142, 11.1, 2, 0.1, 140, 8.7, 1, 17],
+                [3900, 146, 11.4, 2, 0.2, 148, 9.0, 1, 18],
+                [4000, 150, 11.7, 2, 0.2, 156, 9.3, 1, 19],
+                [4100, 154, 12.0, 2, 0.2, 165, 9.6, 1, 19],
+                [4200, 158, 12.4, 2, 0.1, 174, 9.9, 1, 20],
+                [4300, 162, 12.7, 2, 0.1, 183, 10.1, 1, 21],
+                [4400, 166, 13.0, 2, 0.2, 192, 10.4, 1, 22],
+                [4500, 171, 13.3, 2, 0.1, 202, 10.7, 2, 23],
+                [4600, 175, 13.6, 2, 0.1, 213, 11.0, 2, 23],
+                [4700, 179, 13.9, 2, 0.2, 224, 11.3, 2, 24],
+                [4800, 183, 14.2, 2, 0.2, 235, 11.6, 2, 25],
+                [4900, 187, 14.6, 2, 0.2, 246, 11.9, 2, 26],
+                [5000, 192, 14.9, 2, 0.2, 258, 12.3, 2, 27],
+                [5100, 196, 15.2, 2, 0.2, 270, 12.6, 2, 28],
+                [5200, 201, 15.6, 2, 0.2, 283, 12.9, 2, 29],
+                [5300, 205, 15.9, 2, 0.2, 295, 13.2, 2, 30],
+                [5400, 209, 16.2, 2, 0.2, 308, 13.6, 2, 31],
+                [5500, 214, 16.6, 2, 0.2, 320, 13.9, 2, 32],
+                [5600, 219, 17.0, 2, 0.2, 334, 14.2, 2, 33],
+                [5700, 223, 17.3, 2, 0.2, 348, 14.6, 2, 34],
+                [5800, 228, 17.6, 2, 0.2, 363, 14.9, 3, 35],
+                [5900, 232, 18.0, 2, 0.2, 378, 15.3, 3, 36],
+                [6000, 237, 18.3, 2, 0.2, 394, 15.7, 3, 37],
+                [6100, 242, 18.7, 2, 0.2, 409, 16.0, 3, 38],
+                [6200, 247, 19.0, 2, 0.2, 424, 16.4, 3, 40],
+                [6300, 252, 19.4, 3, 0.2, 441, 16.7, 3, 41],
+                [6400, 257, 19.8, 3, 0.2, 459, 17.1, 3, 42],
+                [6500, 262, 20.1, 3, 0.2, 477, 17.5, 3, 43],
+                [6600, 267, 20.5, 3, 0.2, 495, 17.9, 3, 45],
+                [6700, 272, 20.9, 3, 0.2, 513, 18.3, 3, 46],
+                [6800, 277, 21.3, 3, 0.2, 532, 18.7, 3, 47],
+                [6900, 283, 21.7, 3, 0.2, 551, 19.1, 3, 49],
+                [7000, 288, 22.1, 3, 0.2, 572, 19.6, 3, 50],
+                [7100, 293, 22.5, 3, 0.2, 593, 20.0, 3, 52],
+                [7200, 299, 22.8, 3, 0.2, 615, 20.4, 3, 53],
+                [7300, 305, 23.3, 3, 0.2, 637, 20.9, 4, 55],
+                [7400, 310, 23.7, 3, 0.2, 659, 21.3, 4, 56],
+                [7500, 316, 24.1, 3, 0.2, 682, 21.8, 4, 58],
+                [7600, 322, 24.5, 3, 0.2, 707, 22.3, 4, 59],
+                [7700, 328, 24.9, 3, 0.2, 733, 22.7, 4, 61],
+                [7800, 334, 25.4, 3, 0.2, 759, 23.2, 4, 63],
+                [7900, 340, 25.8, 3, 0.2, 785, 23.7, 4, 65],
+                [8000, 347, 26.2, 3, 0.3, 812, 24.2, 4, 67],
+                [8100, 353, 26.7, 3, 0.2, 841, 24.8, 4, 69],
+                [8200, 360, 27.2, 3, 0.2, 871, 25.3, 4, 71],
+                [8300, 367, 27.6, 3, 0.2, 902, 25.9, 4, 73],
+                [8400, 373, 28.1, 4, 0.2, 935, 26.5, 4, 75],
+                [8500, 380, 28.6, 4, 0.2, 969, 27.0, 4, 77],
+                [8600, 388, 29.1, 4, 0.3, 1003, 27.6, 4, 79],
+                [8700, 395, 29.6, 4, 0.3, 1038, 28.2, 4, 81],
+                [8800, 403, 30.1, 4, 0.3, 1074, 28.8, 4, 84],
+                [8900, 411, 30.7, 4, 0.2, 1114, 29.5, 4, 86],
+                [9000, 419, 31.2, 4, 0.3, 1155, 30.2, 4, 89],
+                [9100, 427, 31.8, 4, 0.3, 1196, 30.8, 4, 91],
+                [9200, 436, 32.3, 4, 0.3, 1239, 31.5, 4, 94],
+                [9300, 445, 32.9, 5, 0.3, 1287, 32.3, 4, 97],
+                [9400, 454, 33.5, 5, 0.3, 1336, 33.0, 4, 99],
+                [9500, 464, 34.1, 5, 0.3, 1386, 33.8, 4, 102],
+                [9600, 474, 34.8, 5, 0.3, 1441, 34.6, 4, 105],
+                [9700, 485, 35.5, 6, 0.4, 1500, 35.5, 4, 108],
+                [9800, 497, 36.2, 6, 0.4, 1561, 36.3, 4, 112],
+                [9900, 509, 37.0, 6, 0.4, 1628, 37.3, 4, 115],
+                [10000, 522, 37.7, 7, 0.4, 1702, 38.3, 4, 119],
+                [10100, 536, 38.6, 8, 0.5, 1780, 39.3, 4, 123],
+                [10200, 552, 39.6, 9, 0.5, 1872, 40.5, 5, 127],
+                [10300, 569, 40.6, 10, 0.6, 1975, 41.9, 5, 132],
+                [10400, 590, 41.8, 12, 0.7, 2095, 43.3, 5, 137],
+                [10500, 616, 43.3, 17, 1.0, 2247, 45.2, 5, 143],
+                [10600, 658, 45.6, 0, 0.0, 2497, 48.0, 5, 153]
+            ]
+        }
+    },
+    // ---------- 82mm O-832DU HE — Fire — 2B9 Vasilek (2B9 Vasilek 1.6.1) ----------
+    "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_he_o832du_2b9_fire": {
+        source: {"mod": "2B9 Vasilek", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
+        gun: {"name": "2B9 Vasilek", "prefab": "Prefabs/Weapons/Core/Turret_2B9.et", "type": "howitzer", "milSystem": 6000, "elevDeg": [-1.0, 68.0], "limits": {"minElev": -17, "maxElev": 1133}},
+        ammo: {"name": "82mm O-832DU HE — Fire", "prefab": "Prefabs/Weapons/Ammo/2B9/TF_Ammo_Shell_82mm_HE_O832DU_2B9_Fire.et", "v0": 76.0, "airDrag": 0.000615, "mass": 3.1, "gameTable": "Configs/Weapons/Ammo/O832DU_Shell_82mm_HE.conf"},
+        chargeOrigin: "ring",
+        charges: {"c1": {"name": "Charge 0", "coef": 1.0, "v0": 76.0}, "c2": {"name": "Charge 1", "coef": 1.795, "v0": 136.4}, "c3": {"name": "Charge 2", "coef": 2.443, "v0": 185.7}, "c4": {"name": "Charge 3", "coef": 3.042, "v0": 231.2}, "c5": {"name": "Charge 4", "coef": 3.731, "v0": 283.6}},
+        wind: {"windDriftCoeff": 0.3195, "windRangeCoeff": 0.4617},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
+        check: {"c1": 0.1, "c2": null, "c3": null, "c4": null, "c5": null},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
+        generated: "2026-11-04 · Extractor v0.5.8",
+        highAngle: {
+            c1: [
+                [400, 1099, 13.8, 73, 0.5, 233, 67.5, 21, 13],
+                [500, 929, 12.5, 97, 0.8, 191, 57.9, 15, 14]
+            ],
+            c2: [
+                [1100, 1093, 23.4, 26, 0.3, 670, 69.8, 34, 55],
+                [1200, 1039, 22.8, 30, 0.4, 636, 67.1, 30, 57],
+                [1300, 976, 21.9, 38, 0.5, 591, 63.8, 27, 57],
+                [1400, 892, 20.7, 62, 1.0, 528, 59.4, 24, 57]
+            ],
+            c3: [
+                [1600, 1131, 30.6, 15, 0.2, 1150, 73.7, 46, 102],
+                [1700, 1100, 30.2, 16, 0.2, 1120, 72.3, 43, 104],
+                [1800, 1067, 29.7, 18, 0.3, 1087, 70.8, 40, 105],
+                [1900, 1031, 29.2, 19, 0.3, 1048, 69.2, 38, 107],
+                [2000, 991, 28.6, 22, 0.4, 1003, 67.4, 35, 107],
+                [2100, 946, 27.8, 26, 0.5, 949, 65.2, 33, 107],
+                [2200, 890, 26.7, 35, 0.7, 880, 62.4, 30, 106],
+                [2300, 812, 25.1, 82, 1.9, 777, 58.3, 26, 103]
+            ],
+            c4: [
+                [2100, 1133, 36.1, 11, 0.2, 1600, 75.4, 54, 151],
+                [2200, 1110, 35.8, 12, 0.2, 1570, 74.5, 51, 153],
+                [2300, 1085, 35.4, 13, 0.2, 1537, 73.6, 49, 154],
+                [2400, 1060, 34.9, 13, 0.2, 1501, 72.5, 46, 155],
+                [2500, 1033, 34.5, 14, 0.3, 1461, 71.4, 44, 156],
+                [2600, 1003, 33.9, 16, 0.3, 1416, 70.2, 42, 156],
+                [2700, 971, 33.3, 17, 0.4, 1365, 68.8, 39, 156],
+                [2800, 935, 32.6, 20, 0.4, 1306, 67.2, 37, 156],
+                [2900, 894, 31.7, 24, 0.5, 1236, 65.3, 35, 154],
+                [3000, 843, 30.5, 32, 0.8, 1146, 62.8, 32, 151],
+                [3100, 768, 28.6, 43, 1.1, 1009, 58.9, 29, 145]
+            ],
+            c5: [
+                [2700, 1119, 41.3, 9, 0.2, 2092, 76.6, 59, 207],
+                [2800, 1100, 40.9, 10, 0.2, 2060, 76.0, 57, 208],
+                [2900, 1081, 40.6, 10, 0.2, 2025, 75.3, 54, 209],
+                [3000, 1060, 40.2, 11, 0.2, 1988, 74.6, 52, 210],
+                [3100, 1039, 39.8, 11, 0.2, 1947, 73.8, 50, 210],
+                [3200, 1016, 39.3, 12, 0.3, 1903, 72.9, 48, 211],
+                [3300, 992, 38.8, 13, 0.3, 1854, 72.0, 46, 211],
+                [3400, 966, 38.2, 14, 0.3, 1801, 71.0, 44, 210],
+                [3500, 938, 37.5, 15, 0.4, 1741, 69.9, 42, 209],
+                [3600, 907, 36.8, 17, 0.4, 1673, 68.6, 40, 208],
+                [3700, 872, 35.9, 20, 0.5, 1594, 67.0, 38, 206],
+                [3800, 830, 34.8, 25, 0.7, 1498, 65.1, 35, 202],
+                [3900, 775, 33.2, 41, 1.2, 1367, 62.3, 32, 196]
+            ]
+        },
+        lowAngle: {
+            c1: [
+                [100, 83, 1.3, 43, 0.7, 2, 5.1, 1, 0],
+                [200, 170, 2.7, 47, 0.7, 9, 10.6, 3, 1],
+                [300, 267, 4.2, 54, 0.8, 22, 16.7, 4, 3],
+                [400, 383, 6.0, 72, 1.0, 44, 24.1, 6, 5],
+                [500, 550, 8.3, 95, 1.3, 84, 34.9, 8, 9]
+            ],
+            c2: [
+                [100, 26, 0.7, 13, 0.4, 1, 1.6, 1, 0],
+                [200, 52, 1.5, 13, 0.4, 3, 3.2, 1, 1],
+                [300, 79, 2.3, 14, 0.4, 6, 5.0, 2, 2],
+                [400, 107, 3.1, 15, 0.4, 12, 6.8, 3, 3],
+                [500, 136, 3.9, 15, 0.4, 19, 8.8, 4, 4],
+                [600, 167, 4.7, 16, 0.4, 28, 10.9, 4, 6],
+                [700, 200, 5.6, 17, 0.5, 39, 13.1, 5, 8],
+                [800, 234, 6.6, 18, 0.5, 53, 15.6, 6, 11],
+                [900, 271, 7.5, 20, 0.5, 70, 18.2, 7, 14],
+                [1000, 311, 8.6, 22, 0.6, 90, 21.2, 8, 18],
+                [1100, 355, 9.7, 24, 0.6, 116, 24.4, 9, 22],
+                [1200, 406, 11.0, 29, 0.7, 147, 28.1, 10, 27],
+                [1300, 466, 12.4, 37, 0.8, 189, 32.4, 12, 32],
+                [1400, 547, 14.2, 61, 1.3, 249, 38.1, 14, 39]
+            ],
+            c3: [
+                [200, 28, 1.1, 7, 0.3, 1, 1.8, 1, 0],
+                [300, 42, 1.7, 7, 0.3, 3, 2.7, 2, 1],
+                [400, 57, 2.2, 8, 0.3, 6, 3.7, 2, 2],
+                [500, 73, 2.8, 8, 0.3, 10, 4.7, 3, 3],
+                [600, 89, 3.4, 8, 0.3, 15, 5.8, 3, 4],
+                [700, 105, 4.1, 8, 0.3, 20, 7.0, 4, 6],
+                [800, 123, 4.7, 9, 0.3, 27, 8.2, 4, 8],
+                [900, 140, 5.4, 9, 0.3, 35, 9.5, 5, 10],
+                [1000, 159, 6.0, 10, 0.3, 45, 10.9, 6, 13],
+                [1100, 178, 6.7, 10, 0.4, 56, 12.4, 6, 15],
+                [1200, 198, 7.5, 10, 0.4, 68, 13.9, 7, 18],
+                [1300, 219, 8.2, 11, 0.4, 83, 15.6, 8, 21],
+                [1400, 242, 9.0, 12, 0.4, 99, 17.3, 8, 25],
+                [1500, 265, 9.8, 12, 0.4, 118, 19.3, 9, 29],
+                [1600, 291, 10.7, 13, 0.4, 140, 21.3, 10, 33],
+                [1700, 318, 11.6, 14, 0.5, 165, 23.5, 11, 38],
+                [1800, 347, 12.5, 16, 0.5, 193, 25.9, 11, 43],
+                [1900, 380, 13.6, 18, 0.6, 227, 28.5, 12, 48],
+                [2000, 416, 14.7, 20, 0.6, 266, 31.4, 14, 55],
+                [2100, 459, 16.0, 25, 0.7, 315, 34.8, 15, 62],
+                [2200, 511, 17.5, 33, 0.9, 379, 38.8, 16, 70],
+                [2300, 587, 19.7, 81, 2.1, 476, 44.3, 19, 81]
+            ],
+            c4: [
+                [200, 18, 0.9, 5, 0.2, 1, 1.1, 1, 0],
+                [300, 27, 1.3, 5, 0.2, 2, 1.7, 1, 1],
+                [400, 37, 1.8, 5, 0.2, 4, 2.4, 2, 2],
+                [500, 47, 2.3, 5, 0.2, 6, 3.0, 2, 2],
+                [600, 57, 2.8, 5, 0.2, 9, 3.8, 3, 4],
+                [700, 68, 3.3, 5, 0.3, 13, 4.5, 3, 5],
+                [800, 79, 3.8, 6, 0.3, 17, 5.3, 3, 6],
+                [900, 90, 4.3, 6, 0.3, 22, 6.1, 4, 8],
+                [1000, 101, 4.8, 6, 0.3, 28, 7.0, 4, 10],
+                [1100, 113, 5.4, 6, 0.3, 35, 7.9, 5, 12],
+                [1200, 126, 5.9, 6, 0.3, 43, 8.8, 5, 14],
+                [1300, 138, 6.5, 7, 0.3, 52, 9.9, 6, 17],
+                [1400, 152, 7.1, 7, 0.3, 61, 11.0, 6, 20],
+                [1500, 165, 7.7, 7, 0.3, 72, 12.0, 7, 23],
+                [1600, 180, 8.3, 7, 0.3, 85, 13.3, 8, 26],
+                [1700, 195, 8.9, 8, 0.3, 98, 14.5, 8, 29],
+                [1800, 210, 9.6, 8, 0.3, 114, 15.9, 9, 33],
+                [1900, 227, 10.3, 8, 0.4, 130, 17.3, 9, 37],
+                [2000, 244, 11.0, 9, 0.4, 149, 18.8, 10, 41],
+                [2100, 262, 11.7, 9, 0.4, 170, 20.5, 11, 45],
+                [2200, 281, 12.5, 10, 0.4, 193, 22.2, 11, 50],
+                [2300, 302, 13.3, 11, 0.4, 219, 24.0, 12, 55],
+                [2400, 324, 14.2, 12, 0.4, 248, 25.9, 13, 61],
+                [2500, 347, 15.1, 13, 0.5, 281, 28.1, 13, 67],
+                [2600, 373, 16.1, 14, 0.5, 319, 30.3, 14, 73],
+                [2700, 402, 17.1, 16, 0.6, 362, 32.8, 15, 80],
+                [2800, 434, 18.3, 18, 0.6, 413, 35.6, 16, 87],
+                [2900, 472, 19.6, 22, 0.8, 476, 38.8, 18, 96],
+                [3000, 520, 21.2, 31, 1.0, 557, 42.5, 19, 106],
+                [3100, 592, 23.6, 42, 1.3, 686, 47.9, 22, 120]
+            ],
+            c5: [
+                [300, 18, 1.1, 3, 0.2, 1, 1.1, 1, 1],
+                [400, 25, 1.5, 3, 0.2, 3, 1.6, 1, 1],
+                [500, 31, 1.9, 3, 0.2, 4, 2.0, 2, 2],
+                [600, 38, 2.2, 3, 0.2, 6, 2.5, 2, 3],
+                [700, 45, 2.7, 4, 0.2, 9, 3.0, 2, 4],
+                [800, 52, 3.1, 4, 0.2, 12, 3.5, 3, 5],
+                [900, 59, 3.5, 4, 0.2, 15, 4.0, 3, 7],
+                [1000, 67, 3.9, 4, 0.2, 19, 4.6, 4, 8],
+                [1100, 75, 4.3, 4, 0.2, 23, 5.2, 4, 10],
+                [1200, 83, 4.8, 4, 0.2, 28, 5.9, 4, 12],
+                [1300, 91, 5.3, 4, 0.2, 34, 6.5, 5, 14],
+                [1400, 100, 5.7, 4, 0.2, 40, 7.2, 5, 16],
+                [1500, 109, 6.2, 5, 0.2, 47, 8.0, 6, 18],
+                [1600, 118, 6.7, 5, 0.3, 55, 8.7, 6, 21],
+                [1700, 127, 7.2, 5, 0.3, 64, 9.6, 6, 24],
+                [1800, 137, 7.7, 5, 0.3, 73, 10.4, 7, 26],
+                [1900, 147, 8.2, 5, 0.3, 84, 11.3, 7, 30],
+                [2000, 158, 8.8, 5, 0.3, 95, 12.3, 8, 33],
+                [2100, 169, 9.3, 6, 0.3, 108, 13.3, 8, 36],
+                [2200, 180, 9.9, 6, 0.3, 121, 14.4, 9, 40],
+                [2300, 192, 10.5, 6, 0.3, 136, 15.5, 9, 44],
+                [2400, 204, 11.1, 6, 0.3, 153, 16.6, 10, 48],
+                [2500, 217, 11.7, 7, 0.3, 170, 17.8, 10, 52],
+                [2600, 230, 12.4, 7, 0.3, 190, 19.2, 11, 56],
+                [2700, 244, 13.1, 7, 0.3, 211, 20.6, 11, 61],
+                [2800, 259, 13.8, 8, 0.4, 234, 22.0, 12, 66],
+                [2900, 275, 14.5, 8, 0.4, 260, 23.5, 13, 71],
+                [3000, 291, 15.3, 9, 0.4, 288, 25.2, 13, 77],
+                [3100, 309, 16.1, 9, 0.4, 319, 26.9, 14, 83],
+                [3200, 328, 16.9, 10, 0.4, 354, 28.8, 15, 89],
+                [3300, 348, 17.8, 11, 0.5, 392, 30.7, 15, 95],
+                [3400, 371, 18.7, 12, 0.5, 436, 32.8, 16, 102],
+                [3500, 395, 19.8, 13, 0.5, 485, 35.1, 17, 110],
+                [3600, 422, 20.9, 15, 0.6, 542, 37.6, 18, 118],
+                [3700, 454, 22.2, 18, 0.7, 611, 40.4, 19, 127],
+                [3800, 492, 23.7, 23, 0.9, 696, 43.7, 21, 138],
+                [3900, 544, 25.6, 39, 1.4, 816, 47.8, 23, 152]
+            ]
+        }
+    },
+    // ---------- 82mm O-832DU HE — DFire — 2B9 Vasilek (2B9 Vasilek 1.6.1) ----------
+    "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_he_o832du_2b9_dfire": {
+        source: {"mod": "2B9 Vasilek", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
+        gun: {"name": "2B9 Vasilek", "prefab": "Prefabs/Weapons/Core/Turret_2B9.et", "type": "howitzer", "milSystem": 6000, "elevDeg": [-1.0, 68.0], "limits": {"minElev": -17, "maxElev": 1133}},
+        ammo: {"name": "82mm O-832DU HE — DFire", "prefab": "Prefabs/Weapons/Ammo/2B9/TF_Ammo_Shell_82mm_HE_O832DU_2B9_DFire.et", "v0": 76.0, "airDrag": 0.000615, "mass": 3.1, "gameTable": "Configs/Weapons/AIBallisticTables/2B9/O832DU_Shell_82mm_HE_DFire.conf"},
+        chargeOrigin: "ring",
+        charges: {"c1": {"name": "Charge 0", "coef": 1.0, "v0": 76.0}, "c2": {"name": "Charge 1", "coef": 1.795, "v0": 136.4}, "c3": {"name": "Charge 2", "coef": 2.443, "v0": 185.7}, "c4": {"name": "Charge 3", "coef": 3.042, "v0": 231.2}, "c5": {"name": "Charge 4", "coef": 3.731, "v0": 283.6}},
+        wind: {"windDriftCoeff": 0.3195, "windRangeCoeff": 0.4617},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
+        check: {"c1": 0.1, "c2": 0.3, "c3": 0.4, "c4": 0.5, "c5": 0.7},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
+        generated: "2026-11-04 · Extractor v0.5.8",
+        highAngle: {
+            c1: [
+                [400, 1099, 13.8, 73, 0.5, 233, 67.5, 21, 13],
+                [500, 929, 12.5, 97, 0.8, 191, 57.9, 15, 14]
+            ],
+            c2: [
+                [1100, 1093, 23.4, 26, 0.3, 670, 69.8, 34, 55],
+                [1200, 1039, 22.8, 30, 0.4, 636, 67.1, 30, 57],
+                [1300, 976, 21.9, 38, 0.5, 591, 63.8, 27, 57],
+                [1400, 892, 20.7, 62, 1.0, 528, 59.4, 24, 57]
+            ],
+            c3: [
+                [1600, 1131, 30.6, 15, 0.2, 1150, 73.7, 46, 102],
+                [1700, 1100, 30.2, 16, 0.2, 1120, 72.3, 43, 104],
+                [1800, 1067, 29.7, 18, 0.3, 1087, 70.8, 40, 105],
+                [1900, 1031, 29.2, 19, 0.3, 1048, 69.2, 38, 107],
+                [2000, 991, 28.6, 22, 0.4, 1003, 67.4, 35, 107],
+                [2100, 946, 27.8, 26, 0.5, 949, 65.2, 33, 107],
+                [2200, 890, 26.7, 35, 0.7, 880, 62.4, 30, 106],
+                [2300, 812, 25.1, 82, 1.9, 777, 58.3, 26, 103]
+            ],
+            c4: [
+                [2100, 1133, 36.1, 11, 0.2, 1600, 75.4, 54, 151],
+                [2200, 1110, 35.8, 12, 0.2, 1570, 74.5, 51, 153],
+                [2300, 1085, 35.4, 13, 0.2, 1537, 73.6, 49, 154],
+                [2400, 1060, 34.9, 13, 0.2, 1501, 72.5, 46, 155],
+                [2500, 1033, 34.5, 14, 0.3, 1461, 71.4, 44, 156],
+                [2600, 1003, 33.9, 16, 0.3, 1416, 70.2, 42, 156],
+                [2700, 971, 33.3, 17, 0.4, 1365, 68.8, 39, 156],
+                [2800, 935, 32.6, 20, 0.4, 1306, 67.2, 37, 156],
+                [2900, 894, 31.7, 24, 0.5, 1236, 65.3, 35, 154],
+                [3000, 843, 30.5, 32, 0.8, 1146, 62.8, 32, 151],
+                [3100, 768, 28.6, 43, 1.1, 1009, 58.9, 29, 145]
+            ],
+            c5: [
+                [2700, 1119, 41.3, 9, 0.2, 2092, 76.6, 59, 207],
+                [2800, 1100, 40.9, 10, 0.2, 2060, 76.0, 57, 208],
+                [2900, 1081, 40.6, 10, 0.2, 2025, 75.3, 54, 209],
+                [3000, 1060, 40.2, 11, 0.2, 1988, 74.6, 52, 210],
+                [3100, 1039, 39.8, 11, 0.2, 1947, 73.8, 50, 210],
+                [3200, 1016, 39.3, 12, 0.3, 1903, 72.9, 48, 211],
+                [3300, 992, 38.8, 13, 0.3, 1854, 72.0, 46, 211],
+                [3400, 966, 38.2, 14, 0.3, 1801, 71.0, 44, 210],
+                [3500, 938, 37.5, 15, 0.4, 1741, 69.9, 42, 209],
+                [3600, 907, 36.8, 17, 0.4, 1673, 68.6, 40, 208],
+                [3700, 872, 35.9, 20, 0.5, 1594, 67.0, 38, 206],
+                [3800, 830, 34.8, 25, 0.7, 1498, 65.1, 35, 202],
+                [3900, 775, 33.2, 41, 1.2, 1367, 62.3, 32, 196]
+            ]
+        },
+        lowAngle: {
+            c1: [
+                [100, 83, 1.3, 43, 0.7, 2, 5.1, 1, 0],
+                [200, 170, 2.7, 47, 0.7, 9, 10.6, 3, 1],
+                [300, 267, 4.2, 54, 0.8, 22, 16.7, 4, 3],
+                [400, 383, 6.0, 72, 1.0, 44, 24.1, 6, 5],
+                [500, 550, 8.3, 95, 1.3, 84, 34.9, 8, 9]
+            ],
+            c2: [
+                [100, 26, 0.7, 13, 0.4, 1, 1.6, 1, 0],
+                [200, 52, 1.5, 13, 0.4, 3, 3.2, 1, 1],
+                [300, 79, 2.3, 14, 0.4, 6, 5.0, 2, 2],
+                [400, 107, 3.1, 15, 0.4, 12, 6.8, 3, 3],
+                [500, 136, 3.9, 15, 0.4, 19, 8.8, 4, 4],
+                [600, 167, 4.7, 16, 0.4, 28, 10.9, 4, 6],
+                [700, 200, 5.6, 17, 0.5, 39, 13.1, 5, 8],
+                [800, 234, 6.6, 18, 0.5, 53, 15.6, 6, 11],
+                [900, 271, 7.5, 20, 0.5, 70, 18.2, 7, 14],
+                [1000, 311, 8.6, 22, 0.6, 90, 21.2, 8, 18],
+                [1100, 355, 9.7, 24, 0.6, 116, 24.4, 9, 22],
+                [1200, 406, 11.0, 29, 0.7, 147, 28.1, 10, 27],
+                [1300, 466, 12.4, 37, 0.8, 189, 32.4, 12, 32],
+                [1400, 547, 14.2, 61, 1.3, 249, 38.1, 14, 39]
+            ],
+            c3: [
+                [200, 28, 1.1, 7, 0.3, 1, 1.8, 1, 0],
+                [300, 42, 1.7, 7, 0.3, 3, 2.7, 2, 1],
+                [400, 57, 2.2, 8, 0.3, 6, 3.7, 2, 2],
+                [500, 73, 2.8, 8, 0.3, 10, 4.7, 3, 3],
+                [600, 89, 3.4, 8, 0.3, 15, 5.8, 3, 4],
+                [700, 105, 4.1, 8, 0.3, 20, 7.0, 4, 6],
+                [800, 123, 4.7, 9, 0.3, 27, 8.2, 4, 8],
+                [900, 140, 5.4, 9, 0.3, 35, 9.5, 5, 10],
+                [1000, 159, 6.0, 10, 0.3, 45, 10.9, 6, 13],
+                [1100, 178, 6.7, 10, 0.4, 56, 12.4, 6, 15],
+                [1200, 198, 7.5, 10, 0.4, 68, 13.9, 7, 18],
+                [1300, 219, 8.2, 11, 0.4, 83, 15.6, 8, 21],
+                [1400, 242, 9.0, 12, 0.4, 99, 17.3, 8, 25],
+                [1500, 265, 9.8, 12, 0.4, 118, 19.3, 9, 29],
+                [1600, 291, 10.7, 13, 0.4, 140, 21.3, 10, 33],
+                [1700, 318, 11.6, 14, 0.5, 165, 23.5, 11, 38],
+                [1800, 347, 12.5, 16, 0.5, 193, 25.9, 11, 43],
+                [1900, 380, 13.6, 18, 0.6, 227, 28.5, 12, 48],
+                [2000, 416, 14.7, 20, 0.6, 266, 31.4, 14, 55],
+                [2100, 459, 16.0, 25, 0.7, 315, 34.8, 15, 62],
+                [2200, 511, 17.5, 33, 0.9, 379, 38.8, 16, 70],
+                [2300, 587, 19.7, 81, 2.1, 476, 44.3, 19, 81]
+            ],
+            c4: [
+                [200, 18, 0.9, 5, 0.2, 1, 1.1, 1, 0],
+                [300, 27, 1.3, 5, 0.2, 2, 1.7, 1, 1],
+                [400, 37, 1.8, 5, 0.2, 4, 2.4, 2, 2],
+                [500, 47, 2.3, 5, 0.2, 6, 3.0, 2, 2],
+                [600, 57, 2.8, 5, 0.2, 9, 3.8, 3, 4],
+                [700, 68, 3.3, 5, 0.3, 13, 4.5, 3, 5],
+                [800, 79, 3.8, 6, 0.3, 17, 5.3, 3, 6],
+                [900, 90, 4.3, 6, 0.3, 22, 6.1, 4, 8],
+                [1000, 101, 4.8, 6, 0.3, 28, 7.0, 4, 10],
+                [1100, 113, 5.4, 6, 0.3, 35, 7.9, 5, 12],
+                [1200, 126, 5.9, 6, 0.3, 43, 8.8, 5, 14],
+                [1300, 138, 6.5, 7, 0.3, 52, 9.9, 6, 17],
+                [1400, 152, 7.1, 7, 0.3, 61, 11.0, 6, 20],
+                [1500, 165, 7.7, 7, 0.3, 72, 12.0, 7, 23],
+                [1600, 180, 8.3, 7, 0.3, 85, 13.3, 8, 26],
+                [1700, 195, 8.9, 8, 0.3, 98, 14.5, 8, 29],
+                [1800, 210, 9.6, 8, 0.3, 114, 15.9, 9, 33],
+                [1900, 227, 10.3, 8, 0.4, 130, 17.3, 9, 37],
+                [2000, 244, 11.0, 9, 0.4, 149, 18.8, 10, 41],
+                [2100, 262, 11.7, 9, 0.4, 170, 20.5, 11, 45],
+                [2200, 281, 12.5, 10, 0.4, 193, 22.2, 11, 50],
+                [2300, 302, 13.3, 11, 0.4, 219, 24.0, 12, 55],
+                [2400, 324, 14.2, 12, 0.4, 248, 25.9, 13, 61],
+                [2500, 347, 15.1, 13, 0.5, 281, 28.1, 13, 67],
+                [2600, 373, 16.1, 14, 0.5, 319, 30.3, 14, 73],
+                [2700, 402, 17.1, 16, 0.6, 362, 32.8, 15, 80],
+                [2800, 434, 18.3, 18, 0.6, 413, 35.6, 16, 87],
+                [2900, 472, 19.6, 22, 0.8, 476, 38.8, 18, 96],
+                [3000, 520, 21.2, 31, 1.0, 557, 42.5, 19, 106],
+                [3100, 592, 23.6, 42, 1.3, 686, 47.9, 22, 120]
+            ],
+            c5: [
+                [300, 18, 1.1, 3, 0.2, 1, 1.1, 1, 1],
+                [400, 25, 1.5, 3, 0.2, 3, 1.6, 1, 1],
+                [500, 31, 1.9, 3, 0.2, 4, 2.0, 2, 2],
+                [600, 38, 2.2, 3, 0.2, 6, 2.5, 2, 3],
+                [700, 45, 2.7, 4, 0.2, 9, 3.0, 2, 4],
+                [800, 52, 3.1, 4, 0.2, 12, 3.5, 3, 5],
+                [900, 59, 3.5, 4, 0.2, 15, 4.0, 3, 7],
+                [1000, 67, 3.9, 4, 0.2, 19, 4.6, 4, 8],
+                [1100, 75, 4.3, 4, 0.2, 23, 5.2, 4, 10],
+                [1200, 83, 4.8, 4, 0.2, 28, 5.9, 4, 12],
+                [1300, 91, 5.3, 4, 0.2, 34, 6.5, 5, 14],
+                [1400, 100, 5.7, 4, 0.2, 40, 7.2, 5, 16],
+                [1500, 109, 6.2, 5, 0.2, 47, 8.0, 6, 18],
+                [1600, 118, 6.7, 5, 0.3, 55, 8.7, 6, 21],
+                [1700, 127, 7.2, 5, 0.3, 64, 9.6, 6, 24],
+                [1800, 137, 7.7, 5, 0.3, 73, 10.4, 7, 26],
+                [1900, 147, 8.2, 5, 0.3, 84, 11.3, 7, 30],
+                [2000, 158, 8.8, 5, 0.3, 95, 12.3, 8, 33],
+                [2100, 169, 9.3, 6, 0.3, 108, 13.3, 8, 36],
+                [2200, 180, 9.9, 6, 0.3, 121, 14.4, 9, 40],
+                [2300, 192, 10.5, 6, 0.3, 136, 15.5, 9, 44],
+                [2400, 204, 11.1, 6, 0.3, 153, 16.6, 10, 48],
+                [2500, 217, 11.7, 7, 0.3, 170, 17.8, 10, 52],
+                [2600, 230, 12.4, 7, 0.3, 190, 19.2, 11, 56],
+                [2700, 244, 13.1, 7, 0.3, 211, 20.6, 11, 61],
+                [2800, 259, 13.8, 8, 0.4, 234, 22.0, 12, 66],
+                [2900, 275, 14.5, 8, 0.4, 260, 23.5, 13, 71],
+                [3000, 291, 15.3, 9, 0.4, 288, 25.2, 13, 77],
+                [3100, 309, 16.1, 9, 0.4, 319, 26.9, 14, 83],
+                [3200, 328, 16.9, 10, 0.4, 354, 28.8, 15, 89],
+                [3300, 348, 17.8, 11, 0.5, 392, 30.7, 15, 95],
+                [3400, 371, 18.7, 12, 0.5, 436, 32.8, 16, 102],
+                [3500, 395, 19.8, 13, 0.5, 485, 35.1, 17, 110],
+                [3600, 422, 20.9, 15, 0.6, 542, 37.6, 18, 118],
+                [3700, 454, 22.2, 18, 0.7, 611, 40.4, 19, 127],
+                [3800, 492, 23.7, 23, 0.9, 696, 43.7, 21, 138],
+                [3900, 544, 25.6, 39, 1.4, 816, 47.8, 23, 152]
+            ]
+        }
+    },
+    // ---------- 82mm O-832DU HE — NonRPL — 2B9 Vasilek (2B9 Vasilek 1.6.1) ----------
+    "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_he_o832du_2b9_nonrpl": {
+        source: {"mod": "2B9 Vasilek", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
+        gun: {"name": "2B9 Vasilek", "prefab": "Prefabs/Weapons/Core/Turret_2B9.et", "type": "howitzer", "milSystem": 6000, "elevDeg": [-1.0, 68.0], "limits": {"minElev": -17, "maxElev": 1133}},
+        ammo: {"name": "82mm O-832DU HE — NonRPL", "prefab": "Prefabs/Weapons/Ammo/2B9/TF_Ammo_Shell_82mm_HE_O832DU_2B9_NonRPL.et", "v0": 76.0, "airDrag": 0.000615, "mass": 3.1, "gameTable": "Configs/Weapons/AIBallisticTables/2B9/O832DU_Shell_82mm_HE_MFire.conf"},
+        chargeOrigin: "ring",
+        charges: {"c1": {"name": "Charge 0", "coef": 1.0, "v0": 76.0}, "c2": {"name": "Charge 1", "coef": 1.795, "v0": 136.4}, "c3": {"name": "Charge 2", "coef": 2.443, "v0": 185.7}, "c4": {"name": "Charge 3", "coef": 3.042, "v0": 231.2}, "c5": {"name": "Charge 4", "coef": 3.731, "v0": 283.6}},
+        wind: {"windDriftCoeff": 0.3195, "windRangeCoeff": 0.4617},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
+        check: {"c1": 0.1, "c2": 0.4, "c3": 0.7, "c4": 0.8, "c5": 1.6},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
+        generated: "2026-11-04 · Extractor v0.5.8",
+        highAngle: {
+            c1: [
+                [400, 1099, 13.8, 73, 0.5, 233, 67.5, 21, 13],
+                [500, 929, 12.5, 97, 0.8, 191, 57.9, 15, 14]
+            ],
+            c2: [
+                [1100, 1093, 23.4, 26, 0.3, 670, 69.8, 34, 55],
+                [1200, 1039, 22.8, 30, 0.4, 636, 67.1, 30, 57],
+                [1300, 976, 21.9, 38, 0.5, 591, 63.8, 27, 57],
+                [1400, 892, 20.7, 62, 1.0, 528, 59.4, 24, 57]
+            ],
+            c3: [
+                [1600, 1131, 30.6, 15, 0.2, 1150, 73.7, 46, 102],
+                [1700, 1100, 30.2, 16, 0.2, 1120, 72.3, 43, 104],
+                [1800, 1067, 29.7, 18, 0.3, 1087, 70.8, 40, 105],
+                [1900, 1031, 29.2, 19, 0.3, 1048, 69.2, 38, 107],
+                [2000, 991, 28.6, 22, 0.4, 1003, 67.4, 35, 107],
+                [2100, 946, 27.8, 26, 0.5, 949, 65.2, 33, 107],
+                [2200, 890, 26.7, 35, 0.7, 880, 62.4, 30, 106],
+                [2300, 812, 25.1, 82, 1.9, 777, 58.3, 26, 103]
+            ],
+            c4: [
+                [2100, 1133, 36.1, 11, 0.2, 1600, 75.4, 54, 151],
+                [2200, 1110, 35.8, 12, 0.2, 1570, 74.5, 51, 153],
+                [2300, 1085, 35.4, 13, 0.2, 1537, 73.6, 49, 154],
+                [2400, 1060, 34.9, 13, 0.2, 1501, 72.5, 46, 155],
+                [2500, 1033, 34.5, 14, 0.3, 1461, 71.4, 44, 156],
+                [2600, 1003, 33.9, 16, 0.3, 1416, 70.2, 42, 156],
+                [2700, 971, 33.3, 17, 0.4, 1365, 68.8, 39, 156],
+                [2800, 935, 32.6, 20, 0.4, 1306, 67.2, 37, 156],
+                [2900, 894, 31.7, 24, 0.5, 1236, 65.3, 35, 154],
+                [3000, 843, 30.5, 32, 0.8, 1146, 62.8, 32, 151],
+                [3100, 768, 28.6, 43, 1.1, 1009, 58.9, 29, 145]
+            ],
+            c5: [
+                [2700, 1119, 41.3, 9, 0.2, 2092, 76.6, 59, 207],
+                [2800, 1100, 40.9, 10, 0.2, 2060, 76.0, 57, 208],
+                [2900, 1081, 40.6, 10, 0.2, 2025, 75.3, 54, 209],
+                [3000, 1060, 40.2, 11, 0.2, 1988, 74.6, 52, 210],
+                [3100, 1039, 39.8, 11, 0.2, 1947, 73.8, 50, 210],
+                [3200, 1016, 39.3, 12, 0.3, 1903, 72.9, 48, 211],
+                [3300, 992, 38.8, 13, 0.3, 1854, 72.0, 46, 211],
+                [3400, 966, 38.2, 14, 0.3, 1801, 71.0, 44, 210],
+                [3500, 938, 37.5, 15, 0.4, 1741, 69.9, 42, 209],
+                [3600, 907, 36.8, 17, 0.4, 1673, 68.6, 40, 208],
+                [3700, 872, 35.9, 20, 0.5, 1594, 67.0, 38, 206],
+                [3800, 830, 34.8, 25, 0.7, 1498, 65.1, 35, 202],
+                [3900, 775, 33.2, 41, 1.2, 1367, 62.3, 32, 196]
+            ]
+        },
+        lowAngle: {
+            c1: [
+                [100, 83, 1.3, 43, 0.7, 2, 5.1, 1, 0],
+                [200, 170, 2.7, 47, 0.7, 9, 10.6, 3, 1],
+                [300, 267, 4.2, 54, 0.8, 22, 16.7, 4, 3],
+                [400, 383, 6.0, 72, 1.0, 44, 24.1, 6, 5],
+                [500, 550, 8.3, 95, 1.3, 84, 34.9, 8, 9]
+            ],
+            c2: [
+                [100, 26, 0.7, 13, 0.4, 1, 1.6, 1, 0],
+                [200, 52, 1.5, 13, 0.4, 3, 3.2, 1, 1],
+                [300, 79, 2.3, 14, 0.4, 6, 5.0, 2, 2],
+                [400, 107, 3.1, 15, 0.4, 12, 6.8, 3, 3],
+                [500, 136, 3.9, 15, 0.4, 19, 8.8, 4, 4],
+                [600, 167, 4.7, 16, 0.4, 28, 10.9, 4, 6],
+                [700, 200, 5.6, 17, 0.5, 39, 13.1, 5, 8],
+                [800, 234, 6.6, 18, 0.5, 53, 15.6, 6, 11],
+                [900, 271, 7.5, 20, 0.5, 70, 18.2, 7, 14],
+                [1000, 311, 8.6, 22, 0.6, 90, 21.2, 8, 18],
+                [1100, 355, 9.7, 24, 0.6, 116, 24.4, 9, 22],
+                [1200, 406, 11.0, 29, 0.7, 147, 28.1, 10, 27],
+                [1300, 466, 12.4, 37, 0.8, 189, 32.4, 12, 32],
+                [1400, 547, 14.2, 61, 1.3, 249, 38.1, 14, 39]
+            ],
+            c3: [
+                [200, 28, 1.1, 7, 0.3, 1, 1.8, 1, 0],
+                [300, 42, 1.7, 7, 0.3, 3, 2.7, 2, 1],
+                [400, 57, 2.2, 8, 0.3, 6, 3.7, 2, 2],
+                [500, 73, 2.8, 8, 0.3, 10, 4.7, 3, 3],
+                [600, 89, 3.4, 8, 0.3, 15, 5.8, 3, 4],
+                [700, 105, 4.1, 8, 0.3, 20, 7.0, 4, 6],
+                [800, 123, 4.7, 9, 0.3, 27, 8.2, 4, 8],
+                [900, 140, 5.4, 9, 0.3, 35, 9.5, 5, 10],
+                [1000, 159, 6.0, 10, 0.3, 45, 10.9, 6, 13],
+                [1100, 178, 6.7, 10, 0.4, 56, 12.4, 6, 15],
+                [1200, 198, 7.5, 10, 0.4, 68, 13.9, 7, 18],
+                [1300, 219, 8.2, 11, 0.4, 83, 15.6, 8, 21],
+                [1400, 242, 9.0, 12, 0.4, 99, 17.3, 8, 25],
+                [1500, 265, 9.8, 12, 0.4, 118, 19.3, 9, 29],
+                [1600, 291, 10.7, 13, 0.4, 140, 21.3, 10, 33],
+                [1700, 318, 11.6, 14, 0.5, 165, 23.5, 11, 38],
+                [1800, 347, 12.5, 16, 0.5, 193, 25.9, 11, 43],
+                [1900, 380, 13.6, 18, 0.6, 227, 28.5, 12, 48],
+                [2000, 416, 14.7, 20, 0.6, 266, 31.4, 14, 55],
+                [2100, 459, 16.0, 25, 0.7, 315, 34.8, 15, 62],
+                [2200, 511, 17.5, 33, 0.9, 379, 38.8, 16, 70],
+                [2300, 587, 19.7, 81, 2.1, 476, 44.3, 19, 81]
+            ],
+            c4: [
+                [200, 18, 0.9, 5, 0.2, 1, 1.1, 1, 0],
+                [300, 27, 1.3, 5, 0.2, 2, 1.7, 1, 1],
+                [400, 37, 1.8, 5, 0.2, 4, 2.4, 2, 2],
+                [500, 47, 2.3, 5, 0.2, 6, 3.0, 2, 2],
+                [600, 57, 2.8, 5, 0.2, 9, 3.8, 3, 4],
+                [700, 68, 3.3, 5, 0.3, 13, 4.5, 3, 5],
+                [800, 79, 3.8, 6, 0.3, 17, 5.3, 3, 6],
+                [900, 90, 4.3, 6, 0.3, 22, 6.1, 4, 8],
+                [1000, 101, 4.8, 6, 0.3, 28, 7.0, 4, 10],
+                [1100, 113, 5.4, 6, 0.3, 35, 7.9, 5, 12],
+                [1200, 126, 5.9, 6, 0.3, 43, 8.8, 5, 14],
+                [1300, 138, 6.5, 7, 0.3, 52, 9.9, 6, 17],
+                [1400, 152, 7.1, 7, 0.3, 61, 11.0, 6, 20],
+                [1500, 165, 7.7, 7, 0.3, 72, 12.0, 7, 23],
+                [1600, 180, 8.3, 7, 0.3, 85, 13.3, 8, 26],
+                [1700, 195, 8.9, 8, 0.3, 98, 14.5, 8, 29],
+                [1800, 210, 9.6, 8, 0.3, 114, 15.9, 9, 33],
+                [1900, 227, 10.3, 8, 0.4, 130, 17.3, 9, 37],
+                [2000, 244, 11.0, 9, 0.4, 149, 18.8, 10, 41],
+                [2100, 262, 11.7, 9, 0.4, 170, 20.5, 11, 45],
+                [2200, 281, 12.5, 10, 0.4, 193, 22.2, 11, 50],
+                [2300, 302, 13.3, 11, 0.4, 219, 24.0, 12, 55],
+                [2400, 324, 14.2, 12, 0.4, 248, 25.9, 13, 61],
+                [2500, 347, 15.1, 13, 0.5, 281, 28.1, 13, 67],
+                [2600, 373, 16.1, 14, 0.5, 319, 30.3, 14, 73],
+                [2700, 402, 17.1, 16, 0.6, 362, 32.8, 15, 80],
+                [2800, 434, 18.3, 18, 0.6, 413, 35.6, 16, 87],
+                [2900, 472, 19.6, 22, 0.8, 476, 38.8, 18, 96],
+                [3000, 520, 21.2, 31, 1.0, 557, 42.5, 19, 106],
+                [3100, 592, 23.6, 42, 1.3, 686, 47.9, 22, 120]
+            ],
+            c5: [
+                [300, 18, 1.1, 3, 0.2, 1, 1.1, 1, 1],
+                [400, 25, 1.5, 3, 0.2, 3, 1.6, 1, 1],
+                [500, 31, 1.9, 3, 0.2, 4, 2.0, 2, 2],
+                [600, 38, 2.2, 3, 0.2, 6, 2.5, 2, 3],
+                [700, 45, 2.7, 4, 0.2, 9, 3.0, 2, 4],
+                [800, 52, 3.1, 4, 0.2, 12, 3.5, 3, 5],
+                [900, 59, 3.5, 4, 0.2, 15, 4.0, 3, 7],
+                [1000, 67, 3.9, 4, 0.2, 19, 4.6, 4, 8],
+                [1100, 75, 4.3, 4, 0.2, 23, 5.2, 4, 10],
+                [1200, 83, 4.8, 4, 0.2, 28, 5.9, 4, 12],
+                [1300, 91, 5.3, 4, 0.2, 34, 6.5, 5, 14],
+                [1400, 100, 5.7, 4, 0.2, 40, 7.2, 5, 16],
+                [1500, 109, 6.2, 5, 0.2, 47, 8.0, 6, 18],
+                [1600, 118, 6.7, 5, 0.3, 55, 8.7, 6, 21],
+                [1700, 127, 7.2, 5, 0.3, 64, 9.6, 6, 24],
+                [1800, 137, 7.7, 5, 0.3, 73, 10.4, 7, 26],
+                [1900, 147, 8.2, 5, 0.3, 84, 11.3, 7, 30],
+                [2000, 158, 8.8, 5, 0.3, 95, 12.3, 8, 33],
+                [2100, 169, 9.3, 6, 0.3, 108, 13.3, 8, 36],
+                [2200, 180, 9.9, 6, 0.3, 121, 14.4, 9, 40],
+                [2300, 192, 10.5, 6, 0.3, 136, 15.5, 9, 44],
+                [2400, 204, 11.1, 6, 0.3, 153, 16.6, 10, 48],
+                [2500, 217, 11.7, 7, 0.3, 170, 17.8, 10, 52],
+                [2600, 230, 12.4, 7, 0.3, 190, 19.2, 11, 56],
+                [2700, 244, 13.1, 7, 0.3, 211, 20.6, 11, 61],
+                [2800, 259, 13.8, 8, 0.4, 234, 22.0, 12, 66],
+                [2900, 275, 14.5, 8, 0.4, 260, 23.5, 13, 71],
+                [3000, 291, 15.3, 9, 0.4, 288, 25.2, 13, 77],
+                [3100, 309, 16.1, 9, 0.4, 319, 26.9, 14, 83],
+                [3200, 328, 16.9, 10, 0.4, 354, 28.8, 15, 89],
+                [3300, 348, 17.8, 11, 0.5, 392, 30.7, 15, 95],
+                [3400, 371, 18.7, 12, 0.5, 436, 32.8, 16, 102],
+                [3500, 395, 19.8, 13, 0.5, 485, 35.1, 17, 110],
+                [3600, 422, 20.9, 15, 0.6, 542, 37.6, 18, 118],
+                [3700, 454, 22.2, 18, 0.7, 611, 40.4, 19, 127],
+                [3800, 492, 23.7, 23, 0.9, 696, 43.7, 21, 138],
+                [3900, 544, 25.6, 39, 1.4, 816, 47.8, 23, 152]
+            ]
+        }
+    },
+    // ---------- 82mm D-832DU Smoke — Fire — 2B9 Vasilek (2B9 Vasilek 1.6.1) ----------
+    "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_smoke_d832du_2b9_fire": {
+        source: {"mod": "2B9 Vasilek", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
+        gun: {"name": "2B9 Vasilek", "prefab": "Prefabs/Weapons/Core/Turret_2B9.et", "type": "howitzer", "milSystem": 6000, "elevDeg": [-1.0, 68.0], "limits": {"minElev": -17, "maxElev": 1133}},
+        ammo: {"name": "82mm D-832DU Smoke — Fire", "prefab": "Prefabs/Weapons/Ammo/2B9/TF_Ammo_Shell_82mm_Smoke_D832DU_2B9_Fire.et", "v0": 71.0, "airDrag": 0.000655, "mass": 3.48, "gameTable": "Configs/Weapons/Ammo/D832DU_Shell_82mm_Smoke.conf"},
+        chargeOrigin: "ring",
+        charges: {"c1": {"name": "Charge 0", "coef": 1.0, "v0": 71.0}, "c2": {"name": "Charge 1", "coef": 1.806, "v0": 128.2}, "c3": {"name": "Charge 2", "coef": 2.423, "v0": 172.0}, "c4": {"name": "Charge 3", "coef": 2.975, "v0": 211.2}},
+        wind: {"windDriftCoeff": 0.2307, "windRangeCoeff": 0.3551},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
+        check: {"c1": 0.1, "c2": null, "c3": null, "c4": null},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
+        generated: "2026-11-04 · Extractor v0.5.8",
+        highAngle: {
+            c1: [
+                [400, 1023, 12.4, 114, 0.9, 189, 63.0, 16, 11]
+            ],
+            c2: [
+                [1000, 1097, 22.3, 28, 0.3, 608, 69.5, 31, 46],
+                [1100, 1039, 21.6, 33, 0.4, 574, 66.4, 28, 48],
+                [1200, 969, 20.8, 43, 0.6, 530, 62.8, 24, 48],
+                [1300, 871, 19.4, 94, 1.5, 461, 57.4, 21, 48]
+            ],
+            c3: [
+                [1500, 1119, 28.8, 17, 0.2, 1019, 72.4, 41, 86],
+                [1600, 1084, 28.4, 18, 0.2, 989, 70.8, 38, 88],
+                [1700, 1047, 27.9, 20, 0.3, 953, 69.0, 35, 89],
+                [1800, 1005, 27.2, 23, 0.4, 911, 67.0, 33, 90],
+                [1900, 957, 26.4, 28, 0.5, 860, 64.7, 30, 91],
+                [2000, 898, 25.4, 37, 0.7, 794, 61.7, 27, 90],
+                [2100, 811, 23.7, 50, 1.0, 692, 57.0, 24, 87]
+            ],
+            c4: [
+                [2000, 1113, 33.7, 13, 0.2, 1398, 73.7, 47, 128],
+                [2100, 1086, 33.3, 14, 0.2, 1366, 72.6, 44, 130],
+                [2200, 1058, 32.9, 15, 0.2, 1330, 71.4, 42, 131],
+                [2300, 1028, 32.4, 16, 0.3, 1290, 70.1, 39, 132],
+                [2400, 995, 31.8, 18, 0.3, 1245, 68.6, 37, 132],
+                [2500, 959, 31.1, 20, 0.4, 1192, 66.9, 35, 132],
+                [2600, 917, 30.3, 24, 0.5, 1129, 65.0, 32, 132],
+                [2700, 865, 29.2, 32, 0.7, 1049, 62.4, 30, 130],
+                [2800, 792, 27.5, 82, 2.1, 931, 58.5, 27, 125]
+            ]
+        },
+        lowAngle: {
+            c1: [
+                [100, 95, 1.4, 50, 0.7, 3, 5.8, 1, 0],
+                [200, 196, 2.9, 55, 0.8, 11, 12.1, 3, 1],
+                [300, 311, 4.6, 68, 0.9, 26, 19.4, 4, 3],
+                [400, 460, 6.6, 113, 1.4, 54, 28.9, 6, 6]
+            ],
+            c2: [
+                [100, 29, 0.8, 15, 0.4, 1, 1.8, 1, 0],
+                [200, 59, 1.6, 15, 0.4, 3, 3.6, 1, 1],
+                [300, 89, 2.4, 16, 0.4, 7, 5.6, 2, 2],
+                [400, 121, 3.3, 16, 0.4, 13, 7.7, 3, 3],
+                [500, 155, 4.1, 17, 0.5, 21, 9.9, 4, 4],
+                [600, 190, 5.1, 18, 0.5, 31, 12.3, 5, 6],
+                [700, 227, 6.0, 20, 0.5, 44, 14.9, 5, 9],
+                [800, 267, 7.0, 21, 0.5, 60, 17.6, 6, 11],
+                [900, 310, 8.1, 23, 0.6, 80, 20.7, 7, 14],
+                [1000, 358, 9.2, 27, 0.6, 105, 24.2, 8, 18],
+                [1100, 414, 10.5, 32, 0.7, 136, 28.1, 10, 23],
+                [1200, 481, 12.1, 42, 0.9, 179, 32.9, 11, 28],
+                [1300, 576, 14.1, 92, 1.8, 244, 39.4, 13, 35]
+            ],
+            c3: [
+                [200, 32, 1.2, 8, 0.3, 2, 2.0, 1, 1],
+                [300, 49, 1.8, 9, 0.3, 4, 3.1, 2, 1],
+                [400, 67, 2.4, 9, 0.3, 7, 4.3, 2, 2],
+                [500, 85, 3.1, 9, 0.3, 11, 5.5, 3, 3],
+                [600, 103, 3.7, 10, 0.3, 17, 6.7, 3, 5],
+                [700, 123, 4.4, 10, 0.3, 24, 8.0, 4, 6],
+                [800, 143, 5.1, 10, 0.4, 32, 9.5, 4, 8],
+                [900, 163, 5.8, 11, 0.4, 41, 11.0, 5, 10],
+                [1000, 185, 6.5, 11, 0.4, 52, 12.6, 6, 13],
+                [1100, 208, 7.3, 12, 0.4, 65, 14.3, 6, 16],
+                [1200, 231, 8.1, 12, 0.4, 80, 16.1, 7, 19],
+                [1300, 257, 8.9, 13, 0.4, 97, 18.1, 8, 22],
+                [1400, 284, 9.8, 14, 0.4, 117, 20.1, 9, 26],
+                [1500, 312, 10.7, 15, 0.5, 140, 22.4, 9, 30],
+                [1600, 344, 11.6, 17, 0.5, 167, 24.8, 10, 35],
+                [1700, 378, 12.7, 19, 0.6, 198, 27.5, 11, 40],
+                [1800, 417, 13.8, 22, 0.6, 236, 30.5, 12, 45],
+                [1900, 462, 15.1, 26, 0.7, 282, 33.9, 13, 52],
+                [2000, 518, 16.7, 36, 1.0, 343, 38.1, 15, 59],
+                [2100, 602, 18.9, 48, 1.2, 440, 44.0, 17, 69]
+            ],
+            c4: [
+                [200, 22, 1.0, 6, 0.2, 1, 1.4, 1, 0],
+                [300, 33, 1.5, 6, 0.3, 3, 2.1, 1, 1],
+                [400, 44, 2.0, 6, 0.3, 5, 2.8, 2, 2],
+                [500, 56, 2.5, 6, 0.3, 8, 3.6, 2, 3],
+                [600, 68, 3.0, 6, 0.3, 11, 4.5, 3, 4],
+                [700, 81, 3.6, 6, 0.3, 16, 5.3, 3, 5],
+                [800, 94, 4.1, 7, 0.3, 21, 6.2, 4, 7],
+                [900, 107, 4.7, 7, 0.3, 27, 7.2, 4, 8],
+                [1000, 121, 5.3, 7, 0.3, 34, 8.2, 5, 10],
+                [1100, 135, 5.8, 7, 0.3, 42, 9.3, 5, 13],
+                [1200, 150, 6.5, 8, 0.3, 51, 10.5, 6, 15],
+                [1300, 165, 7.1, 8, 0.3, 62, 11.6, 6, 18],
+                [1400, 181, 7.7, 8, 0.3, 73, 12.9, 7, 21],
+                [1500, 198, 8.4, 9, 0.3, 87, 14.3, 7, 24],
+                [1600, 215, 9.1, 9, 0.4, 101, 15.7, 8, 27],
+                [1700, 233, 9.8, 9, 0.4, 118, 17.2, 8, 31],
+                [1800, 253, 10.5, 10, 0.4, 136, 18.8, 9, 35],
+                [1900, 273, 11.3, 11, 0.4, 157, 20.5, 10, 39],
+                [2000, 294, 12.1, 11, 0.4, 181, 22.3, 10, 43],
+                [2100, 317, 13.0, 12, 0.4, 207, 24.3, 11, 48],
+                [2200, 342, 13.9, 13, 0.5, 237, 26.4, 12, 53],
+                [2300, 369, 14.8, 14, 0.5, 271, 28.6, 13, 59],
+                [2400, 398, 15.9, 16, 0.6, 310, 31.1, 14, 65],
+                [2500, 432, 17.0, 19, 0.6, 356, 33.8, 15, 72],
+                [2600, 471, 18.3, 23, 0.7, 413, 37.0, 16, 79],
+                [2700, 519, 19.8, 31, 1.0, 486, 40.7, 17, 88],
+                [2800, 589, 22.0, 80, 2.3, 597, 45.9, 20, 100]
+            ]
+        }
+    },
+    // ---------- 82mm D-832DU Smoke — DFire — 2B9 Vasilek (2B9 Vasilek 1.6.1) ----------
+    "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_smoke_d832du_2b9_dfire": {
+        source: {"mod": "2B9 Vasilek", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
+        gun: {"name": "2B9 Vasilek", "prefab": "Prefabs/Weapons/Core/Turret_2B9.et", "type": "howitzer", "milSystem": 6000, "elevDeg": [-1.0, 68.0], "limits": {"minElev": -17, "maxElev": 1133}},
+        ammo: {"name": "82mm D-832DU Smoke — DFire", "prefab": "Prefabs/Weapons/Ammo/2B9/TF_Ammo_Shell_82mm_Smoke_D832DU_2B9_DFire.et", "v0": 71.0, "airDrag": 0.000655, "mass": 3.48, "gameTable": "Configs/Weapons/AIBallisticTables/2B9/D832DU_Shell_82mm_Smoke_DFire.conf"},
+        chargeOrigin: "ring",
+        charges: {"c1": {"name": "Charge 0", "coef": 1.0, "v0": 71.0}, "c2": {"name": "Charge 1", "coef": 1.806, "v0": 128.2}, "c3": {"name": "Charge 2", "coef": 2.423, "v0": 172.0}, "c4": {"name": "Charge 3", "coef": 2.975, "v0": 211.2}},
+        wind: {"windDriftCoeff": 0.2307, "windRangeCoeff": 0.3551},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
+        check: {"c1": 0.1, "c2": null, "c3": null, "c4": 0.4},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
+        generated: "2026-11-04 · Extractor v0.5.8",
+        highAngle: {
+            c1: [
+                [400, 1023, 12.4, 114, 0.9, 189, 63.0, 16, 11]
+            ],
+            c2: [
+                [1000, 1097, 22.3, 28, 0.3, 608, 69.5, 31, 46],
+                [1100, 1039, 21.6, 33, 0.4, 574, 66.4, 28, 48],
+                [1200, 969, 20.8, 43, 0.6, 530, 62.8, 24, 48],
+                [1300, 871, 19.4, 94, 1.5, 461, 57.4, 21, 48]
+            ],
+            c3: [
+                [1500, 1119, 28.8, 17, 0.2, 1019, 72.4, 41, 86],
+                [1600, 1084, 28.4, 18, 0.2, 989, 70.8, 38, 88],
+                [1700, 1047, 27.9, 20, 0.3, 953, 69.0, 35, 89],
+                [1800, 1005, 27.2, 23, 0.4, 911, 67.0, 33, 90],
+                [1900, 957, 26.4, 28, 0.5, 860, 64.7, 30, 91],
+                [2000, 898, 25.4, 37, 0.7, 794, 61.7, 27, 90],
+                [2100, 811, 23.7, 50, 1.0, 692, 57.0, 24, 87]
+            ],
+            c4: [
+                [2000, 1113, 33.7, 13, 0.2, 1398, 73.7, 47, 128],
+                [2100, 1086, 33.3, 14, 0.2, 1366, 72.6, 44, 130],
+                [2200, 1058, 32.9, 15, 0.2, 1330, 71.4, 42, 131],
+                [2300, 1028, 32.4, 16, 0.3, 1290, 70.1, 39, 132],
+                [2400, 995, 31.8, 18, 0.3, 1245, 68.6, 37, 132],
+                [2500, 959, 31.1, 20, 0.4, 1192, 66.9, 35, 132],
+                [2600, 917, 30.3, 24, 0.5, 1129, 65.0, 32, 132],
+                [2700, 865, 29.2, 32, 0.7, 1049, 62.4, 30, 130],
+                [2800, 792, 27.5, 82, 2.1, 931, 58.5, 27, 125]
+            ]
+        },
+        lowAngle: {
+            c1: [
+                [100, 95, 1.4, 50, 0.7, 3, 5.8, 1, 0],
+                [200, 196, 2.9, 55, 0.8, 11, 12.1, 3, 1],
+                [300, 311, 4.6, 68, 0.9, 26, 19.4, 4, 3],
+                [400, 460, 6.6, 113, 1.4, 54, 28.9, 6, 6]
+            ],
+            c2: [
+                [100, 29, 0.8, 15, 0.4, 1, 1.8, 1, 0],
+                [200, 59, 1.6, 15, 0.4, 3, 3.6, 1, 1],
+                [300, 89, 2.4, 16, 0.4, 7, 5.6, 2, 2],
+                [400, 121, 3.3, 16, 0.4, 13, 7.7, 3, 3],
+                [500, 155, 4.1, 17, 0.5, 21, 9.9, 4, 4],
+                [600, 190, 5.1, 18, 0.5, 31, 12.3, 5, 6],
+                [700, 227, 6.0, 20, 0.5, 44, 14.9, 5, 9],
+                [800, 267, 7.0, 21, 0.5, 60, 17.6, 6, 11],
+                [900, 310, 8.1, 23, 0.6, 80, 20.7, 7, 14],
+                [1000, 358, 9.2, 27, 0.6, 105, 24.2, 8, 18],
+                [1100, 414, 10.5, 32, 0.7, 136, 28.1, 10, 23],
+                [1200, 481, 12.1, 42, 0.9, 179, 32.9, 11, 28],
+                [1300, 576, 14.1, 92, 1.8, 244, 39.4, 13, 35]
+            ],
+            c3: [
+                [200, 32, 1.2, 8, 0.3, 2, 2.0, 1, 1],
+                [300, 49, 1.8, 9, 0.3, 4, 3.1, 2, 1],
+                [400, 67, 2.4, 9, 0.3, 7, 4.3, 2, 2],
+                [500, 85, 3.1, 9, 0.3, 11, 5.5, 3, 3],
+                [600, 103, 3.7, 10, 0.3, 17, 6.7, 3, 5],
+                [700, 123, 4.4, 10, 0.3, 24, 8.0, 4, 6],
+                [800, 143, 5.1, 10, 0.4, 32, 9.5, 4, 8],
+                [900, 163, 5.8, 11, 0.4, 41, 11.0, 5, 10],
+                [1000, 185, 6.5, 11, 0.4, 52, 12.6, 6, 13],
+                [1100, 208, 7.3, 12, 0.4, 65, 14.3, 6, 16],
+                [1200, 231, 8.1, 12, 0.4, 80, 16.1, 7, 19],
+                [1300, 257, 8.9, 13, 0.4, 97, 18.1, 8, 22],
+                [1400, 284, 9.8, 14, 0.4, 117, 20.1, 9, 26],
+                [1500, 312, 10.7, 15, 0.5, 140, 22.4, 9, 30],
+                [1600, 344, 11.6, 17, 0.5, 167, 24.8, 10, 35],
+                [1700, 378, 12.7, 19, 0.6, 198, 27.5, 11, 40],
+                [1800, 417, 13.8, 22, 0.6, 236, 30.5, 12, 45],
+                [1900, 462, 15.1, 26, 0.7, 282, 33.9, 13, 52],
+                [2000, 518, 16.7, 36, 1.0, 343, 38.1, 15, 59],
+                [2100, 602, 18.9, 48, 1.2, 440, 44.0, 17, 69]
+            ],
+            c4: [
+                [200, 22, 1.0, 6, 0.2, 1, 1.4, 1, 0],
+                [300, 33, 1.5, 6, 0.3, 3, 2.1, 1, 1],
+                [400, 44, 2.0, 6, 0.3, 5, 2.8, 2, 2],
+                [500, 56, 2.5, 6, 0.3, 8, 3.6, 2, 3],
+                [600, 68, 3.0, 6, 0.3, 11, 4.5, 3, 4],
+                [700, 81, 3.6, 6, 0.3, 16, 5.3, 3, 5],
+                [800, 94, 4.1, 7, 0.3, 21, 6.2, 4, 7],
+                [900, 107, 4.7, 7, 0.3, 27, 7.2, 4, 8],
+                [1000, 121, 5.3, 7, 0.3, 34, 8.2, 5, 10],
+                [1100, 135, 5.8, 7, 0.3, 42, 9.3, 5, 13],
+                [1200, 150, 6.5, 8, 0.3, 51, 10.5, 6, 15],
+                [1300, 165, 7.1, 8, 0.3, 62, 11.6, 6, 18],
+                [1400, 181, 7.7, 8, 0.3, 73, 12.9, 7, 21],
+                [1500, 198, 8.4, 9, 0.3, 87, 14.3, 7, 24],
+                [1600, 215, 9.1, 9, 0.4, 101, 15.7, 8, 27],
+                [1700, 233, 9.8, 9, 0.4, 118, 17.2, 8, 31],
+                [1800, 253, 10.5, 10, 0.4, 136, 18.8, 9, 35],
+                [1900, 273, 11.3, 11, 0.4, 157, 20.5, 10, 39],
+                [2000, 294, 12.1, 11, 0.4, 181, 22.3, 10, 43],
+                [2100, 317, 13.0, 12, 0.4, 207, 24.3, 11, 48],
+                [2200, 342, 13.9, 13, 0.5, 237, 26.4, 12, 53],
+                [2300, 369, 14.8, 14, 0.5, 271, 28.6, 13, 59],
+                [2400, 398, 15.9, 16, 0.6, 310, 31.1, 14, 65],
+                [2500, 432, 17.0, 19, 0.6, 356, 33.8, 15, 72],
+                [2600, 471, 18.3, 23, 0.7, 413, 37.0, 16, 79],
+                [2700, 519, 19.8, 31, 1.0, 486, 40.7, 17, 88],
+                [2800, 589, 22.0, 80, 2.3, 597, 45.9, 20, 100]
+            ]
+        }
+    },
+    // ---------- 82mm D-832DU Smoke — NonRPL — 2B9 Vasilek (2B9 Vasilek 1.6.1) ----------
+    "tactical_flava_2b9_vasilek/turret_2b9/tf_ammo_shell_82mm_smoke_d832du_2b9_nonrpl": {
+        source: {"mod": "2B9 Vasilek", "version": "1.6.1", "author": "KERNOV", "kind": "mod"},
+        gun: {"name": "2B9 Vasilek", "prefab": "Prefabs/Weapons/Core/Turret_2B9.et", "type": "howitzer", "milSystem": 6000, "elevDeg": [-1.0, 68.0], "limits": {"minElev": -17, "maxElev": 1133}},
+        ammo: {"name": "82mm D-832DU Smoke — NonRPL", "prefab": "Prefabs/Weapons/Ammo/2B9/TF_Ammo_Shell_82mm_Smoke_D832DU_2B9_NonRPL.et", "v0": 71.0, "airDrag": 0.000655, "mass": 3.48, "gameTable": "Configs/Weapons/AIBallisticTables/2B9/D832DU_Shell_82mm_Smoke_MFire.conf"},
+        chargeOrigin: "ring",
+        charges: {"c1": {"name": "Charge 0", "coef": 1.0, "v0": 71.0}, "c2": {"name": "Charge 1", "coef": 1.806, "v0": 128.2}, "c3": {"name": "Charge 2", "coef": 2.423, "v0": 172.0}, "c4": {"name": "Charge 3", "coef": 2.975, "v0": 211.2}},
+        wind: {"windDriftCoeff": 0.2307, "windRangeCoeff": 0.3551},   // ค่าสำรองเมื่อไม่มีคอลัมน์ลม (Extractor คำนวณจาก XWIND / LWIND)
+        check: {"c1": 0.1, "c2": null, "c3": null, "c4": 0.4},   // ต่างจากตารางวิถีในไฟล์ของเกมสูงสุด (m)
+        generated: "2026-11-04 · Extractor v0.5.8",
+        highAngle: {
+            c1: [
+                [400, 1023, 12.4, 114, 0.9, 189, 63.0, 16, 11]
+            ],
+            c2: [
+                [1000, 1097, 22.3, 28, 0.3, 608, 69.5, 31, 46],
+                [1100, 1039, 21.6, 33, 0.4, 574, 66.4, 28, 48],
+                [1200, 969, 20.8, 43, 0.6, 530, 62.8, 24, 48],
+                [1300, 871, 19.4, 94, 1.5, 461, 57.4, 21, 48]
+            ],
+            c3: [
+                [1500, 1119, 28.8, 17, 0.2, 1019, 72.4, 41, 86],
+                [1600, 1084, 28.4, 18, 0.2, 989, 70.8, 38, 88],
+                [1700, 1047, 27.9, 20, 0.3, 953, 69.0, 35, 89],
+                [1800, 1005, 27.2, 23, 0.4, 911, 67.0, 33, 90],
+                [1900, 957, 26.4, 28, 0.5, 860, 64.7, 30, 91],
+                [2000, 898, 25.4, 37, 0.7, 794, 61.7, 27, 90],
+                [2100, 811, 23.7, 50, 1.0, 692, 57.0, 24, 87]
+            ],
+            c4: [
+                [2000, 1113, 33.7, 13, 0.2, 1398, 73.7, 47, 128],
+                [2100, 1086, 33.3, 14, 0.2, 1366, 72.6, 44, 130],
+                [2200, 1058, 32.9, 15, 0.2, 1330, 71.4, 42, 131],
+                [2300, 1028, 32.4, 16, 0.3, 1290, 70.1, 39, 132],
+                [2400, 995, 31.8, 18, 0.3, 1245, 68.6, 37, 132],
+                [2500, 959, 31.1, 20, 0.4, 1192, 66.9, 35, 132],
+                [2600, 917, 30.3, 24, 0.5, 1129, 65.0, 32, 132],
+                [2700, 865, 29.2, 32, 0.7, 1049, 62.4, 30, 130],
+                [2800, 792, 27.5, 82, 2.1, 931, 58.5, 27, 125]
+            ]
+        },
+        lowAngle: {
+            c1: [
+                [100, 95, 1.4, 50, 0.7, 3, 5.8, 1, 0],
+                [200, 196, 2.9, 55, 0.8, 11, 12.1, 3, 1],
+                [300, 311, 4.6, 68, 0.9, 26, 19.4, 4, 3],
+                [400, 460, 6.6, 113, 1.4, 54, 28.9, 6, 6]
+            ],
+            c2: [
+                [100, 29, 0.8, 15, 0.4, 1, 1.8, 1, 0],
+                [200, 59, 1.6, 15, 0.4, 3, 3.6, 1, 1],
+                [300, 89, 2.4, 16, 0.4, 7, 5.6, 2, 2],
+                [400, 121, 3.3, 16, 0.4, 13, 7.7, 3, 3],
+                [500, 155, 4.1, 17, 0.5, 21, 9.9, 4, 4],
+                [600, 190, 5.1, 18, 0.5, 31, 12.3, 5, 6],
+                [700, 227, 6.0, 20, 0.5, 44, 14.9, 5, 9],
+                [800, 267, 7.0, 21, 0.5, 60, 17.6, 6, 11],
+                [900, 310, 8.1, 23, 0.6, 80, 20.7, 7, 14],
+                [1000, 358, 9.2, 27, 0.6, 105, 24.2, 8, 18],
+                [1100, 414, 10.5, 32, 0.7, 136, 28.1, 10, 23],
+                [1200, 481, 12.1, 42, 0.9, 179, 32.9, 11, 28],
+                [1300, 576, 14.1, 92, 1.8, 244, 39.4, 13, 35]
+            ],
+            c3: [
+                [200, 32, 1.2, 8, 0.3, 2, 2.0, 1, 1],
+                [300, 49, 1.8, 9, 0.3, 4, 3.1, 2, 1],
+                [400, 67, 2.4, 9, 0.3, 7, 4.3, 2, 2],
+                [500, 85, 3.1, 9, 0.3, 11, 5.5, 3, 3],
+                [600, 103, 3.7, 10, 0.3, 17, 6.7, 3, 5],
+                [700, 123, 4.4, 10, 0.3, 24, 8.0, 4, 6],
+                [800, 143, 5.1, 10, 0.4, 32, 9.5, 4, 8],
+                [900, 163, 5.8, 11, 0.4, 41, 11.0, 5, 10],
+                [1000, 185, 6.5, 11, 0.4, 52, 12.6, 6, 13],
+                [1100, 208, 7.3, 12, 0.4, 65, 14.3, 6, 16],
+                [1200, 231, 8.1, 12, 0.4, 80, 16.1, 7, 19],
+                [1300, 257, 8.9, 13, 0.4, 97, 18.1, 8, 22],
+                [1400, 284, 9.8, 14, 0.4, 117, 20.1, 9, 26],
+                [1500, 312, 10.7, 15, 0.5, 140, 22.4, 9, 30],
+                [1600, 344, 11.6, 17, 0.5, 167, 24.8, 10, 35],
+                [1700, 378, 12.7, 19, 0.6, 198, 27.5, 11, 40],
+                [1800, 417, 13.8, 22, 0.6, 236, 30.5, 12, 45],
+                [1900, 462, 15.1, 26, 0.7, 282, 33.9, 13, 52],
+                [2000, 518, 16.7, 36, 1.0, 343, 38.1, 15, 59],
+                [2100, 602, 18.9, 48, 1.2, 440, 44.0, 17, 69]
+            ],
+            c4: [
+                [200, 22, 1.0, 6, 0.2, 1, 1.4, 1, 0],
+                [300, 33, 1.5, 6, 0.3, 3, 2.1, 1, 1],
+                [400, 44, 2.0, 6, 0.3, 5, 2.8, 2, 2],
+                [500, 56, 2.5, 6, 0.3, 8, 3.6, 2, 3],
+                [600, 68, 3.0, 6, 0.3, 11, 4.5, 3, 4],
+                [700, 81, 3.6, 6, 0.3, 16, 5.3, 3, 5],
+                [800, 94, 4.1, 7, 0.3, 21, 6.2, 4, 7],
+                [900, 107, 4.7, 7, 0.3, 27, 7.2, 4, 8],
+                [1000, 121, 5.3, 7, 0.3, 34, 8.2, 5, 10],
+                [1100, 135, 5.8, 7, 0.3, 42, 9.3, 5, 13],
+                [1200, 150, 6.5, 8, 0.3, 51, 10.5, 6, 15],
+                [1300, 165, 7.1, 8, 0.3, 62, 11.6, 6, 18],
+                [1400, 181, 7.7, 8, 0.3, 73, 12.9, 7, 21],
+                [1500, 198, 8.4, 9, 0.3, 87, 14.3, 7, 24],
+                [1600, 215, 9.1, 9, 0.4, 101, 15.7, 8, 27],
+                [1700, 233, 9.8, 9, 0.4, 118, 17.2, 8, 31],
+                [1800, 253, 10.5, 10, 0.4, 136, 18.8, 9, 35],
+                [1900, 273, 11.3, 11, 0.4, 157, 20.5, 10, 39],
+                [2000, 294, 12.1, 11, 0.4, 181, 22.3, 10, 43],
+                [2100, 317, 13.0, 12, 0.4, 207, 24.3, 11, 48],
+                [2200, 342, 13.9, 13, 0.5, 237, 26.4, 12, 53],
+                [2300, 369, 14.8, 14, 0.5, 271, 28.6, 13, 59],
+                [2400, 398, 15.9, 16, 0.6, 310, 31.1, 14, 65],
+                [2500, 432, 17.0, 19, 0.6, 356, 33.8, 15, 72],
+                [2600, 471, 18.3, 23, 0.7, 413, 37.0, 16, 79],
+                [2700, 519, 19.8, 31, 1.0, 486, 40.7, 17, 88],
+                [2800, 589, 22.0, 80, 2.3, 597, 45.9, 20, 100]
             ]
         }
     }

@@ -70,9 +70,9 @@ const WEAPONS = {
             "m982a1": { name: "Shell M982A1 Excalibur", table: "cie_artillery/howitzer_m777a2/ammo_shell_155mm_m982a1" }
         }
     },
-    // ── M777 Howitzer Artillery (PandaMods) ──
+    // ── M777 Howitzer (PandaMods) ──
     "m777_howitzer": {
-        name: "M777 Howitzer Artillery", type: "howitzer",
+        name: "M777 Howitzer", type: "howitzer",
         ammo: {
             "m107_shell_155mm_he": { name: "M107 Shell 155MM HE", table: "m777_howitzer_artillery/m777_howitzer/m107_shell_155mm_he" },
             "m982_excalibur": { name: "M982 Excalibur", table: "m777_howitzer_artillery/m777_howitzer/shell_155mm_m982_excalibur" }

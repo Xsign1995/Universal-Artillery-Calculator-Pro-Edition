@@ -1546,11 +1546,11 @@ const MapBackground = (() => {
     // แผนที่ tile (Zoomify) ที่เก็บใน repo แทน ArmaMapsTiles
     // v = เวอร์ชันของ tile — เปลี่ยนทุกครั้งที่อัปเดตแผนที่ ไม่งั้นเบราว์เซอร์ใช้ tile เก่าใน cache ปนกับของใหม่
     const LOCAL_TILE_MAPS = {
-        "Yunakivka": { base: "maps/Yunakivka", width: 10240, height: 10240, v: "3.6.4" },
-        "Novobakhmutivka": { base: "maps/Novobakhmutivka", width: 6912, height: 6912, v: "3.6.1" },
-        "Arland": { base: "maps/Arland", width: 4096, height: 4096, v: "3.6.1" },
-        "Everon": { base: "maps/Everon", width: 12800, height: 12800, v: "3.6.1" },
-        "Kolguyev": { base: "maps/Kolguyev", width: 12800, height: 12800, v: "3.6.1" },
+        "Yunakivka": { base: "maps/Yunakivka", width: 10240, height: 10240, v: "3.7.8" },
+        "Novobakhmutivka": { base: "maps/Novobakhmutivka", width: 6912, height: 6912, v: "3.7.8" },
+        "Arland": { base: "maps/Arland", width: 4096, height: 4096, v: "3.7.8" },
+        "Everon": { base: "maps/Everon", width: 12800, height: 12800, v: "3.7.8" },
+        "Kolguyev": { base: "maps/Kolguyev", width: 12800, height: 12800, v: "3.7.8" },
     };
     const tileQuery = (mapName) => LOCAL_TILE_MAPS[mapName] ? `?v=${LOCAL_TILE_MAPS[mapName].v}` : "";
     // เปิดผ่าน file://: โหลด tile จาก GitHub Pages ก่อน (มี CORS → มุมมอง 3D ใช้ภาพได้) ไม่มีเน็ตค่อยใช้ไฟล์ในเครื่อง
@@ -1878,11 +1878,11 @@ function loadScriptOnce(src) {
 // ── MAP LABELS (ป้ายชื่อ / สัญลักษณ์จาก EnfusionMapMaker labels.json) ──
 const MapLabels = (() => {
     const SCRIPTS = {
-        "Yunakivka": "maps/yunakivka_labels.js?v=3.6.4",
-        "Novobakhmutivka": "maps/novobakhmutivka_labels.js?v=3.6.1",
-        "Arland": "maps/arland_labels.js?v=3.6.1",
-        "Everon": "maps/everon_labels.js?v=3.6.1",
-        "Kolguyev": "maps/kolguyev_labels.js?v=3.6.1",
+        "Yunakivka": "maps/yunakivka_labels.js?v=3.7.8",
+        "Novobakhmutivka": "maps/novobakhmutivka_labels.js?v=3.7.8",
+        "Arland": "maps/arland_labels.js?v=3.7.8",
+        "Everon": "maps/everon_labels.js?v=3.7.8",
+        "Kolguyev": "maps/kolguyev_labels.js?v=3.7.8",
     };
     // ตัวอักษรของไอคอนแบบ letter (ตรงกับ SYMBOL_ICONS ใน EnfusionMapMaker)
     const LETTERS = {

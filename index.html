@@ -2205,7 +2205,12 @@ function onMapBgChange() {
     if (!HeightMap.has(val)) { updateAutoZUI('none'); return; }
     if (HeightMap.isReady(val)) { updateAutoZUI('ready'); return; }
     updateAutoZUI('loading');
-    HeightMap.load(val).then(ok => { if (currentMapKey() === val) updateAutoZUI(ok ? 'ready' : 'none'); });
+    HeightMap.load(val).then(ok => {
+        if (currentMapKey() !== val) return;
+        updateAutoZUI(ok ? 'ready' : 'none');
+        // คำนวณไว้ก่อน heightmap โหลดเสร็จ (เปิดหน้า / รีเฟรช) → วาดกราฟใหม่ให้มีพื้นดิน
+        if (ok && trajLastArgs && currentCalcData) { trajSkipAnim = true; drawTrajectory(...trajLastArgs); }
+    });
 }
 
 function restoreSelectedMap() {
@@ -2918,7 +2923,7 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
                 else { windTextLow = "ลมพัดเบามากจนไม่มีผลกระทบ"; }
             }
 
-            let clearanceMsg = bestLowCalc.maxHLow < minClearance ? `<div style="color:#ef4444; font-size:11px; text-align:right; margin-top:4px;">⚠️ ชนสิ่งกีดขวาง! (ความสูงสูงสุด ${bestLowCalc.maxHLow.toFixed(1)}m)</div>` : `<div style="color:#22c55e; font-size:11px; text-align:right; margin-top:4px;">✅ เส้นทางปลอดภัย (ความสูงสูงสุด ${bestLowCalc.maxHLow.toFixed(1)}m)</div>`;
+            let clearanceMsg = bestLowCalc.maxHLow < minClearance ? `<div class="clr-msg-low" style="color:#ef4444; font-size:11px; text-align:right; margin-top:4px;">⚠️ ชนสิ่งกีดขวาง! (ความสูงสูงสุด ${bestLowCalc.maxHLow.toFixed(1)}m)</div>` : `<div class="clr-msg-low" style="color:#22c55e; font-size:11px; text-align:right; margin-top:4px;">✅ เส้นทางปลอดภัย (ความสูงสูงสุด ${bestLowCalc.maxHLow.toFixed(1)}m)</div>`;
             let chargeDisplayLow = getChargeDisplayName(bestLowCalc.cId, false, true);
             
             let tofStatLow = `<div class="stat" style="border-left-color: #3b82f6; margin-bottom: ${airburstH > 0 && fuzeTimeLow !== null ? '5px' : '0'};"><span>Time of Flight:</span> <b>~${tofLowToPass.toFixed(1)} วินาที</b></div>`;
@@ -3378,6 +3383,13 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
         series.push(s);
     };
     addSeries(trajLow, 'LOW');
+    // ผลตรวจชนภูมิประเทศจากกราฟ ต้องตรงกับข้อความ "เส้นทางปลอดภัย" ในผลคำนวณ Low Angle
+    const lowS = series.find(x => x.name === 'LOW');
+    const clrEl = document.querySelector('.clr-msg-low');
+    if (lowS && lowS.hit && clrEl) {
+        clrEl.style.color = '#ef4444';
+        clrEl.textContent = `⚠️ ชนภูมิประเทศที่ระยะ ${lowS.hit.x.toFixed(0)}m (ความสูงสูงสุด ${lowS.peak.y.toFixed(1)}m)`;
+    }
     addSeries(trajHigh, 'HIGH');
     if (series.length === 0) { ctx.clearRect(0, 0, w, h); return; }
 

@@ -275,9 +275,12 @@
 
         #graph { aspect-ratio: 1 / 1; cursor: grab; }
         #graph:active { cursor: grabbing; }
-        #trajectoryGraph { aspect-ratio: 16 / 9; width: 100%; max-width: 900px; margin-left: auto; margin-right: auto; }
+        /* พื้นที่กราฟยืดเต็มความสูงที่เหลือของแผงแผนที่ (ขั้นต่ำสัดส่วน 16:9) — กราฟวาดตามขนาดจริงจึงไม่ยืดเพี้ยน */
+        #trajArea { position: relative; flex: 1 1 auto; width: 100%; aspect-ratio: 16 / 9; min-height: 0; }
+        @media (max-width: 700px) { #trajArea { aspect-ratio: 4 / 3; } }
+        #trajectoryGraph { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; }
         .graph-title { color: var(--ink-dim); font-family: var(--font-mono); font-size: 12px; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
-        #trajectory3D { aspect-ratio: 16 / 9; width: 100%; max-width: 900px; margin-left: auto; margin-right: auto; background: #020507; border-radius: 2px; border: 1px solid var(--line); overflow: hidden; display: none; }
+        #trajectory3D { position: absolute; inset: 0; width: 100%; height: 100%; background: #020507; border-radius: 2px; border: 1px solid var(--line); overflow: hidden; display: none; }
         .toggle-3d-btn { background: #0e151b; border: 1px solid var(--violet); color: var(--violet); padding: 4px 10px; margin: 0; font-size: 10px; width: auto; border-radius: 2px; text-transform: uppercase; letter-spacing: 0.5px; font-family: var(--font-mono); }
         .toggle-3d-btn.active { background: var(--violet); color: #1a0f2e; box-shadow: 0 0 12px rgba(185, 133, 255, 0.5); }
         .toggle-3d-btn:hover { filter: brightness(1.2); }
@@ -634,7 +637,7 @@
         </div>
     </div>
 
-    <div class="card map-panel">
+    <div class="card map-panel" style="display:flex; flex-direction:column;">
         <div class="graph-title map-title-row"><span>🗺️ Tactical Top-Down Map (พิกัดและทิศทางลม)</span><span id="mapBgStatus" class="map-status"></span></div>
         <div class="map-select-row">
             <label for="mapBgSelect" style="flex-shrink:0;">แผนที่:</label>
@@ -713,8 +716,10 @@
             <button id="viewToggleBtn" class="toggle-3d-btn" onclick="toggleViewMode()">SWITCH TO 3D VIEW</button>
         </div>
         
-        <canvas id="trajectoryGraph" width="960" height="540"></canvas>
-        <div id="trajectory3D"></div>
+        <div id="trajArea">
+            <canvas id="trajectoryGraph" width="960" height="540"></canvas>
+            <div id="trajectory3D"></div>
+        </div>
     </div>
 
     <div class="right-col" style="display: flex; flex-direction: column; gap: 20px; min-height: 0; height: 100%;">
@@ -2629,6 +2634,14 @@ function applyFOCorrection() {
     resetFOState(); mapMode = 'target'; calculate();
 }
 
+// ยอดวิถีจากแบบจำลองแรงต้าน (รวมผลความสูงเป้า) — ตรงกับกราฟ; จำลองไม่ได้ = ใช้ค่า PEAK ในตาราง
+function simulatedPeakAlt(elev, tof, dragKey, dist, dz, fallback) {
+    try {
+        const sim = getDragSimulatedPoints({ elev, tof, dragKey }, dist, dz);
+        if (sim && sim.pts && sim.pts.length) return Math.max(...sim.pts.map(p => p.y));
+    } catch (e) {}
+    return fallback;
+}
 function hasNoHighAngle(t) { return !!t && !t.highAngle && !!t.lowAngle; }
 function findBestCharge(dist, dz = 0, windSpeed = 0, windDirDeg = 0, aimBearingDeg = 0, minClearance = 0) {
     let tableSource = currentAmmo.table.highAngle ? currentAmmo.table.highAngle : currentAmmo.table;
@@ -2646,7 +2659,13 @@ function findBestCharge(dist, dz = 0, windSpeed = 0, windDirDeg = 0, aimBearingD
 
         const hc = ArtilleryPhysics.heightCorrection(table, w.virtualDist, finalInterpDataHigh.elev, finalInterpDataHigh.tof, dz, milSystem, true);
         const elev = finalInterpDataHigh.elev + (hc ? hc.dElev : -Math.atan(dz / aimDistH) * (halfMil / Math.PI));
-        return { elev, peakAlt: finalInterpDataHigh.hasPeakAlt ? finalInterpDataHigh.peakAlt : Infinity };
+        let peakAlt = finalInterpDataHigh.hasPeakAlt ? finalInterpDataHigh.peakAlt : Infinity;
+        if (minClearance > 0 && isFinite(peakAlt)) {
+            const root = finalInterpDataHigh.tof * finalInterpDataHigh.tof - 8 * dz / 9.81;
+            const tofH = root >= 0 ? (finalInterpDataHigh.tof + Math.sqrt(root)) / 2 : finalInterpDataHigh.tof;
+            peakAlt = simulatedPeakAlt(elev, tofH, table, dist, dz, peakAlt);
+        }
+        return { elev, peakAlt };
     }
 
     let fallback = null;
@@ -2766,6 +2785,7 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
         };
 
         simDataHigh = getDragSimulatedPoints(trajHigh, aimGridDistance, dz, airburstH);
+        if (simDataHigh && simDataHigh.pts) trajHigh.peakAlt = Math.max(...simDataHigh.pts.map(p => p.y));
         if (simDataHigh && aimGridDistance > 100) trajHigh.alt100m = ArtilleryPhysics.trajHeightAboveTargetAt(simDataHigh.pts, aimGridDistance - 100, dz);
         if (airburstH > 0 && simDataHigh && simDataHigh.burstX !== null) {
             fuzeTimeHigh = simDataHigh.fuzeTime;
@@ -2849,6 +2869,7 @@ function computeSolutionForGun(gunX, gunY, gunZ, targetXIn, targetYIn, targetZ) 
                 }
 
                 let maxHLow_temp = finalInterpDataLow.hasPeakAlt ? finalInterpDataLow.peakAlt : Math.pow(((dz + 0.5 * 9.81 * tofLowToPass_temp * tofLowToPass_temp) / tofLowToPass_temp), 2) / (2 * 9.81);
+                maxHLow_temp = simulatedPeakAlt(finalElevLowMil, tofLowToPass_temp, currentAmmo.table.lowAngle[cId], aimGridDistance, dz, maxHLow_temp);
                 
                 let isValidElev = finalElevLowMil >= MIN_ELEVATION_MIL && finalElevLowMil <= MAX_ELEVATION_MIL;
                 let clearsMask = maxHLow_temp >= minClearance;
@@ -3293,7 +3314,7 @@ function trajNiceStep(range, target) {
 function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
     const canvas = DOM["trajectoryGraph"];
     // ขนาดวาดตามขนาดแสดงผลจริง ตัวอักษรจึงเป็นพิกเซลหน้าจอจริง ไม่ถูกย่อ
-    const w = Math.max(420, Math.round(canvas.clientWidth || 600)), h = Math.round(w * 9 / 16);
+    const w = Math.max(320, Math.round(canvas.clientWidth || 600)), h = Math.max(180, Math.round(canvas.clientHeight || (w * 9 / 16)));
     const ctx = setupHiDPICanvas(canvas, w, h, 2, 2);
 
     if (window.trajectoryAnimId) { cancelAnimationFrame(window.trajectoryAnimId); window.trajectoryAnimId = null; }
@@ -3319,12 +3340,14 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
         const v = HeightMap.sample(mapKey, cd.gunX + cd.dx * t, cd.gunY + cd.dy * t);
         return v == null ? null : v - cd.gunZ;
     };
-    const terrainPts = [];
-    if (terrainReady) {
-        const n = 200;
-        for (let i = 0; i <= n; i++) { const x = maxD * i / n, y = terrainAt(x); if (y != null) terrainPts.push({ x, y }); }
-        if (terrainPts.length < 2) terrainReady = false;
-    }
+    // พื้นดินสุ่มใหม่ตามช่วงที่ซูม ไม่ให้เป็นขั้นบันได
+    let terrainPts = [];
+    const buildTerrainPts = (a, b) => {
+        terrainPts = [];
+        const n = 240;
+        for (let i = 0; i <= n; i++) { const x = a + (b - a) * i / n, y = terrainAt(x); if (y != null) terrainPts.push({ x, y }); }
+    };
+    if (terrainReady) { buildTerrainPts(0, maxD); if (terrainPts.length < 2) terrainReady = false; }
 
     // ชุดข้อมูลวิถี (LOW / HIGH)
     const series = [];
@@ -3376,6 +3399,7 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
     let vx0 = 0, vx1 = maxD;
     let minY = 0, maxY = 1;
     const fitY = () => {
+        if (terrainReady) buildTerrainPts(vx0, vx1);
         let lo = Infinity, hi = -Infinity;
         const acc = (y) => { if (y == null) return; if (y < lo) lo = y; if (y > hi) hi = y; };
         if (vx0 <= 0) acc(0);
@@ -3391,6 +3415,18 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
         const span = Math.max(hi - lo, minSpan);
         minY = lo - span * 0.08;
         maxY = minY + span * 1.23;
+
+        // ยังไม่ซูม = Fit (ยอดวิถีพอดีกรอบ) · ซูมแล้วค่อยๆ เข้าสเกลจริง 1:1 (ซูม ≥ 2 เท่า);
+        // ถ้า 1:1 ทำให้ล้นกรอบ ใช้สเกลที่พอดีกรอบแทน ยอดวิถีจึงไม่หลุดกรอบ
+        const z = maxD / (vx1 - vx0);
+        if (z > 1.001) {
+            const fitScale = plotH / (maxY - minY);
+            const trueScale = Math.min(plotW / (vx1 - vx0), fitScale);
+            const k = Math.min(1, z - 1), t = k * k * (3 - 2 * k);
+            const sY = Math.pow(fitScale, 1 - t) * Math.pow(trueScale, t);
+            const mid = (minY + maxY) / 2, half = plotH / sY / 2;
+            minY = mid - half; maxY = mid + half;
+        }
     };
     fitY();
 
@@ -3543,7 +3579,7 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
         // hint
         ctx.font = "10px sans-serif"; ctx.fillStyle = "#475569"; ctx.textAlign = "left";
         ctx.fillText(terrainReady ? "Heights relative to gun" : "Heights relative to gun · no terrain data", pl, h - 6);
-        ctx.textAlign = "right"; ctx.fillText("wheel zoom · drag pan · dbl-click reset", w - pr, h - 6);
+        if (w >= 480) { ctx.textAlign = "right"; ctx.fillText("wheel zoom · drag pan · dbl-click reset", w - pr, h - 6); }
 
         // hover
         if (hoverX != null && hoverX >= pl && hoverX <= pl + plotW) {
@@ -3597,7 +3633,7 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
         vx1 = vx0 + span;
     };
     trajScene = {
-        w, pl, plotW,
+        w, h, pl, plotW,
         stopAnim: () => { stopAnim(); },
         setHover: (mx) => { hoverX = mx; stopAnim(); render(); },
         zoom: (mx, factor) => {
@@ -3646,8 +3682,8 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
     }, { passive: false });
     cv.addEventListener('dblclick', () => { if (trajScene) trajScene.reset(); });
     if (window.ResizeObserver) new ResizeObserver(() => {
-        const cw = Math.round(cv.clientWidth);
-        if (cw > 0 && trajLastArgs && (!trajScene || trajScene.w !== Math.max(420, cw))) { trajSkipAnim = true; drawTrajectory(...trajLastArgs); }
+        const cw = Math.round(cv.clientWidth), ch = Math.round(cv.clientHeight);
+        if (cw > 0 && ch > 0 && trajLastArgs && (!trajScene || trajScene.w !== Math.max(320, cw) || trajScene.h !== Math.max(180, ch))) { trajSkipAnim = true; drawTrajectory(...trajLastArgs); }
     }).observe(cv);
 })();
 

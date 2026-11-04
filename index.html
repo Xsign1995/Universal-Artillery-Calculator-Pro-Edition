@@ -3784,6 +3784,7 @@ function getTerrainTexture3D(mapName) {
     try { bgMap.base.image.getContext && bgMap.base.image.getContext('2d').getImageData(0, 0, 1, 1); } catch (e) { return null; }
     terrainTexture3D = new THREE.CanvasTexture(bgMap.base.image);
     terrainTexture3D.colorSpace = THREE.SRGBColorSpace || terrainTexture3D.colorSpace;
+    terrainTexture3D.anisotropy = renderer ? renderer.capabilities.getMaxAnisotropy() : 8;
     terrainTextureMap = mapName;
     return terrainTexture3D;
 }
@@ -3872,6 +3873,7 @@ function updateGroundPlane3D(gunX, gunY) {
         try { bgMap.base.image.getContext && bgMap.base.image.getContext('2d').getImageData(0, 0, 1, 1); } catch (e) { return; }
         const texture = new THREE.CanvasTexture(bgMap.base.image);
         texture.colorSpace = THREE.SRGBColorSpace || texture.colorSpace;
+        texture.anisotropy = renderer ? renderer.capabilities.getMaxAnisotropy() : 8;
         const geometry = new THREE.PlaneGeometry(meta.width, meta.height);
         const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true, opacity: 0.95 });
         groundPlane3D = new THREE.Mesh(geometry, material);

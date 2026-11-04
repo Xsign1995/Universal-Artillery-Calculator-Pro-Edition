@@ -3558,7 +3558,6 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
         }
 
         // รายละเอียดเมื่อวาดครบ
-        let altRow = 0;
         series.forEach((s, i) => {
             if (prog[i] < 1) return;
             const t = s.traj;
@@ -3566,14 +3565,6 @@ function drawTrajectory(dist, dz, trajLow, trajHigh, milSystem) {
                 ctx.fillStyle = t.color; ctx.beginPath(); ctx.arc(toX(s.peak.x), toY(s.peak.y), 5, 0, Math.PI * 2); ctx.fill();
                 const above = toY(s.peak.y) - 16 > pt + 6;
                 pill(`Max ${s.peak.y.toFixed(0)}m`, toX(s.peak.x), above ? toY(s.peak.y) - 12 : toY(s.peak.y) + 24, "#ffffff", 'center', "bold 13px sans-serif");
-            }
-            if (t.alt100m !== null && t.alt100m !== undefined) {
-                const x100 = dist - 100, y100 = dz + t.alt100m;
-                if (inPlotX(x100)) {
-                    ctx.fillStyle = "#a855f7"; ctx.beginPath(); ctx.arc(toX(x100), toY(y100), 4, 0, Math.PI * 2); ctx.fill();
-                    pill(`${s.name} @100m: ${t.alt100m.toFixed(1)}m`, toX(x100) - 8, toY(y100) - 8 - altRow * 19, "#e9d5ff", 'right', "13px sans-serif");
-                    altRow++;
-                }
             }
             if (t.fuzeX !== undefined && t.fuzeY !== undefined && inPlotX(t.fuzeX)) {
                 const bX = toX(t.fuzeX), bY = toY(t.fuzeY);
@@ -4068,26 +4059,29 @@ function update3DScene() {
             scene.add(dLine); dynamicCurves.push(dLine);
         }
 
+        // ตรวจวิถีชนพื้น (ข้าม 40 ม.แรก / 25 ม.สุดท้าย) — ต้องมีพื้น 3D จาก heightmap
+        if (terrain3D) {
+            const x0 = Math.min(40, dist * 0.05), x1 = dist - 25;
+            const fine = curve3D.getPoints(800);
+            for (let i = 1; i < fine.length; i++) {
+                const q = fine[i], r = Math.hypot(q.x, q.z);
+                if (r < x0 || r > x1) continue;
+                if (q.y < terrainY3D(q.x, q.z)) {
+                    const sz = markerScale * 1.1;
+                    const xm = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([
+                        new THREE.Vector3(-sz, -sz, 0), new THREE.Vector3(sz, sz, 0),
+                        new THREE.Vector3(sz, -sz, 0), new THREE.Vector3(-sz, sz, 0),
+                    ]), new THREE.LineBasicMaterial({ color: 0xef4444 }));
+                    xm.position.copy(q); xm.renderOrder = 3;
+                    scene.add(xm); dynamicCurves.push(xm);
+                    addLabel(createDataLabelSprite([`⚠ ชนภูมิประเทศ @${r.toFixed(0)}m`], "#fca5a5"), new THREE.Vector3(q.x, q.y + labelScale * 0.6, q.z), labelScale * 0.4);
+                    break;
+                }
+            }
+        }
+
         const peakPt = points[maxHIndex];
         addLabel(createDataLabelSprite([`MAX: ${maxH.toFixed(0)}m`], colorHex), new THREE.Vector3(peakPt.x, peakPt.y + labelScale * 0.5, peakPt.z), labelScale * 0.4);
-
-        if (trajInfo.alt100m !== null && trajInfo.alt100m !== undefined && dist > 100) {
-            const targetRangeFrac = (dist - 100) / dist;
-            const idx100 = Math.min(simPts.length - 1, Math.round(targetRangeFrac * (simPts.length - 1)));
-            const bx100 = simPts[idx100].x;
-            const { x: x100, y: y100 } = windDeflectXY(bx100, simPts[idx100].t_norm);
-            const z100 = dz + trajInfo.alt100m;
-            const alt100Point = new THREE.Vector3(x100, z100, -y100);
-
-            const dotGeom = new THREE.SphereGeometry(markerScale * 0.4, 12, 12);
-            const dotMat = new THREE.MeshBasicMaterial({ color: 0xa855f7 });
-            const dot = new THREE.Mesh(dotGeom, dotMat);
-            dot.position.copy(alt100Point);
-            dot.renderOrder = 1;
-            scene.add(dot); dynamicCurves.push(dot);
-
-            addLabel(createDataLabelSprite([`ALT@100m: ${trajInfo.alt100m.toFixed(1)}m`], "#e9d5ff"), new THREE.Vector3(alt100Point.x, alt100Point.y + labelScale * 0.4, alt100Point.z), labelScale * 0.32);
-        }
 
         if (trajInfo.fuzeX !== undefined && trajInfo.fuzeY !== undefined) {
             const fuzeFrac = trajInfo.fuzeX / dist;

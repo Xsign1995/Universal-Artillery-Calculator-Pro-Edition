@@ -3,7 +3,7 @@
 เว็บเครื่องคำนวณปืนใหญ่ / ปืนครกสำหรับ **Arma Reforger** — Universal Artillery Calculator Pro Edition
 - เว็บ: https://xsign1995.github.io/Universal-Artillery-Calculator-Pro-Edition/ (GitHub Pages, deploy ด้วย `.github/workflows/static.yml`)
 - Repo: `Xsign1995/Universal-Artillery-Calculator-Pro-Edition` (public) · branch `main`
-- เวอร์ชันล่าสุด: **v3.7.6** (ดู `CHANGELOG.md`)
+- เวอร์ชันล่าสุด: **v3.7.7** (ดู `CHANGELOG.md`)
 - โปรเจกต์เกี่ยวข้อง: `Xsign1995/Enfusion-2D-Map-Maker` (ทำแผนที่ / tiles / heightmap / labels.json ให้เว็บนี้), `Xsign1995/Enfusion-Ballistics-Extractor` (ดึงตารางยิงจากไฟล์เกม / mod)
 
 ## กติกาการทำงานกับผู้ใช้ (Xsign1995)
@@ -52,7 +52,7 @@
 - Low Angle มุมเงย: ชดเชยความสูงด้วยแบบจำลองแรงต้านอากาศ (v3.2.5) — **ไม่ใช้** dElevPer100m (ยิงจริงตกสั้น ~100 / ~300 m) · เคยลองย้อนเป็นสูตร trig atan(dz/range) แล้วกลับมาใช้แบบจำลองแรงต้าน หลังยิงเป็นกลุ่มแล้วกลุ่มกระสุนอยู่รอบเป้า (ยิงนัดเดียวหลอกได้เพราะ range dispersion)
 - High Angle มุมเงย: (v3.6.0) ชดเชยความสูงด้วยแบบจำลองแรงต้านเหมือน Low (`heightCorrection(..., high=true)` — กิ่งมุมสูง Y ลดลงเมื่อมุมเพิ่ม) แทน D ELEV เดิม · เทียบกับแบบเดิม: Low ตรง ±1 mil, High คลาดไม่เกิน ~5 mil (2B14 −9 vs −13 ต่อ 50 m) · ToF High ยังใช้ `(baseTof + sqrt(baseTof² − 8·dz/g)) / 2` (ตรงกับ armacalc.pages.dev; ฟิสิกส์ต่างราว 0.3 s ที่ ToF 35 s) — ToF แสดงทศนิยม 1 ตำแหน่ง คลาด 0.1 s กระสุนอาจถึงพื้นก่อนชนวนทำงาน · เป้าสูงเกินระยะที่ charge ยิงถึง → `heightCorrection` คืน null → ใช้ atan(dz/ระยะ)
 - คอลัมน์ dELEV / dTOF ในตารางชุดใหม่ = ต่างเมื่อระยะ +50 m (ไม่ใช่ต่อความสูงเป้า 100 m แบบตารางเดิม) — โค้ดไม่ใช้ · ฟิสิกส์: `a = −g·ŷ − (AirDrag/Mass)·|v|·v`, v0 ต่อ charge จาก `charges[c].v0` (ลงทะเบียนผ่าน `registerCharge`, ตรงกับแถวตารางทุกแถว คลาดแค่การปัดมุม) · 2A36 = 6000 mil ตามข้อมูลใหม่
-- กราฟวิถี 2D / 3D, Alt @100m, จุด Air Fuze บนแผนที่ ใช้แบบจำลองแรงต้านอากาศ (v3.2.4 — แทน Bézier เดิม) · Air Fuze Timer ใช้สูตรเดิมที่ยืนยันในเกมแล้ว
+- กราฟวิถี 2D / 3D, จุด Air Fuze บนแผนที่ ใช้แบบจำลองแรงต้านอากาศ (v3.2.4 — แทน Bézier เดิม) · Air Fuze Timer ใช้สูตรเดิมที่ยืนยันในเกมแล้ว
 - Air Fuze: `effectiveDz` (dz + airburstH) ใช้ **เฉพาะ** หาจุดตัดชนวนใน `getDragSimulatedPoints` ห้ามใช้กับ Elevation / ToF / PeakAlt (ใช้ dz จริง) · ผู้ใช้เลื่อนจุดเล็งให้ Air Fuze Point บนแผนที่ทับเป้าจริง (ไม่งั้นระเบิดก่อนถึงเป้า)
 - ยังไม่ได้ยืนยันซ้ำ: เคส High Angle ~8000 m, dz < 0 (เคยแค่ "ตกใกล้" กับสูตรเก่า)
 

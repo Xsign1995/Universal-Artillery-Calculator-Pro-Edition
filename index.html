@@ -641,7 +641,7 @@
         <div class="graph-title map-title-row"><span>🗺️ Tactical Top-Down Map (พิกัดและทิศทางลม)</span><span id="mapBgStatus" class="map-status"></span></div>
         <div class="map-select-row">
             <label for="mapBgSelect" style="flex-shrink:0;">แผนที่:</label>
-            <select id="mapBgSelect" onchange="onMapBgChange()">
+            <select id="mapBgSelect" onchange="onMapBgChange(true)">
                 <option value="">— ไม่แสดงแผนที่ —</option>
                 <option value="Anizay">Anizay</option>
                 <option value="Arland">Arland</option>
@@ -2200,18 +2200,21 @@ function onAutoZToggle() {
     if (autoZEnabled && autoFillAllZ()) calculate();
 }
 
-function onMapBgChange() {
+function onMapBgChange(byUser) {
     const val = DOM["mapBgSelect"].value;
     try { localStorage.setItem('m777_selected_map', val); } catch (e) {}
     MapBackground.setMap(val);
     MapLabels.load(val);
     MapLabels.updateUI(val);
+    // ผู้ใช้สลับแผนที่ → เติม Z ใหม่จากแผนที่นี้ (ไม่ทำตอนกู้ค่าแผนที่ตอนเปิดหน้า เพื่อไม่ทับ Z จาก Fire History / Target Memory)
+    const refillZ = () => { if (byUser && autoZEnabled && autoFillAllZ()) calculate(); };
     if (!HeightMap.has(val)) { updateAutoZUI('none'); return; }
-    if (HeightMap.isReady(val)) { updateAutoZUI('ready'); return; }
+    if (HeightMap.isReady(val)) { updateAutoZUI('ready'); refillZ(); return; }
     updateAutoZUI('loading');
     HeightMap.load(val).then(ok => {
         if (currentMapKey() !== val) return;
         updateAutoZUI(ok ? 'ready' : 'none');
+        if (ok) refillZ();
         // คำนวณไว้ก่อน heightmap โหลดเสร็จ (เปิดหน้า / รีเฟรช) → วาดกราฟใหม่ให้มีพื้นดิน
         if (ok && trajLastArgs && currentCalcData) { trajSkipAnim = true; drawTrajectory(...trajLastArgs); }
     });

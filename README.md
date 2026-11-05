@@ -1,6 +1,6 @@
 # 🎯 Universal Artillery Calculator — Pro Edition
 
-**เวอร์ชันปัจจุบัน: v3.7.10 · รองรับ Arma Reforger 1.8** · [ดู Changelog](CHANGELOG.md)
+**เวอร์ชันปัจจุบัน: v3.7.11 · รองรับ Arma Reforger 1.8** · [ดู Changelog](CHANGELOG.md)
 
 เครื่องคำนวณการยิงปืนใหญ่และปืนครกสำหรับ **Arma Reforger** ทำงานบนเว็บเบราว์เซอร์ล้วน ไม่ต้องติดตั้งอะไร
 คำนวณ Elevation / Azimuth / Time of Flight พร้อมชดเชยลม ความสูง และแสดงผลบนแผนที่จริง
@@ -34,7 +34,7 @@
 - รองรับพิกัด **Arma Reforger Grid** แบบ 3 / 4 / 5 หลัก (Auto Grid) และแสดงผลเป็น MILs หรือ Degree
 
 ### 🗺️ แผนที่และการแสดงผล
-- **Tactical Top-Down Map** รองรับ **37 แผนที่** (Everon, Arland, Kolguyev, Chernarus, Takistan ฯลฯ) — 5 แผนที่ (Everon, Arland, Kolguyev, Yunakivka, Novobakhmutivka) เก็บใน repo นี้เองพร้อมป้ายชื่อและข้อมูลความสูง ส่วนที่เหลือใช้ภาพจาก ArmaMapTiles
+- **Tactical Top-Down Map** รองรับ **40 แผนที่** (Everon, Arland, Kolguyev, Chernarus, Takistan ฯลฯ) — 5 แผนที่ (Everon, Arland, Kolguyev, Yunakivka, Novobakhmutivka) เก็บใน repo นี้เองพร้อมป้ายชื่อและข้อมูลความสูง ส่วนที่เหลือใช้ภาพจาก ArmaMapTiles
 - ดับเบิลคลิกบนแผนที่เพื่อ **Set Target / Set Gun Position**
 - **🏷️ ป้ายชื่อสถานที่และสัญลักษณ์** บนแผนที่ 5 แผนที่ข้างต้น ซ่อน/แสดงได้ด้วยช่องติ๊ก Labels
 - **⛰️ Auto Z** — ดึงค่าความสูงจากตำแหน่งบนแผนที่ให้อัตโนมัติ (5 แผนที่ข้างต้น)
@@ -80,7 +80,12 @@
 - ภาพแผนที่: [ArmaMapTiles](https://armamaptiles.github.io/) · แผนที่ Everon, Arland, Kolguyev (แผนที่เริ่มต้นของเกม) ทำด้วย Enfusion Map Maker
 - แผนที่ Novobakhmutivka: ผู้สร้าง xJESUSx
 - แผนที่ Yunakivka: ผู้สร้าง Rumor / SPEARHEAD
-- ตารางยิง: ดึงค่าวิถีกระสุนจากไฟล์เกม Arma Reforger และม็อด PandaMods, CIE Artillery, Adult Mortars ด้วยโปรแกรม [Enfusion Ballistics Extractor](https://github.com/Xsign1995/Enfusion-Ballistics-Extractor)
-- ตาราง M982 Excalibur: สร้างจากข้อมูลวิถีกระสุนในม็อด M777 Howitzer Artillery ของ PandaMods (APL-SA)
+- ข้อมูลอาวุธและกระสุนทั้งหมดมาจากเกมและม็อดต่อไปนี้ — ขอบคุณผู้สร้างทุกท่าน (ตารางยิงดึงจากไฟล์ด้วยโปรแกรม [Enfusion Ballistics Extractor](https://github.com/Xsign1995/Enfusion-Ballistics-Extractor)):
+  - **Arma Reforger** (Bohemia Interactive) — 2B14, M252 (โปรไฟล์ Original)
+  - **M777 Howitzer Artillery** โดย **PandaMods** (APL-SA) — M777 Howitzer: M107 HE และ M982 Excalibur
+  - **CIE Artillery** โดย **Ligthman** — M777A1, 2A36 Giatsint-B
+  - **Adult Mortars** โดย **odkupiciel375** — โปรไฟล์ Adult Mortars ของ M252 / 2B14
+  - **Tactical Flava** โดย **KERNOV** — 2B9 Vasilek
+  - **OSP-BM21** โดย **Dazoc** — BM-21 Grad
 
 > โปรเจกต์นี้เป็นเครื่องมือที่แฟนเกมทำขึ้นเอง ไม่มีส่วนเกี่ยวข้องกับ Bohemia Interactive

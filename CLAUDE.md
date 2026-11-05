@@ -3,7 +3,7 @@
 เว็บเครื่องคำนวณปืนใหญ่ / ปืนครกสำหรับ **Arma Reforger** — Universal Artillery Calculator Pro Edition
 - เว็บ: https://xsign1995.github.io/Universal-Artillery-Calculator-Pro-Edition/ (GitHub Pages, deploy ด้วย `.github/workflows/static.yml`)
 - Repo: `Xsign1995/Universal-Artillery-Calculator-Pro-Edition` (public) · branch `main`
-- เวอร์ชันล่าสุด: **v3.7.10** (ดู `CHANGELOG.md`)
+- เวอร์ชันล่าสุด: **v3.7.11** (ดู `CHANGELOG.md`)
 - โปรเจกต์เกี่ยวข้อง: `Xsign1995/Enfusion-2D-Map-Maker` (ทำแผนที่ / tiles / heightmap / labels.json ให้เว็บนี้), `Xsign1995/Enfusion-Ballistics-Extractor` (ดึงตารางยิงจากไฟล์เกม / mod)
 
 ## กติกาการทำงานกับผู้ใช้ (Xsign1995)
@@ -38,7 +38,7 @@
 - localStorage: `m777_selected_map`, `m777_selected_weapon` (อาวุธ / profile / กระสุนล่าสุด — `restoreWeaponSelection()` ตอนโหลด; อาวุธเริ่มต้น = `m777_howitzer` ของ PandaMods), `m777_map_markers` (แยกตามแผนที่), `m777_memory`, `m777_auto_z`, `m777_map_labels` ฯลฯ — ห่อ try/catch
 
 ## แผนที่
-- แผนที่ส่วนใหญ่ (37 แผนที่รวมทั้งหมด) ดึง tiles จาก `https://armamaptiles.github.io/ArmaMapsTiles/<Map>/` (repo คนอื่น — เขียนไม่ได้)
+- แผนที่ส่วนใหญ่ (40 แผนที่รวมทั้งหมด) ดึง tiles จาก `https://armamaptiles.github.io/ArmaMapsTiles/<Map>/` (repo คนอื่น — เขียนไม่ได้)
 - Yunakivka, Novobakhmutivka, Arland, Everon, Kolguyev เก็บใน `maps/` (ทำจาก Enfusion Map Maker ของผู้ใช้; 3 แผนที่หลังเป็นแผนที่เริ่มต้นของเกม — เพิ่ม v3.6.1, heightmap แบบ `FILES`)
   - เปิดผ่าน `file://`: โหลด tile จาก GitHub Pages ของ repo นี้ก่อน (`ONLINE_BASE`, มี CORS → 3D ใช้เป็น texture ได้) ไม่มีเน็ตค่อยใช้ไฟล์ในเครื่อง (2D ได้, 3D เป็นสีตามความสูง)
   - **อัปเดต tiles / height / labels ของแผนที่ใน `maps/` ต้องเปลี่ยนเลข `v` ใน `LOCAL_TILE_MAPS` และ `?v=` ใน SCRIPTS ของ `MapLabels` / `HeightMap`** ไม่งั้นเบราว์เซอร์ใช้ไฟล์เก่าใน cache ปนกับของใหม่ (เคยเกิดกับ Yunakivka)

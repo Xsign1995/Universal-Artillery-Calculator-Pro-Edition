@@ -7,8 +7,8 @@
     <script type="importmap">
      {
         "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
-            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+            "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
      }
     }
     </script>
@@ -2062,13 +2062,9 @@ const HeightMap = (() => {
     const has = (mapName) => !!FILES[mapName];
     const isReady = (mapName) => !!data[mapName];
 
-    async function inflate(bytes) {
-        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
-        return new Uint8Array(await new Response(stream).arrayBuffer());
-    }
-
     // PNG เทา 16 บิต ไม่ interlace → Uint16Array (เรียงแถวจากเหนือไปใต้)
-    async function decodePng16(buf) {
+    // ต้องไม่อ้างตัวแปรนอกฟังก์ชัน — ถูกส่งเป็นข้อความเข้า Worker
+    async function decodePng16Core(buf, yieldFn) {
         const u8 = new Uint8Array(buf), dv = new DataView(buf);
         let pos = 8, w = 0, h = 0;
         const parts = [];
@@ -2083,7 +2079,8 @@ const HeightMap = (() => {
         }
         const comp = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
         for (let i = 0, o = 0; i < parts.length; o += parts[i++].length) comp.set(parts[i], o);
-        const raw = await inflate(comp);
+        const stream = new Blob([comp]).stream().pipeThrough(new DecompressionStream('deflate'));
+        const raw = new Uint8Array(await new Response(stream).arrayBuffer());
         const rb = w * 2, values = new Uint16Array(w * h);
         let cur = new Uint8Array(rb), prev = new Uint8Array(rb);
         for (let y = 0; y < h; y++) {
@@ -2102,17 +2099,39 @@ const HeightMap = (() => {
             const o = y * w;
             for (let i = 0, k = 0; i < w; i++, k += 2) values[o + i] = (cur[k] << 8) | cur[k + 1];
             const t = prev; prev = cur; cur = t;
-            // ถอดรหัสเป็นช่วง ๆ ไม่ให้หน้าเว็บค้าง
-            if ((y & 255) === 255) await new Promise(r => setTimeout(r, 0));
+            if (yieldFn && (y & 255) === 255) await yieldFn();
         }
         return values;
+    }
+
+    // ถอดรหัสใน Worker (Blob) ไม่ให้เธรดหลักสะดุด — ใช้ไม่ได้ก็ถอดในเธรดหลักแทน (พักให้ UI เป็นช่วง ๆ)
+    function decodeInWorker(buf) {
+        return new Promise((resolve, reject) => {
+            let url, worker;
+            try {
+                const src = `const decode=${decodePng16Core.toString()};` +
+                    `onmessage=async e=>{try{const v=await decode(e.data);postMessage(v,[v.buffer]);}` +
+                    `catch(err){postMessage({error:String((err&&err.message)||err)});}};`;
+                url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+                worker = new Worker(url);
+            } catch (e) { if (url) URL.revokeObjectURL(url); reject(e); return; }
+            const finish = () => { worker.terminate(); URL.revokeObjectURL(url); };
+            worker.onmessage = (e) => { finish(); (e.data && e.data.error) ? reject(new Error(e.data.error)) : resolve(e.data); };
+            worker.onerror = () => { finish(); reject(new Error("worker")); };
+            worker.postMessage(buf);
+        });
+    }
+
+    async function decodePng16(buf) {
+        try { return await decodeInWorker(buf); }
+        catch (e) { return decodePng16Core(buf, () => new Promise(r => setTimeout(r, 0))); }
     }
 
     async function loadFiles(mapName) {
         const f = FILES[mapName];
         const base = (location.protocol === "file:" ? SITE_BASE : "") + f.path;
         const q = `?v=${f.v}`;
-        const [jr, pr] = await Promise.all([fetch(base + ".json" + q), fetch(base + ".png" + q)]);
+        const [jr, pr] = await Promise.all([fetch(base + ".json" + q), fetch(base + ".png" + q, { priority: "low" })]);
         if (!jr.ok || !pr.ok) throw new Error(`โหลดไฟล์ความสูงไม่สำเร็จ (${jr.status}/${pr.status})`);
         const j = await jr.json();
         const info = {
@@ -2206,18 +2225,24 @@ function onAutoZToggle() {
 function onMapBgChange(byUser) {
     const val = DOM["mapBgSelect"].value;
     try { localStorage.setItem('m777_selected_map', val); } catch (e) {}
-    MapBackground.setMap(val);
+    const tilesReady = Promise.resolve(MapBackground.setMap(val)).catch(() => {});
+    // 3D: ทิ้งพื้นนูนของแผนที่เก่าทันที → พื้นแบนเมื่อ tiles มา → พื้นนูนเมื่อค่าความสูงมา
+    if (is3DMode) disposeTerrain3D();
+    tilesReady.then(() => { if (is3DMode && currentMapKey() === val) update3DScene(); });
     MapLabels.load(val);
     MapLabels.updateUI(val);
     // ผู้ใช้สลับแผนที่ → เติม Z ใหม่จากแผนที่นี้ (ไม่ทำตอนกู้ค่าแผนที่ตอนเปิดหน้า เพื่อไม่ทับ Z จาก Fire History / Target Memory)
     const refillZ = () => { if (byUser && autoZEnabled && autoFillAllZ()) calculate(); };
     if (!HeightMap.has(val)) { updateAutoZUI('none'); return; }
-    if (HeightMap.isReady(val)) { updateAutoZUI('ready'); refillZ(); return; }
+    if (HeightMap.isReady(val)) { updateAutoZUI('ready'); refillZ(); if (is3DMode) update3DScene(); return; }
     updateAutoZUI('loading');
-    HeightMap.load(val).then(ok => {
+    // ให้ภาพแผนที่ขึ้นก่อน แล้วค่อยโหลดค่าความสูง (ไฟล์ใหญ่ ไม่แย่งแบนด์วิดท์กับ tiles)
+    tilesReady.then(() => currentMapKey() === val && HeightMap.load(val)).then(ok => {
         if (currentMapKey() !== val) return;
         updateAutoZUI(ok ? 'ready' : 'none');
         if (ok) refillZ();
+        // อยู่โหมด 3D: สร้างพื้นนูนใหม่เมื่อค่าความสูงมาถึง (ไม่งั้นค้างเป็นพื้นแบน)
+        if (ok && is3DMode) update3DScene();
         // คำนวณไว้ก่อน heightmap โหลดเสร็จ (เปิดหน้า / รีเฟรช) → วาดกราฟใหม่ให้มีพื้นดิน
         if (ok && trajLastArgs && currentCalcData) { trajSkipAnim = true; drawTrajectory(...trajLastArgs); }
     });
@@ -3803,7 +3828,7 @@ function heightColor(t) {
     return stops[stops.length - 1][1];
 }
 
-function buildTerrain3D(mapName, gunX, gunY, gunZ, dx, dy, dist) {
+function buildTerrain3D(mapName, gunX, gunY, gunZ, dx, dy, dist, grow) {
     disposeTerrain3D();
     const meta = MapBackground.getCurrent()?.meta;
     const W = meta ? meta.width : Infinity, H = meta ? meta.height : Infinity;
@@ -3857,6 +3882,23 @@ function buildTerrain3D(mapName, gunX, gunY, gunZ, dx, dy, dist) {
     mesh.renderOrder = -1;
     scene.add(mesh);
     terrain3D = { mesh, mapName, gunX, gunY, gunZ, cell: Math.max((x1 - x0) / nx, (y1 - y0) / ny) };
+    // ต่อจากพื้นแบน: ค่อย ๆ ยกพื้นขึ้นเป็นนูน
+    if (grow) {
+        const finalY = new Float32Array(count);
+        for (let k = 0; k < count; k++) { finalY[k] = pos[k * 3 + 1]; pos[k * 3 + 1] = 0; }
+        mesh.frustumCulled = false; // ขอบเขตคำนวณจากพื้นแบน ไม่ตรงกับพื้นที่ยกขึ้น
+        terrain3D.grow = { t0: performance.now(), dur: 700, finalY };
+    }
+}
+
+function stepTerrainGrow() {
+    const g = terrain3D && terrain3D.grow;
+    if (!g) return;
+    const t = Math.min(1, (performance.now() - g.t0) / g.dur), e = 1 - Math.pow(1 - t, 3);
+    const attr = terrain3D.mesh.geometry.attributes.position;
+    for (let k = 0; k < g.finalY.length; k++) attr.array[k * 3 + 1] = g.finalY[k] * e;
+    attr.needsUpdate = true;
+    if (t >= 1) terrain3D.grow = null;
 }
 
 function updateGroundPlane3D(gunX, gunY) {
@@ -3897,7 +3939,7 @@ function updateGroundPlane3D(gunX, gunY) {
 function animate3D() {
     if (!is3DMode) return; 
     animationFrameId = requestAnimationFrame(animate3D);
-    tickAnim3D();
+    tickAnim3D(); stepTerrainGrow();
     if (controls) controls.update(); if (renderer && scene && camera) renderer.render(scene, camera);
 }
 
@@ -3987,8 +4029,9 @@ function update3DScene() {
 
     const mapName = currentMapKey();
     if (MapBackground.getCurrent() && HeightMap.isReady(mapName) && typeof gunX === 'number') {
+        const grow = !!groundPlane3D;
         if (groundPlane3D) { scene.remove(groundPlane3D); groundPlane3D.geometry.dispose(); groundPlane3D.material.dispose(); groundPlane3D = null; groundPlaneMapName = null; }
-        buildTerrain3D(mapName, gunX, gunY, gunZ || 0, dx, dy, dist);
+        buildTerrain3D(mapName, gunX, gunY, gunZ || 0, dx, dy, dist, grow);
     } else {
         disposeTerrain3D();
         if (typeof gunX === 'number' && typeof gunY === 'number') { updateGroundPlane3D(gunX, gunY); }

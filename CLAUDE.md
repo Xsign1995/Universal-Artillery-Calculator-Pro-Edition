@@ -3,7 +3,7 @@
 เว็บเครื่องคำนวณปืนใหญ่ / ปืนครกสำหรับ **Arma Reforger** — Universal Artillery Calculator Pro Edition
 - เว็บ: https://xsign1995.github.io/Universal-Artillery-Calculator-Pro-Edition/ (GitHub Pages, deploy ด้วย `.github/workflows/static.yml`)
 - Repo: `Xsign1995/Universal-Artillery-Calculator-Pro-Edition` (public) · branch `main`
-- เวอร์ชันล่าสุด: **v3.7.11** (ดู `CHANGELOG.md`)
+- เวอร์ชันล่าสุด: **v3.7.12** (ดู `CHANGELOG.md`)
 - โปรเจกต์เกี่ยวข้อง: `Xsign1995/Enfusion-2D-Map-Maker` (ทำแผนที่ / tiles / heightmap / labels.json ให้เว็บนี้), `Xsign1995/Enfusion-Ballistics-Extractor` (ดึงตารางยิงจากไฟล์เกม / mod)
 
 ## กติกาการทำงานกับผู้ใช้ (Xsign1995)
@@ -23,7 +23,7 @@
 ## โครงสร้าง
 | ไฟล์ | หน้าที่ |
 |---|---|
-| `index.html` | ทั้งแอป (HTML + CSS + JS) — คำนวณ, แผนที่ 2D, กราฟวิถี 2D / 3D (Three.js 0.165 จาก jsDelivr ผ่าน importmap) |
+| `index.html` | ทั้งแอป (HTML + CSS + JS) — คำนวณ, แผนที่ 2D, กราฟวิถี 2D / 3D (Three.js 0.187 จาก jsDelivr ผ่าน importmap) |
 | `ballistic_data.js` | ไฟล์เดียว format 2 จาก Enfusion Ballistics Extractor: `WEAPONS` (รายการปืน / profile / กระสุน → key ตาราง, ผู้ใช้แก้เองได้) + `BALLISTIC_TABLES` (ระหว่าง `EBX-TABLES-BEGIN/END`; ต่อกระสุน: `gun` (milSystem, limits), `ammo` (v0, airDrag, mass), `charges` (v0 ต่อ charge), `wind` (ค่าสำรอง), `highAngle` / `lowAngle` → แถว `[RANGE, ELEV, TOF, dELEV, dTOF, PEAK, FALL, XWIND, LWIND]`) — **ห้ามแก้ตารางตรง** (Extractor เขียนทับ) · `index.html` สร้าง `weaponLibrary` จาก WEAPONS ตอนโหลด และเติม `<select id="weaponSelect">` เอง |
 | `maps/<Map>/` | tiles Zoomify ของแผนที่ที่เก็บใน repo เอง (Yunakivka, Novobakhmutivka, Arland, Everon, Kolguyev) · ชุดใหม่มี `<Map>_height.png` (16 บิต) + `.json` อยู่ในโฟลเดอร์เดียวกัน |
 | `maps/<map>_labels.js` | ป้ายชื่อ / จุด / สัญลักษณ์จาก labels.json ของ Map Maker → `window.LOCAL_MAP_LABELS` |
@@ -32,6 +32,7 @@
 - `DOM` (Proxy cache ของ element), `ArtilleryPhysics` (IIFE ฟิสิกส์ล้วน ใช้ทั้ง `calculate()` และ `calculateFOCorrection()`)
 - `calculate()` → `collectGunPositions()` → `computeSheafTargets()` → `computeSolutionForGun()` ต่อกระบอก
 - `MapBackground` (tiles): `ALLOWED_MAPS` ต้องตรงกับ `<option>` ใน `#mapBgSelect` เสมอ · `LOCAL_TILE_MAPS` = แผนที่ใน `maps/` (มี `v` = เวอร์ชัน tile)
+- โหลดแผนที่: tiles ก่อน แล้วค่อยโหลด heightmap (`onMapBgChange`) · heightmap ถอดรหัสใน Worker (Blob) · โหมด 3D: พื้นแบน → พื้นนูนค่อย ๆ ยก (`stepTerrainGrow`) · `.github/scripts/warm_cache.py` อุ่น CDN หลัง deploy (อ่านเลข `v` จาก index.html)
 - `MapLabels`, `HeightMap` (Auto Z), `buildTerrain3D()` (พื้น 3D นูน), `loadScriptOnce()`
 - `parseArmaGridValue()`: 3 หลัก = ช่อง 100 m (+50), 4 หลัก = 10 m (+5), 5 หลัก = 1 m, มีทศนิยม = ไม่บวกกลางช่อง · `snapTo10mGrid()`
 - ความคมชัด: `setupHiDPICanvas()` ปรับ backing store ตามขนาดแสดงผล × devicePixelRatio (แผนที่ 2D / กราฟวิถี 2D) · Three.js ต้อง `renderer.setPixelRatio(min(dpr, 2))` ทุกครั้งที่สร้าง / ปรับขนาด (ถ้าไม่ตั้งจะเบลอบนจอ HiDPI) · ห้ามใส่เลเยอร์ fixed เต็มจอ / `mix-blend-mode` ทับหน้า

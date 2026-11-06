@@ -41,3 +41,9 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+      - name: Warm CDN cache
+        # ไม่ให้ deploy ล้มเหลวถ้าอุ่น cache ไม่สำเร็จ
+        continue-on-error: true
+        run: |
+          sleep 20
+          python3 .github/scripts/warm_cache.py "${{ steps.deployment.outputs.page_url }}"

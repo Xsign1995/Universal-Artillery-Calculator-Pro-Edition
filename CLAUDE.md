@@ -3,7 +3,7 @@
 เว็บเครื่องคำนวณปืนใหญ่ / ปืนครกสำหรับ **Arma Reforger** — Universal Artillery Calculator Pro Edition
 - เว็บ: https://xsign1995.github.io/Universal-Artillery-Calculator-Pro-Edition/ (GitHub Pages, deploy ด้วย `.github/workflows/static.yml`)
 - Repo: `Xsign1995/Universal-Artillery-Calculator-Pro-Edition` (public) · branch `main`
-- เวอร์ชันล่าสุด: **v3.7.12** (ดู `CHANGELOG.md`)
+- เวอร์ชันล่าสุด: **v3.7.13** (ดู `CHANGELOG.md`)
 - โปรเจกต์เกี่ยวข้อง: `Xsign1995/Enfusion-2D-Map-Maker` (ทำแผนที่ / tiles / heightmap / labels.json ให้เว็บนี้), `Xsign1995/Enfusion-Ballistics-Extractor` (ดึงตารางยิงจากไฟล์เกม / mod)
 
 ## กติกาการทำงานกับผู้ใช้ (Xsign1995)
@@ -32,7 +32,8 @@
 - `DOM` (Proxy cache ของ element), `ArtilleryPhysics` (IIFE ฟิสิกส์ล้วน ใช้ทั้ง `calculate()` และ `calculateFOCorrection()`)
 - `calculate()` → `collectGunPositions()` → `computeSheafTargets()` → `computeSolutionForGun()` ต่อกระบอก
 - `MapBackground` (tiles): `ALLOWED_MAPS` ต้องตรงกับ `<option>` ใน `#mapBgSelect` เสมอ · `LOCAL_TILE_MAPS` = แผนที่ใน `maps/` (มี `v` = เวอร์ชัน tile)
-- โหลดแผนที่: tiles ก่อน แล้วค่อยโหลด heightmap (`onMapBgChange`) · heightmap ถอดรหัสใน Worker (Blob) · โหมด 3D: พื้นแบน → พื้นนูนค่อย ๆ ยก (`stepTerrainGrow`) · `.github/scripts/warm_cache.py` อุ่น CDN หลัง deploy (อ่านเลข `v` จาก index.html)
+- GitHub Pages CDN: ทุก tile เป็น MISS หลัง deploy และอุ่นจาก Actions ไม่ได้ผล (ลองแล้ว ถอดออก) — คอขวดคือ TTFB ~400 ms ต่อไฟล์ ทางแก้จริงคือย้ายไฟล์ไปโฮสต์ที่ cache ยาว (Cloudflare / Firebase Hosting)
+- โหลดแผนที่: tiles กับ heightmap โหลดพร้อมกัน (เคยลองให้ tiles ก่อน แล้ววัด ไม่ช่วยบนเน็ตเร็ว — ถอดออก) · heightmap ถอดรหัสใน Worker (Blob) ลด task บนเธรดหลัก 140 → <90 ms (วัดแล้ว ช่วยจริง)
 - `MapLabels`, `HeightMap` (Auto Z), `buildTerrain3D()` (พื้น 3D นูน), `loadScriptOnce()`
 - `parseArmaGridValue()`: 3 หลัก = ช่อง 100 m (+50), 4 หลัก = 10 m (+5), 5 หลัก = 1 m, มีทศนิยม = ไม่บวกกลางช่อง · `snapTo10mGrid()`
 - ความคมชัด: `setupHiDPICanvas()` ปรับ backing store ตามขนาดแสดงผล × devicePixelRatio (แผนที่ 2D / กราฟวิถี 2D) · Three.js ต้อง `renderer.setPixelRatio(min(dpr, 2))` ทุกครั้งที่สร้าง / ปรับขนาด (ถ้าไม่ตั้งจะเบลอบนจอ HiDPI) · ห้ามใส่เลเยอร์ fixed เต็มจอ / `mix-blend-mode` ทับหน้า

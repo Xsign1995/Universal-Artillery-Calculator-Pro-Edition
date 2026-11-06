@@ -2225,19 +2225,15 @@ function onAutoZToggle() {
 function onMapBgChange(byUser) {
     const val = DOM["mapBgSelect"].value;
     try { localStorage.setItem('m777_selected_map', val); } catch (e) {}
-    const tilesReady = Promise.resolve(MapBackground.setMap(val)).catch(() => {});
-    // 3D: ทิ้งพื้นนูนของแผนที่เก่าทันที → พื้นแบนเมื่อ tiles มา → พื้นนูนเมื่อค่าความสูงมา
-    if (is3DMode) disposeTerrain3D();
-    tilesReady.then(() => { if (is3DMode && currentMapKey() === val) update3DScene(); });
+    MapBackground.setMap(val);
     MapLabels.load(val);
     MapLabels.updateUI(val);
     // ผู้ใช้สลับแผนที่ → เติม Z ใหม่จากแผนที่นี้ (ไม่ทำตอนกู้ค่าแผนที่ตอนเปิดหน้า เพื่อไม่ทับ Z จาก Fire History / Target Memory)
     const refillZ = () => { if (byUser && autoZEnabled && autoFillAllZ()) calculate(); };
     if (!HeightMap.has(val)) { updateAutoZUI('none'); return; }
-    if (HeightMap.isReady(val)) { updateAutoZUI('ready'); refillZ(); if (is3DMode) update3DScene(); return; }
+    if (HeightMap.isReady(val)) { updateAutoZUI('ready'); refillZ(); return; }
     updateAutoZUI('loading');
-    // ให้ภาพแผนที่ขึ้นก่อน แล้วค่อยโหลดค่าความสูง (ไฟล์ใหญ่ ไม่แย่งแบนด์วิดท์กับ tiles)
-    tilesReady.then(() => currentMapKey() === val && HeightMap.load(val)).then(ok => {
+    HeightMap.load(val).then(ok => {
         if (currentMapKey() !== val) return;
         updateAutoZUI(ok ? 'ready' : 'none');
         if (ok) refillZ();
@@ -3828,7 +3824,7 @@ function heightColor(t) {
     return stops[stops.length - 1][1];
 }
 
-function buildTerrain3D(mapName, gunX, gunY, gunZ, dx, dy, dist, grow) {
+function buildTerrain3D(mapName, gunX, gunY, gunZ, dx, dy, dist) {
     disposeTerrain3D();
     const meta = MapBackground.getCurrent()?.meta;
     const W = meta ? meta.width : Infinity, H = meta ? meta.height : Infinity;
@@ -3882,23 +3878,6 @@ function buildTerrain3D(mapName, gunX, gunY, gunZ, dx, dy, dist, grow) {
     mesh.renderOrder = -1;
     scene.add(mesh);
     terrain3D = { mesh, mapName, gunX, gunY, gunZ, cell: Math.max((x1 - x0) / nx, (y1 - y0) / ny) };
-    // ต่อจากพื้นแบน: ค่อย ๆ ยกพื้นขึ้นเป็นนูน
-    if (grow) {
-        const finalY = new Float32Array(count);
-        for (let k = 0; k < count; k++) { finalY[k] = pos[k * 3 + 1]; pos[k * 3 + 1] = 0; }
-        mesh.frustumCulled = false; // ขอบเขตคำนวณจากพื้นแบน ไม่ตรงกับพื้นที่ยกขึ้น
-        terrain3D.grow = { t0: performance.now(), dur: 700, finalY };
-    }
-}
-
-function stepTerrainGrow() {
-    const g = terrain3D && terrain3D.grow;
-    if (!g) return;
-    const t = Math.min(1, (performance.now() - g.t0) / g.dur), e = 1 - Math.pow(1 - t, 3);
-    const attr = terrain3D.mesh.geometry.attributes.position;
-    for (let k = 0; k < g.finalY.length; k++) attr.array[k * 3 + 1] = g.finalY[k] * e;
-    attr.needsUpdate = true;
-    if (t >= 1) terrain3D.grow = null;
 }
 
 function updateGroundPlane3D(gunX, gunY) {
@@ -3939,7 +3918,7 @@ function updateGroundPlane3D(gunX, gunY) {
 function animate3D() {
     if (!is3DMode) return; 
     animationFrameId = requestAnimationFrame(animate3D);
-    tickAnim3D(); stepTerrainGrow();
+    tickAnim3D();
     if (controls) controls.update(); if (renderer && scene && camera) renderer.render(scene, camera);
 }
 
@@ -4029,9 +4008,8 @@ function update3DScene() {
 
     const mapName = currentMapKey();
     if (MapBackground.getCurrent() && HeightMap.isReady(mapName) && typeof gunX === 'number') {
-        const grow = !!groundPlane3D;
         if (groundPlane3D) { scene.remove(groundPlane3D); groundPlane3D.geometry.dispose(); groundPlane3D.material.dispose(); groundPlane3D = null; groundPlaneMapName = null; }
-        buildTerrain3D(mapName, gunX, gunY, gunZ || 0, dx, dy, dist, grow);
+        buildTerrain3D(mapName, gunX, gunY, gunZ || 0, dx, dy, dist);
     } else {
         disposeTerrain3D();
         if (typeof gunX === 'number' && typeof gunY === 'number') { updateGroundPlane3D(gunX, gunY); }
